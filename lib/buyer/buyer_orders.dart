@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'models/buyer_order_model.dart';
 import 'widgets/buyer_header.dart';
 import 'widgets/buyer_order_card.dart';
+import 'buyer_order_details.dart';
+import 'buyer_messages.dart';
 
 class BuyerOrders extends StatefulWidget {
   final ValueChanged<int>? onTabChanged;
@@ -165,12 +167,10 @@ class _BuyerOrdersState extends State<BuyerOrders> {
                         child: BuyerOrderCard(
                           order: order,
                           onCopy: () => _copyOrderNumber(order),
-                          onMessageSeller: () => _toast(
-                            'Messages page will connect to Seller #${order.sellerAccountId}.',
-                          ),
-                          onViewDetails: () =>
-                              _toast('Order Details page is the next step.'),
-                          onTrackOrder: () => _showTracking(order),
+                          onMessageSeller: () =>
+                              _openMessages(order.sellerAccountId),
+                          onViewDetails: () => _openOrderDetails(order),
+                          onTrackOrder: () => _openOrderDetails(order),
                           onReturnRequest: order.isDelivered
                               ? () => _showReturnRequest(order)
                               : null,
@@ -1001,6 +1001,40 @@ class _BuyerOrdersState extends State<BuyerOrders> {
     await Clipboard.setData(ClipboardData(text: order.orderNumber));
     if (!mounted) return;
     _toast('${order.orderNumber} copied.');
+  }
+
+
+  void _openMessages(int sellerId) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BuyerMessages(
+          initialSellerId: sellerId,
+        ),
+      ),
+    );
+  }
+
+  void _openOrderDetails(BuyerOrder order) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BuyerOrderDetails(
+          order: order,
+          onContactSupport: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Support will be connected later.',
+                ),
+              ),
+            );
+          },
+          onMessageSeller: () =>
+              _openMessages(order.sellerAccountId),
+        ),
+      ),
+    );
   }
 
   void _showTracking(BuyerOrder order) {

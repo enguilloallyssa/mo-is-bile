@@ -1,9 +1,8 @@
-// ignore_for_file: unused_field
-
 import 'package:flutter/material.dart';
 import 'models/buyer_product_model.dart';
 import 'models/buyer_cart_model.dart';
 import 'buyer_checkout.dart';
+import 'buyer_messages.dart';
 
 class BuyerProductDetails extends StatefulWidget {
   final BuyerProduct product;
@@ -926,8 +925,14 @@ class _BuyerProductDetailsState extends State<BuyerProductDetails> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: widget.onMessageSeller ??
-                          () => _toast(
-                                'Messages page will be connected later.',
+                          () => Navigator.push<void>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => BuyerMessages(
+                                    initialSellerId:
+                                        product.sellerAccountId,
+                                  ),
+                                ),
                               ),
                       style: OutlinedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFFAF1),
