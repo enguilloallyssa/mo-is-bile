@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'screen/dashboard_screen.dart';
+import 'buyer/buyer_shell.dart';
+import 'logistics/logistics_shell.dart';
+import 'rider/rider_shell.dart';
 import 'screen/login_screen.dart';
 import 'screen/register_screen.dart';
 
@@ -30,7 +32,9 @@ class SariApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/dashboard': (context) => const DashboardScreen(),
+        '/buyer': (context) => const BuyerShell(),
+        '/rider': (context) => const RiderShell(),
+        '/logistics': (context) => const LogisticsShell(),
       },
     );
   }
