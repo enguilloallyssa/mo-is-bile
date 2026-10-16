@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'models/buyer_product_model.dart';
 import 'widgets/buyer_header.dart';
 import 'widgets/buyer_product_card.dart';
+import 'buyer_rewards.dart';
 
 class BuyerHome extends StatefulWidget {
   final ValueChanged<int>? onTabChanged;
@@ -109,8 +110,8 @@ class _BuyerHomeState extends State<BuyerHome> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _hero(),
-                  _benefits(),
+                  _hero(context),
+                  _benefits(context),
                   _sectionHeader(
                     title: 'Shop by Category',
                     actionText: 'View all categories',
@@ -124,8 +125,8 @@ class _BuyerHomeState extends State<BuyerHome> {
                   ),
                   _featuredDeals(),
                   _recommendedProducts(),
-                  _rewardsBanner(),
-                  _trustSection(),
+                  _rewardsBanner(context),
+                  _trustSection(context),
                 ],
               ),
             ),
@@ -135,10 +136,12 @@ class _BuyerHomeState extends State<BuyerHome> {
     );
   }
 
-  Widget _hero() {
+  Widget _hero(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final compact = width < 380;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-      height: 320,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFEADFCE)),
@@ -146,118 +149,142 @@ class _BuyerHomeState extends State<BuyerHome> {
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
-        fit: StackFit.expand,
         children: [
-          Image.asset(
-            'assets/images/sari-hero-bg.webp',
-            fit: BoxFit.cover,
-            alignment: Alignment.centerRight,
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/sari-hero-bg.webp',
+              fit: BoxFit.cover,
+              alignment: Alignment.centerRight,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
           ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFFFFFCF7),
-                  const Color(0xFFFFFAF1).withValues(alpha: .96),
-                  const Color(0xFFFFF9EF).withValues(alpha: .60),
-                  Colors.transparent,
-                ],
-                stops: const [0, .43, .70, 1],
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFFFFCF7),
+                    const Color(0xFFFFFAF1).withValues(alpha: .97),
+                    const Color(0xFFFFF9EF).withValues(alpha: .78),
+                    Colors.transparent,
+                  ],
+                  stops: const [0, .42, .72, 1],
+                ),
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 30, 22, 24),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: SizedBox(
-                width: 285,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _smallPill('Elevated Everyday'),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Variety You Need,',
-                      style: TextStyle(
-                        color: Color(0xFF171411),
-                        fontSize: 32,
-                        height: 1.02,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -1.2,
-                      ),
-                    ),
-                    const Text(
-                      'Convenience You Deserve.',
-                      style: TextStyle(
-                        color: Color(0xFFB8790F),
-                        fontSize: 32,
-                        height: 1.02,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Discover brand new finds, everyday essentials, and everything in between — all in one trusted marketplace.',
-                      style: TextStyle(
-                        color: Color(0xFF6F675F),
-                        fontSize: 10,
-                        height: 1.6,
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    Row(
-                      children: [
-                        ElevatedButton(
-                          onPressed: () => widget.onTabChanged?.call(1),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFCC8A0B),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            minimumSize: const Size(112, 42),
-                          ),
-                          child: const Text(
-                            'Shop Now  →',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+            padding: EdgeInsets.fromLTRB(
+              compact ? 16 : 22,
+              compact ? 21 : 28,
+              compact ? 16 : 22,
+              compact ? 20 : 24,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: compact ? 305 : 330,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: compact ? width * .72 : 285,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _smallPill('Elevated Everyday'),
+                      const SizedBox(height: 13),
+                      Text(
+                        'Variety You Need,',
+                        style: TextStyle(
+                          color: const Color(0xFF171411),
+                          fontSize: compact ? 27 : 32,
+                          height: 1.03,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: compact ? -.8 : -1.2,
                         ),
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          onPressed: () {},
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF514940),
-                            minimumSize: const Size(130, 42),
-                            side: const BorderSide(
-                              color: Color(0xFFDDD3C6),
-                            ),
-                          ),
-                          child: const Text(
-                            'Explore Categories',
-                            style: TextStyle(
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                      ),
+                      Text(
+                        'Convenience You Deserve.',
+                        style: TextStyle(
+                          color: const Color(0xFFB8790F),
+                          fontSize: compact ? 27 : 32,
+                          height: 1.03,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: compact ? -.8 : -1.2,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 13),
-                    const Wrap(
-                      spacing: 12,
-                      runSpacing: 6,
-                      children: [
-                        _TrustMini(label: 'Trusted Sellers'),
-                        _TrustMini(label: 'Secure Payments'),
-                        _TrustMini(label: 'Easy Returns'),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(height: 11),
+                      Text(
+                        'Discover brand new finds, everyday essentials, and everything in between — all in one trusted marketplace.',
+                        style: TextStyle(
+                          color: const Color(0xFF6F675F),
+                          fontSize: compact ? 8.5 : 9.5,
+                          height: 1.55,
+                        ),
+                      ),
+                      const SizedBox(height: 13),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          SizedBox(
+                            height: 40,
+                            child: ElevatedButton(
+                              onPressed: () => widget.onTabChanged?.call(1),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFCC8A0B),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 17),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
+                              ),
+                              child: const Text(
+                                'Shop Now  →',
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            height: 40,
+                            child: OutlinedButton(
+                              onPressed: () => widget.onTabChanged?.call(1),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF514940),
+                                padding: const EdgeInsets.symmetric(horizontal: 13),
+                                side: const BorderSide(color: Color(0xFFDDD3C6)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
+                              ),
+                              child: const Text(
+                                'Explore Categories',
+                                style: TextStyle(
+                                  fontSize: 7.8,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Wrap(
+                        spacing: 10,
+                        runSpacing: 7,
+                        children: [
+                          _TrustMini(label: 'Trusted Sellers'),
+                          _TrustMini(label: 'Secure Payments'),
+                          _TrustMini(label: 'Easy Returns'),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -267,61 +294,68 @@ class _BuyerHomeState extends State<BuyerHome> {
     );
   }
 
-  Widget _benefits() {
+  Widget _benefits(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 380;
+
     final items = const [
-      (
-        Icons.local_shipping_outlined,
-        'Free Shipping',
-        'On eligible orders',
-      ),
-      (
-        Icons.card_giftcard_outlined,
-        'Earn Rewards',
-        'Shop and earn points',
-      ),
-      (
-        Icons.shield_outlined,
-        'Secure Payments',
-        'Safe and protected',
-      ),
-      (
-        Icons.storefront_outlined,
-        'Verified Sellers',
-        'Quality and trusted',
-      ),
+      (Icons.local_shipping_outlined, 'Free Shipping', 'On eligible orders'),
+      (Icons.card_giftcard_outlined, 'Earn Rewards', 'Shop and earn points'),
+      (Icons.shield_outlined, 'Secure Payments', 'Safe and protected'),
+      (Icons.storefront_outlined, 'Verified Sellers', 'Quality and trusted'),
     ];
 
     return Container(
       margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFE9E3DB)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C0F172A),
+            blurRadius: 22,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
-      child: GridView.count(
-        crossAxisCount: 2,
+      child: GridView.builder(
+        itemCount: items.length,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 2.5,
-        children: items.map((item) {
-          return Padding(
-            padding: const EdgeInsets.all(12),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childAspectRatio: compact ? 1.92 : 2.15,
+        ),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return Container(
+            padding: EdgeInsets.all(compact ? 8 : 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE8EDF3)),
+            ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
-                  width: 38,
-                  height: 38,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFFFFF4DD),
+                  width: compact ? 34 : 36,
+                  height: compact ? 34 : 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F6F8),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE8EDF3)),
                   ),
                   child: Icon(
                     item.$1,
-                    color: const Color(0xFFB97810),
-                    size: 18,
+                    color: const Color(0xFFB77905),
+                    size: compact ? 16 : 18,
                   ),
                 ),
-                const SizedBox(width: 9),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -329,18 +363,24 @@ class _BuyerHomeState extends State<BuyerHome> {
                     children: [
                       Text(
                         item.$2,
-                        style: const TextStyle(
-                          color: Color(0xFF302A24),
-                          fontSize: 9,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: const Color(0xFF111827),
+                          fontSize: compact ? 7.7 : 8.5,
+                          height: 1.12,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       Text(
                         item.$3,
-                        style: const TextStyle(
-                          color: Color(0xFF8F867C),
-                          fontSize: 7,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: const Color(0xFF7B8493),
+                          fontSize: compact ? 6.1 : 6.5,
+                          height: 1.35,
                         ),
                       ),
                     ],
@@ -349,7 +389,7 @@ class _BuyerHomeState extends State<BuyerHome> {
               ],
             ),
           );
-        }).toList(),
+        },
       ),
     );
   }
@@ -618,7 +658,7 @@ class _BuyerHomeState extends State<BuyerHome> {
               crossAxisCount: 2,
               crossAxisSpacing: 9,
               mainAxisSpacing: 9,
-              childAspectRatio: .58,
+              childAspectRatio: .45,
             ),
             itemBuilder: (context, index) {
               final product = featuredProducts[index];
@@ -671,95 +711,107 @@ class _BuyerHomeState extends State<BuyerHome> {
     );
   }
 
-  Widget _rewardsBanner() {
+  Widget _rewardsBanner(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 380;
+
+    final copy = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        Text(
+          'Rewards & Vouchers',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          'Shop more. Earn more. Enjoy exclusive deals and vouchers.',
+          style: TextStyle(
+            color: Color(0xFFC8C0B7),
+            fontSize: 7.6,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+
+    final button = SizedBox(
+      height: 38,
+      child: ElevatedButton(
+        onPressed: () => Navigator.push<void>(
+          context,
+          MaterialPageRoute(builder: (_) => const BuyerRewards()),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFD39211),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 13),
+        ),
+        child: const Text('View Rewards', style: TextStyle(fontSize: 7.7)),
+      ),
+    );
+
     return Container(
       margin: const EdgeInsets.fromLTRB(10, 20, 10, 0),
-      padding: const EdgeInsets.all(17),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF272522),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF3A3732)),
       ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 92,
-            height: 85,
-            child: Image.asset(
-              'assets/images/reward-voucher.png',
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.card_giftcard,
-                color: Color(0xFFD39211),
-                size: 50,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Column(
+      child: compact
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Rewards & Vouchers',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    _rewardImage(68),
+                    const SizedBox(width: 10),
+                    Expanded(child: copy),
+                  ],
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'Shop more. Earn more. Enjoy exclusive deals and vouchers.',
-                  style: TextStyle(
-                    color: Color(0xFFC8C0B7),
-                    fontSize: 8,
-                    height: 1.4,
-                  ),
-                ),
+                const SizedBox(height: 11),
+                button,
+              ],
+            )
+          : Row(
+              children: [
+                _rewardImage(82),
+                const SizedBox(width: 10),
+                Expanded(child: copy),
+                const SizedBox(width: 8),
+                button,
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD39211),
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            child: const Text(
-              'Learn More',
-              style: TextStyle(fontSize: 8),
-            ),
-          ),
-        ],
+    );
+  }
+
+  Widget _rewardImage(double size) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Image.asset(
+        'assets/images/reward-voucher.png',
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => const Icon(
+          Icons.card_giftcard,
+          color: Color(0xFFD39211),
+          size: 44,
+        ),
       ),
     );
   }
 
-  Widget _trustSection() {
+  Widget _trustSection(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 380;
     const items = [
-      (
-        Icons.verified_user_outlined,
-        'Quality Products',
-        'Shop with confidence from approved listings.',
-      ),
-      (
-        Icons.lock_outline,
-        'Secure Payments',
-        'Your checkout data stays protected.',
-      ),
-      (
-        Icons.inventory_2_outlined,
-        'Easy Returns',
-        'Hassle-free support for eligible purchases.',
-      ),
-      (
-        Icons.support_agent,
-        '24/7 Support',
-        'Help is available whenever you need it.',
-      ),
+      (Icons.verified_user_outlined, 'Quality Products', 'Shop with confidence from approved listings.'),
+      (Icons.lock_outline, 'Secure Payments', 'Your checkout data stays protected.'),
+      (Icons.inventory_2_outlined, 'Easy Returns', 'Hassle-free support for eligible purchases.'),
+      (Icons.support_agent, '24/7 Support', 'Help is available whenever you need it.'),
     ];
 
     return Padding(
@@ -776,39 +828,38 @@ class _BuyerHomeState extends State<BuyerHome> {
             ),
           ),
           const SizedBox(height: 10),
-          GridView.count(
-            crossAxisCount: 2,
+          GridView.builder(
+            itemCount: items.length,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 2.1,
-            children: items.map((item) {
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: compact ? 1.70 : 1.90,
+            ),
+            itemBuilder: (context, index) {
+              final item = items[index];
               return Container(
-                padding: const EdgeInsets.all(11),
+                padding: EdgeInsets.all(compact ? 9 : 10),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFE9E3DB),
-                  ),
+                  border: Border.all(color: const Color(0xFFE9E3DB)),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: compact ? 32 : 35,
+                      height: compact ? 32 : 35,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         color: Color(0xFFFFF4DE),
                       ),
-                      child: Icon(
-                        item.$1,
-                        color: const Color(0xFFB97810),
-                        size: 17,
-                      ),
+                      child: Icon(item.$1, color: const Color(0xFFB97810), size: 16),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 7),
                     Expanded(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -816,9 +867,12 @@ class _BuyerHomeState extends State<BuyerHome> {
                         children: [
                           Text(
                             item.$2,
-                            style: const TextStyle(
-                              color: Color(0xFF39322C),
-                              fontSize: 8,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: const Color(0xFF39322C),
+                              fontSize: compact ? 7.5 : 8,
+                              height: 1.12,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -827,10 +881,10 @@ class _BuyerHomeState extends State<BuyerHome> {
                             item.$3,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF938B82),
-                              fontSize: 6.5,
-                              height: 1.3,
+                            style: TextStyle(
+                              color: const Color(0xFF938B82),
+                              fontSize: compact ? 5.9 : 6.4,
+                              height: 1.25,
                             ),
                           ),
                         ],
@@ -839,7 +893,7 @@ class _BuyerHomeState extends State<BuyerHome> {
                   ],
                 ),
               );
-            }).toList(),
+            },
           ),
         ],
       ),

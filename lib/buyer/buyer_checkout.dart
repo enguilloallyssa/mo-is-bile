@@ -78,18 +78,32 @@ class _BuyerCheckoutState extends State<BuyerCheckout> {
     );
   }
 
-  double get _deliveryFee {
-    double fee = 0;
+  double get _originalDeliveryFee =>
+      _sellerGroups.length * _deliveryFeePerSeller;
 
+  double _groupSubtotal(List<BuyerCartItem> items) {
+    return items.fold(0, (sum, item) => sum + item.lineTotal);
+  }
+
+  bool _groupHasFreeShippingPromo(List<BuyerCartItem> items) {
+    return items.any((item) => item.freeShipping);
+  }
+
+  bool _groupFreeShippingEligible(List<BuyerCartItem> items) {
+    return _groupHasFreeShippingPromo(items) && _groupSubtotal(items) >= 500;
+  }
+
+  double get _shippingDiscount {
+    double discount = 0;
     for (final group in _sellerGroups.values) {
-      final allFreeShipping = group.every((item) => item.freeShipping);
-      if (!allFreeShipping) {
-        fee += _deliveryFeePerSeller;
+      if (_groupFreeShippingEligible(group)) {
+        discount += _deliveryFeePerSeller;
       }
     }
-
-    return fee;
+    return discount;
   }
+
+  double get _deliveryFee => _originalDeliveryFee - _shippingDiscount;
 
   double get _grandTotal => _subtotal + _deliveryFee;
 
@@ -311,6 +325,10 @@ class _BuyerCheckoutState extends State<BuyerCheckout> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                if (_groupHasFreeShippingPromo(items)) ...[
+                  const SizedBox(height: 9),
+                  _shippingPromotion(items),
+                ],
                 const SizedBox(height: 10),
                 ...items.map((item) {
                   return Padding(
@@ -350,6 +368,7 @@ class _BuyerCheckoutState extends State<BuyerCheckout> {
                             color: Color(0xFF302A24),
                             fontSize: 9,
                             fontWeight: FontWeight.w700,
+                            fontFamily: 'Roboto',
                           ),
                         ),
                       ],
@@ -360,6 +379,83 @@ class _BuyerCheckoutState extends State<BuyerCheckout> {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+
+  Widget _shippingPromotion(List<BuyerCartItem> items) {
+    const minimum = 500.0;
+    final subtotal = _groupSubtotal(items);
+    final eligible = _groupFreeShippingEligible(items);
+    final remaining = (minimum - subtotal).clamp(0, minimum).toDouble();
+
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4FAF6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFD9E8DE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Free Shipping Promotion',
+                      style: TextStyle(
+                        color: Color(0xFF46775A),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Minimum spend ₱500.00 · up to ₱80.00 shipping off',
+                      style: TextStyle(
+                        color: Color(0xFF708078),
+                        fontSize: 6.5,
+                        height: 1.4,
+                        fontFamily: 'Roboto',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: eligible ? const Color(0xFFE5F5EB) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: eligible
+                        ? const Color(0xFFCBE6D4)
+                        : const Color(0xFFD5E3DA),
+                  ),
+                ),
+                child: Text(
+                  eligible
+                      ? 'Applied · save ₱80.00'
+                      : 'Add ${_peso(remaining)} more',
+                  style: TextStyle(
+                    color: eligible
+                        ? const Color(0xFF397451)
+                        : const Color(0xFF748178),
+                    fontSize: 6.3,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Roboto',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -458,7 +554,20 @@ class _BuyerCheckoutState extends State<BuyerCheckout> {
           ),
           const SizedBox(height: 10),
           _summaryRow(
-            'Delivery',
+            'Courier delivery fee',
+            _peso(_originalDeliveryFee),
+          ),
+          if (_shippingDiscount > 0) ...[
+            const SizedBox(height: 10),
+            _summaryRow(
+              'Free Shipping discount',
+              '-${_peso(_shippingDiscount)}',
+              positive: true,
+            ),
+          ],
+          const SizedBox(height: 10),
+          _summaryRow(
+            'Delivery payable',
             _peso(_deliveryFee),
           ),
           const SizedBox(height: 13),
@@ -488,6 +597,7 @@ class _BuyerCheckoutState extends State<BuyerCheckout> {
                   height: 1,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -.8,
+                  fontFamily: 'Roboto',
                 ),
               ),
             ],
@@ -528,7 +638,7 @@ class _BuyerCheckoutState extends State<BuyerCheckout> {
           ),
           const SizedBox(height: 9),
           const Text(
-            'Stock deduction and order creation happen in one database transaction. If any item becomes unavailable, the checkout is rolled back.',
+            'Stock, vouchers, and Free Shipping eligibility are revalidated on the server when you place the order. Promotion schedules use Asia/Manila time.',
             style: TextStyle(
               color: Color(0xFF9B9287),
               fontSize: 7,
@@ -663,24 +773,34 @@ class _BuyerCheckoutState extends State<BuyerCheckout> {
     );
   }
 
-  Widget _summaryRow(String label, String value) {
+  Widget _summaryRow(
+    String label,
+    String value, {
+    bool positive = false,
+  }) {
     return Row(
       children: [
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF8D8479),
+            style: TextStyle(
+              color: positive
+                  ? const Color(0xFF4F8065)
+                  : const Color(0xFF8D8479),
               fontSize: 9,
             ),
           ),
         ),
+        const SizedBox(width: 12),
         Text(
           value,
-          style: const TextStyle(
-            color: Color(0xFF514A42),
+          style: TextStyle(
+            color: positive
+                ? const Color(0xFF4F8065)
+                : const Color(0xFF514A42),
             fontSize: 9,
             fontWeight: FontWeight.w700,
+            fontFamily: 'Roboto',
           ),
         ),
       ],

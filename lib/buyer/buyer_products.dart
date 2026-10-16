@@ -3,6 +3,9 @@ import 'models/buyer_product_model.dart';
 import 'widgets/buyer_header.dart';
 import 'widgets/buyer_product_card.dart';
 import 'buyer_product_details.dart';
+import 'buyer_shop.dart';
+import 'buyer_messages.dart';
+import 'models/buyer_shop_model.dart';
 
 class BuyerProducts extends StatefulWidget {
   final ValueChanged<int>? onTabChanged;
@@ -396,7 +399,7 @@ class _BuyerProductsState extends State<BuyerProducts> {
                           crossAxisCount: 2,
                           crossAxisSpacing: 9,
                           mainAxisSpacing: 9,
-                          childAspectRatio: .52,
+                          childAspectRatio: .45,
                         ),
                         itemBuilder: (context, index) {
                           final product = products[index + 1];
@@ -1347,7 +1350,7 @@ class _BuyerProductsState extends State<BuyerProducts> {
                       const SizedBox(height: 18),
                       _sheetLabel('Sort By'),
                       DropdownButtonFormField<String>(
-                        initialValue: tempSort,
+                        value: tempSort,
                         decoration: _sheetInput('Sort'),
                         style: const TextStyle(
                           color: Color(0xFF514940),
@@ -1521,19 +1524,21 @@ class _BuyerProductsState extends State<BuyerProducts> {
             widget.onTabChanged?.call(2);
           },
           onVisitShop: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Shop page will be connected when buyer_shop.dart is built.',
+            Navigator.push<void>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BuyerShop(
+                  shop: _shopForProduct(product),
                 ),
               ),
             );
           },
           onMessageSeller: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Messages page will be connected when buyer_messages.dart is built.',
+            Navigator.push<void>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BuyerMessages(
+                  initialSellerId: product.sellerAccountId,
                 ),
               ),
             );
@@ -1543,7 +1548,6 @@ class _BuyerProductsState extends State<BuyerProducts> {
     );
   }
 
-  // ignore: unused_element
   Future<void> _openProductModal(
     BuyerProduct product, {
     bool buyNow = false,
@@ -1880,6 +1884,38 @@ class _BuyerProductsState extends State<BuyerProducts> {
     });
 
     _toast('${product.name} added to cart');
+  }
+
+  BuyerShopData _shopForProduct(BuyerProduct product) {
+    final sellerProducts = _products
+        .where((item) => item.sellerAccountId == product.sellerAccountId)
+        .toList();
+
+    return BuyerShopData(
+      sellerAccountId: product.sellerAccountId,
+      storeName: product.shopName,
+      description:
+          'Approved SARI marketplace seller with active listings for mobile buyers.',
+      publicPhone: '09123456789',
+      publicEmail: 'seller@sari.test',
+      rating: sellerProducts.isEmpty
+          ? product.rating
+          : sellerProducts.fold<double>(0, (sum, item) => sum + item.rating) /
+              sellerProducts.length,
+      ratingCount: sellerProducts.fold<int>(
+        0,
+        (sum, item) => sum + item.ratingCount,
+      ),
+      vouchers: const [
+        BuyerShopVoucher(
+          code: 'SARI10',
+          name: 'Seller welcome voucher',
+          value: '10% OFF',
+          minimum: 500,
+        ),
+      ],
+      products: sellerProducts,
+    );
   }
 
   void _resetFilters() {

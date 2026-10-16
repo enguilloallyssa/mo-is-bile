@@ -19,8 +19,11 @@ class BuyerBottomNav extends StatelessWidget {
       selectedItemColor: const Color(0xFFD68F08),
       unselectedItemColor: const Color(0xFF8F867C),
       backgroundColor: Colors.white,
-      selectedFontSize: 10,
-      unselectedFontSize: 10,
+      selectedFontSize: 9,
+      unselectedFontSize: 9,
+      iconSize: 21,
+      selectedLabelStyle: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
+      unselectedLabelStyle: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500),
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),

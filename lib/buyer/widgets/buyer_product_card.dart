@@ -74,6 +74,8 @@ class BuyerProductCard extends StatelessWidget {
                   children: [
                     Text(
                       product.category.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Color(0xFF8F857A),
                         fontSize: 8,
@@ -88,8 +90,8 @@ class BuyerProductCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Color(0xFF29231E),
-                        fontSize: 12.5,
-                        height: 1.25,
+                        fontSize: 12,
+                        height: 1.22,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -98,22 +100,27 @@ class BuyerProductCard extends StatelessWidget {
                     const SizedBox(height: 10),
                     const Divider(height: 1, color: Color(0xFFEEE8DF)),
                     const SizedBox(height: 10),
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: _promotionAndStock()),
-                        if (product.rating > 0 || product.sold > 0)
+                        _promotionAndStock(),
+                        if (product.rating > 0 || product.sold > 0) ...[
+                          const SizedBox(height: 6),
                           Text(
                             [
                               if (product.rating > 0)
                                 '★ ${product.rating.toStringAsFixed(1)}',
                               if (product.sold > 0) '${product.sold} sold',
                             ].join('  |  '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Color(0xFF817970),
-                              fontSize: 7.5,
+                              fontSize: 7.3,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
+                        ],
                       ],
                     ),
                     if (showQuickAdd) ...[
@@ -168,8 +175,10 @@ class BuyerProductCard extends StatelessWidget {
                                   product.stock > 0
                                       ? 'Buy Now'
                                       : 'Out of Stock',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontSize: 9,
+                                    fontSize: 8.5,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -324,20 +333,30 @@ class BuyerProductCard extends StatelessWidget {
   }
 
   Widget _productImage({required double height}) {
-    final path = product.image;
+    final path = product.image?.trim() ?? '';
 
-    if (path == null || path.isEmpty) {
+    if (path.isEmpty) {
       return _imagePlaceholder(height);
     }
+
+    final isNetwork = path.startsWith('http://') ||
+        path.startsWith('https://') ||
+        path.startsWith('//');
 
     return SizedBox(
       width: double.infinity,
       height: height,
-      child: Image.asset(
-        path,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _imagePlaceholder(height),
-      ),
+      child: isNetwork
+          ? Image.network(
+              path.startsWith('//') ? 'https:$path' : path,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _imagePlaceholder(height),
+            )
+          : Image.asset(
+              path,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _imagePlaceholder(height),
+            ),
     );
   }
 
@@ -359,24 +378,34 @@ class BuyerProductCard extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(
-          '₱${product.price.toStringAsFixed(2)}',
-          style: const TextStyle(
-            color: Color(0xFFC67F08),
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+        Flexible(
+          child: Text(
+            '₱${product.price.toStringAsFixed(2)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFFC67F08),
+              fontSize: 16.5,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'Roboto',
+            ),
           ),
         ),
         if ((product.oldPrice ?? 0) > product.price) ...[
-          const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: Text(
-              '₱${product.oldPrice!.toStringAsFixed(2)}',
-              style: const TextStyle(
-                color: Color(0xFFAAA198),
-                fontSize: 8,
-                decoration: TextDecoration.lineThrough,
+          const SizedBox(width: 6),
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                '₱${product.oldPrice!.toStringAsFixed(2)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFAAA198),
+                  fontSize: 8,
+                  decoration: TextDecoration.lineThrough,
+                  fontFamily: 'Roboto',
+                ),
               ),
             ),
           ),
@@ -402,6 +431,8 @@ class BuyerProductCard extends StatelessWidget {
             product.stock > 0
                 ? 'Stock: ${product.stock}'
                 : 'Out of Stock',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: product.stock <= 0
                   ? const Color(0xFFC75353)

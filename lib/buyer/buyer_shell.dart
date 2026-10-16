@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'buyer_account.dart';
 import 'buyer_cart.dart';
 import 'buyer_home.dart';
 import 'buyer_orders.dart';
@@ -17,9 +18,39 @@ class _BuyerShellState extends State<BuyerShell> {
   int currentIndex = 0;
 
   void _changeTab(int index) {
-    setState(() {
-      currentIndex = index;
-    });
+    if (index < 0 || index > 4) return;
+    setState(() => currentIndex = index);
+  }
+
+  TextTheme _addPesoFontFallback(TextTheme theme) {
+    TextStyle? fix(TextStyle? style) {
+      return style?.copyWith(
+        fontFamilyFallback: const [
+          'Roboto',
+          'Noto Sans',
+          'Arial',
+          'sans-serif',
+        ],
+      );
+    }
+
+    return theme.copyWith(
+      displayLarge: fix(theme.displayLarge),
+      displayMedium: fix(theme.displayMedium),
+      displaySmall: fix(theme.displaySmall),
+      headlineLarge: fix(theme.headlineLarge),
+      headlineMedium: fix(theme.headlineMedium),
+      headlineSmall: fix(theme.headlineSmall),
+      titleLarge: fix(theme.titleLarge),
+      titleMedium: fix(theme.titleMedium),
+      titleSmall: fix(theme.titleSmall),
+      bodyLarge: fix(theme.bodyLarge),
+      bodyMedium: fix(theme.bodyMedium),
+      bodySmall: fix(theme.bodySmall),
+      labelLarge: fix(theme.labelLarge),
+      labelMedium: fix(theme.labelMedium),
+      labelSmall: fix(theme.labelSmall),
+    );
   }
 
   @override
@@ -29,72 +60,25 @@ class _BuyerShellState extends State<BuyerShell> {
       BuyerProducts(onTabChanged: _changeTab),
       BuyerCart(onTabChanged: _changeTab),
       BuyerOrders(onTabChanged: _changeTab),
-      const _BuyerPlaceholder(
-        icon: Icons.person_outline,
-        title: 'My Account',
-        subtitle: 'Next: account.blade.php → buyer_account.dart',
-      ),
+      BuyerAccount(onTabChanged: _changeTab),
     ];
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFBFAF8),
-      body: IndexedStack(
-        index: currentIndex,
-        children: pages,
+    final baseTheme = Theme.of(context);
+
+    return Theme(
+      data: baseTheme.copyWith(
+        textTheme: _addPesoFontFallback(baseTheme.textTheme),
+        primaryTextTheme: _addPesoFontFallback(baseTheme.primaryTextTheme),
       ),
-      bottomNavigationBar: BuyerBottomNav(
-        currentIndex: currentIndex,
-        onTap: _changeTab,
-      ),
-    );
-  }
-}
-
-class _BuyerPlaceholder extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _BuyerPlaceholder({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 54,
-                color: const Color(0xFFC98A17),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Color(0xFF302A24),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF91887D),
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFBFAF8),
+        body: IndexedStack(
+          index: currentIndex,
+          children: pages,
+        ),
+        bottomNavigationBar: BuyerBottomNav(
+          currentIndex: currentIndex,
+          onTap: _changeTab,
         ),
       ),
     );
