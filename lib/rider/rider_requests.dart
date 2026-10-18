@@ -22,6 +22,13 @@ class RiderRequests extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visibleOrders =
+        orders.where((order) => order.status != 'delivered').toList();
+    final visibleActive =
+        activeOrder != null && activeOrder!.status != 'delivered'
+            ? activeOrder
+            : null;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFBF8F1),
       appBar: AppBar(
@@ -69,15 +76,15 @@ class RiderRequests extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
           children: [
             _intro(),
-            if (activeOrder != null) ...[
+            if (visibleActive != null) ...[
               const SizedBox(height: 12),
-              _activeAssignment(activeOrder!),
+              _activeAssignment(visibleActive),
             ],
             const SizedBox(height: 14),
-            if (orders.isEmpty)
+            if (visibleOrders.isEmpty)
               _emptyState()
             else
-              ...orders.map(
+              ...visibleOrders.map(
                 (order) => Padding(
                   padding: const EdgeInsets.only(bottom: 11),
                   child: _assignmentCard(order),

@@ -1,5 +1,8 @@
+// ignore_for_file: duplicate_import
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/material.dart';
 
 import 'buyer/buyer_shell.dart';
 import 'logistics/logistics_shell.dart';
@@ -8,6 +11,7 @@ import 'screen/login_screen.dart';
 import 'screen/register_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const SariApp());
 }
 

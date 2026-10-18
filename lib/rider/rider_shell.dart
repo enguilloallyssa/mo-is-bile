@@ -24,14 +24,100 @@ class _RiderShellState extends State<RiderShell> {
 
   RiderDelivery? _currentDelivery = RiderDemoData.currentDelivery;
 
-  late List<RiderDelivery> _assignments = [
+  late final List<RiderDelivery> _assignments = <RiderDelivery>[
     ...RiderDemoData.assignments,
   ];
 
-  TextTheme _addPesoFontFallback(TextTheme theme) {
-    TextStyle? fix(TextStyle? style) {
+  void _changeTab(int index) {
+    if (index < 0 || index > 4) return;
+
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
+  void _advanceDelivery(RiderDelivery delivery) {
+    final String? next = delivery.nextStatus;
+    if (next == null) return;
+
+    final RiderDelivery updated = delivery.copyWith(status: next);
+
+    setState(() {
+      _currentDelivery = updated;
+
+      final int index = _assignments.indexWhere(
+        (RiderDelivery item) => item.id == delivery.id,
+      );
+
+      if (index >= 0) {
+        _assignments[index] = updated;
+      }
+
+      // Once the Seller handoff is confirmed, jump directly to the
+      // Deliveries tab where the Buyer map is visible.
+      if (next == 'in_transit') {
+        _currentIndex = 2;
+      }
+
+      // After completion, return to Home so completed stats/earnings
+      // are immediately visible.
+      if (next == 'delivered') {
+        _currentIndex = 0;
+      }
+    });
+
+    final String message;
+    if (next == 'in_transit') {
+      message = 'Package picked up. Buyer delivery map is now active.';
+    } else if (next == 'delivered') {
+      message = 'Delivery completed successfully.';
+    } else {
+      message = 'Delivery updated to ${updated.statusLabel}.';
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  void _openMessages() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => const RiderMessages(
+          initialMessages: RiderDemoData.messages,
+        ),
+      ),
+    );
+  }
+
+  void _openPickups() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext pageContext) => RiderPickups(
+          orders: _assignments,
+          onOpenWorkflow: () {
+            Navigator.of(pageContext).pop();
+            _changeTab(0);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _openHistory() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => const RiderHistory(
+          history: RiderDemoData.history,
+        ),
+      ),
+    );
+  }
+
+  TextTheme _withPesoFallback(TextTheme theme) {
+    TextStyle? fallback(TextStyle? style) {
       return style?.copyWith(
-        fontFamilyFallback: const [
+        fontFamilyFallback: const <String>[
           'Roboto',
           'Noto Sans',
           'Arial',
@@ -41,97 +127,27 @@ class _RiderShellState extends State<RiderShell> {
     }
 
     return theme.copyWith(
-      displayLarge: fix(theme.displayLarge),
-      displayMedium: fix(theme.displayMedium),
-      displaySmall: fix(theme.displaySmall),
-      headlineLarge: fix(theme.headlineLarge),
-      headlineMedium: fix(theme.headlineMedium),
-      headlineSmall: fix(theme.headlineSmall),
-      titleLarge: fix(theme.titleLarge),
-      titleMedium: fix(theme.titleMedium),
-      titleSmall: fix(theme.titleSmall),
-      bodyLarge: fix(theme.bodyLarge),
-      bodyMedium: fix(theme.bodyMedium),
-      bodySmall: fix(theme.bodySmall),
-      labelLarge: fix(theme.labelLarge),
-      labelMedium: fix(theme.labelMedium),
-      labelSmall: fix(theme.labelSmall),
-    );
-  }
-
-  void _changeTab(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-  }
-
-  void _advanceDelivery(RiderDelivery delivery) {
-    final next = delivery.nextStatus;
-    if (next == null) return;
-
-    final updated = delivery.copyWith(status: next);
-
-    setState(() {
-      _currentDelivery = updated;
-
-      final index = _assignments.indexWhere(
-        (item) => item.id == delivery.id,
-      );
-
-      if (index >= 0) {
-        _assignments[index] = updated;
-      }
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Demo delivery updated to ${updated.statusLabel}.',
-        ),
-      ),
-    );
-  }
-
-  void _openMessages() {
-    Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const RiderMessages(
-          initialMessages: RiderDemoData.messages,
-        ),
-      ),
-    );
-  }
-
-  void _openPickups() {
-    Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => RiderPickups(
-          orders: _assignments,
-          onOpenWorkflow: () {
-            Navigator.pop(context);
-            _changeTab(0);
-          },
-        ),
-      ),
-    );
-  }
-
-  void _openHistory() {
-    Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const RiderHistory(
-          history: RiderDemoData.history,
-        ),
-      ),
+      displayLarge: fallback(theme.displayLarge),
+      displayMedium: fallback(theme.displayMedium),
+      displaySmall: fallback(theme.displaySmall),
+      headlineLarge: fallback(theme.headlineLarge),
+      headlineMedium: fallback(theme.headlineMedium),
+      headlineSmall: fallback(theme.headlineSmall),
+      titleLarge: fallback(theme.titleLarge),
+      titleMedium: fallback(theme.titleMedium),
+      titleSmall: fallback(theme.titleSmall),
+      bodyLarge: fallback(theme.bodyLarge),
+      bodyMedium: fallback(theme.bodyMedium),
+      bodySmall: fallback(theme.bodySmall),
+      labelLarge: fallback(theme.labelLarge),
+      labelMedium: fallback(theme.labelMedium),
+      labelSmall: fallback(theme.labelSmall),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
+    final List<Widget> pages = <Widget>[
       RiderHome(
         currentDelivery: _currentDelivery,
         assignments: _assignments,
@@ -147,6 +163,7 @@ class _RiderShellState extends State<RiderShell> {
       ),
       RiderDeliveries(
         orders: _assignments,
+        onAdvanceDelivery: _advanceDelivery,
         onOpenWorkflow: () => _changeTab(0),
         onOpenHistory: _openHistory,
       ),
@@ -160,16 +177,12 @@ class _RiderShellState extends State<RiderShell> {
       ),
     ];
 
-    final baseTheme = Theme.of(context);
+    final ThemeData currentTheme = Theme.of(context);
 
     return Theme(
-      data: baseTheme.copyWith(
-        textTheme: _addPesoFontFallback(
-          baseTheme.textTheme,
-        ),
-        primaryTextTheme: _addPesoFontFallback(
-          baseTheme.primaryTextTheme,
-        ),
+      data: currentTheme.copyWith(
+        textTheme: _withPesoFallback(currentTheme.textTheme),
+        primaryTextTheme: _withPesoFallback(currentTheme.primaryTextTheme),
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFFFBF8F1),

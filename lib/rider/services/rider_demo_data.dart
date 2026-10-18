@@ -5,13 +5,22 @@ import '../models/rider_message_model.dart';
 import '../models/rider_profile_model.dart';
 
 class RiderDemoData {
+  // One demo delivery only while Laravel/API is not connected.
+  // Coordinates are demo Lucena-area coordinates so the Mapbox screen
+  // has a real place to center on during the local workflow.
   static const RiderDelivery currentDelivery = RiderDelivery(
     id: 101,
-    orderNumber: 'SARI-2026-0048',
+    orderNumber: 'SARI-2026-0051',
     pickupName: 'SARI Tech Corner',
-    pickupAddress: 'Diversion Road, Lucena City',
+    pickupAddress: 'Quezon Avenue, Lucena City',
+    pickupLatitude: 13.9409,
+    pickupLongitude: 121.6129,
     buyerName: 'Juan Dela Cruz',
     buyerAddress: 'Brgy. Ibabang Dupay, Lucena City',
+    buyerLatitude: 13.9522,
+    buyerLongitude: 121.6258,
+    riderLatitude: 13.9444,
+    riderLongitude: 121.6187,
     sellerName: 'SARI Tech Corner',
     deliveryFee: 80,
     status: 'courier_accepted',
@@ -19,28 +28,6 @@ class RiderDemoData {
 
   static const List<RiderDelivery> assignments = [
     currentDelivery,
-    RiderDelivery(
-      id: 102,
-      orderNumber: 'SARI-2026-0049',
-      pickupName: 'Daily Finds',
-      pickupAddress: 'Quezon Avenue, Lucena City',
-      buyerName: 'Maria Santos',
-      buyerAddress: 'Brgy. Gulang-Gulang, Lucena City',
-      sellerName: 'Daily Finds',
-      deliveryFee: 80,
-      status: 'courier_accepted',
-    ),
-    RiderDelivery(
-      id: 103,
-      orderNumber: 'SARI-2026-0050',
-      pickupName: 'Local Essentials',
-      pickupAddress: 'Maharlika Highway, Lucena City',
-      buyerName: 'Ken Reyes',
-      buyerAddress: 'Brgy. Isabang, Lucena City',
-      sellerName: 'Local Essentials',
-      deliveryFee: 95,
-      status: 'courier_accepted',
-    ),
   ];
 
   static const List<RiderHistoryRecord> history = [

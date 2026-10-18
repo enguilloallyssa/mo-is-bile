@@ -3,8 +3,14 @@ class RiderDelivery {
   final String orderNumber;
   final String pickupName;
   final String pickupAddress;
+  final double pickupLatitude;
+  final double pickupLongitude;
   final String buyerName;
   final String buyerAddress;
+  final double buyerLatitude;
+  final double buyerLongitude;
+  final double riderLatitude;
+  final double riderLongitude;
   final String sellerName;
   final double deliveryFee;
   final String status;
@@ -14,8 +20,14 @@ class RiderDelivery {
     required this.orderNumber,
     required this.pickupName,
     this.pickupAddress = '',
+    required this.pickupLatitude,
+    required this.pickupLongitude,
     required this.buyerName,
     this.buyerAddress = '',
+    required this.buyerLatitude,
+    required this.buyerLongitude,
+    required this.riderLatitude,
+    required this.riderLongitude,
     this.sellerName = 'SARI Seller',
     required this.deliveryFee,
     required this.status,
@@ -23,14 +35,22 @@ class RiderDelivery {
 
   RiderDelivery copyWith({
     String? status,
+    double? riderLatitude,
+    double? riderLongitude,
   }) {
     return RiderDelivery(
       id: id,
       orderNumber: orderNumber,
       pickupName: pickupName,
       pickupAddress: pickupAddress,
+      pickupLatitude: pickupLatitude,
+      pickupLongitude: pickupLongitude,
       buyerName: buyerName,
       buyerAddress: buyerAddress,
+      buyerLatitude: buyerLatitude,
+      buyerLongitude: buyerLongitude,
+      riderLatitude: riderLatitude ?? this.riderLatitude,
+      riderLongitude: riderLongitude ?? this.riderLongitude,
       sellerName: sellerName,
       deliveryFee: deliveryFee,
       status: status ?? this.status,
@@ -56,8 +76,10 @@ class RiderDelivery {
             .replaceAll('_', ' ')
             .split(' ')
             .where((part) => part.isNotEmpty)
-            .map((part) =>
-                '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
+            .map(
+              (part) =>
+                  '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+            )
             .join(' ');
     }
   }
@@ -79,16 +101,35 @@ class RiderDelivery {
   bool get isActiveDelivery =>
       const ['in_transit', 'arrived_buyer'].contains(status);
 
+  bool get showDeliveryMap => status != 'delivered';
+
+  bool get isHeadingToBuyer =>
+      const ['in_transit', 'arrived_buyer'].contains(status);
+
+  String get mapStageLabel =>
+      isHeadingToBuyer ? 'DELIVERY DESTINATION' : 'PICKUP DESTINATION';
+
+  String get destinationName => isHeadingToBuyer ? buyerName : pickupName;
+
+  String get destinationAddress =>
+      isHeadingToBuyer ? buyerAddress : pickupAddress;
+
+  double get destinationLatitude =>
+      isHeadingToBuyer ? buyerLatitude : pickupLatitude;
+
+  double get destinationLongitude =>
+      isHeadingToBuyer ? buyerLongitude : pickupLongitude;
+
   String get actionMessage {
     switch (status) {
       case 'courier_accepted':
         return 'SARI Logistics assigned this delivery to you.';
       case 'heading_pickup':
-        return 'You are heading to the Seller pickup point.';
+        return 'Follow the map to the Seller pickup point.';
       case 'arrived_pickup':
         return 'Check the package, then confirm the Seller handoff.';
       case 'in_transit':
-        return 'Package is in transit. Confirm only when you reach the Buyer.';
+        return 'Package picked up. Follow the map to the Buyer.';
       case 'arrived_buyer':
         return 'Buyer location reached. Complete the handoff.';
       default:

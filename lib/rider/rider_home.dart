@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'models/rider_delivery_model.dart';
+import 'widgets/rider_map.dart';
 
 class RiderHome extends StatelessWidget {
   final RiderDelivery? currentDelivery;
@@ -63,12 +64,11 @@ class RiderHome extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            SizedBox(height: 2),
             Text(
               'Logistics Assigned Deliveries',
               style: TextStyle(
                 color: Color(0xFF918677),
-                fontSize: 9,
+                fontSize: 8,
               ),
             ),
           ],
@@ -77,24 +77,29 @@ class RiderHome extends StatelessWidget {
           IconButton(
             tooltip: 'Messages',
             onPressed: onOpenMessages,
-            icon: const Icon(Icons.chat_bubble_outline, size: 22),
+            icon: const Icon(Icons.chat_bubble_outline),
           ),
           IconButton(
             tooltip: 'Profile',
             onPressed: () => onTabChanged?.call(4),
-            icon: const Icon(Icons.person_outline, size: 22),
+            icon: const Icon(Icons.person_outline),
           ),
           const SizedBox(width: 4),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _operationsHeader(),
             const SizedBox(height: 14),
             _statsGrid(),
+            if (currentDelivery != null &&
+                currentDelivery!.showDeliveryMap) ...[
+              const SizedBox(height: 14),
+              RiderMap(delivery: currentDelivery!),
+            ],
             const SizedBox(height: 14),
             _currentDeliverySection(),
             const SizedBox(height: 14),
@@ -107,69 +112,73 @@ class RiderHome extends StatelessWidget {
 
   Widget _operationsHeader() {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFDF8),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _border),
+      padding: const EdgeInsets.only(bottom: 15),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _border)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Rider Operations',
-            style: TextStyle(
-              color: Color(0xFF211D17),
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _border),
-            ),
-            child: const Text(
-              'Logistics Dispatch',
-              style: TextStyle(
-                color: Color(0xFF8A7F70),
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
+          Wrap(
+            spacing: 7,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'Rider Operations',
+                style: TextStyle(
+                  color: Color(0xFF211D17),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _border),
+                ),
+                child: const Text(
+                  'Logistics Dispatch',
+                  style: TextStyle(
+                    color: Color(0xFF8A7F70),
+                    fontSize: 7,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 7),
           const Text(
             'Delivery jobs are assigned by SARI Logistics. Confirm every pickup and delivery step here.',
             style: TextStyle(
               color: Color(0xFF817769),
-              fontSize: 9,
+              fontSize: 8.5,
               height: 1.45,
             ),
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
+          const SizedBox(height: 11),
+          Align(
+            alignment: Alignment.centerLeft,
             child: ElevatedButton(
               onPressed: () => onTabChanged?.call(1),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _gold,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                minimumSize: const Size.fromHeight(44),
+                minimumSize: const Size(0, 42),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(11),
                 ),
               ),
               child: const Text(
                 'View My Assignments →',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -180,34 +189,15 @@ class RiderHome extends StatelessWidget {
 
   Widget _statsGrid() {
     final stats = [
-      (
-        'Waiting to Start',
-        '$_waitingCount',
-        Icons.schedule_outlined,
-        const Color(0xFFFFF2D8),
-        const Color(0xFFBB7B00)
-      ),
-      (
-        'Active Deliveries',
-        '$_activeCount',
-        Icons.local_shipping_outlined,
-        const Color(0xFFEAF2F7),
-        _blue
-      ),
-      (
-        'Completed Today',
-        '$_completedToday',
-        Icons.task_alt_outlined,
-        const Color(0xFFEAF3ED),
-        _green
-      ),
-      (
-        "Today's Earnings",
-        _peso(_earningsToday),
-        Icons.account_balance_wallet_outlined,
-        const Color(0xFFF0ECF6),
-        _purple
-      ),
+      ('Waiting to Start', '$_waitingCount', Icons.schedule_outlined,
+          const Color(0xFFFFF2D8), const Color(0xFFBB7B00)),
+      ('Active Deliveries', '$_activeCount', Icons.local_shipping_outlined,
+          const Color(0xFFEAF2F7), _blue),
+      ('Completed Today', '$_completedToday', Icons.task_alt_outlined,
+          const Color(0xFFEAF3ED), _green),
+      ("Today's Earnings", _peso(_earningsToday),
+          Icons.account_balance_wallet_outlined,
+          const Color(0xFFF0ECF6), _purple),
     ];
 
     return GridView.builder(
@@ -216,29 +206,28 @@ class RiderHome extends StatelessWidget {
       itemCount: stats.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 1.02,
+        crossAxisSpacing: 9,
+        mainAxisSpacing: 9,
+        mainAxisExtent: 122,
       ),
       itemBuilder: (context, index) {
         final stat = stats[index];
-
         return Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
             color: const Color(0xFFFFFDF8),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: _border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: stat.$4,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(11),
                 ),
                 child: Icon(stat.$3, color: stat.$5, size: 18),
               ),
@@ -247,20 +236,16 @@ class RiderHome extends StatelessWidget {
                 stat.$1,
                 style: const TextStyle(
                   color: Color(0xFF817769),
-                  fontSize: 8.5,
+                  fontSize: 7.5,
                 ),
               ),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  stat.$2,
-                  style: const TextStyle(
-                    color: Color(0xFF201C16),
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+              const SizedBox(height: 3),
+              Text(
+                stat.$2,
+                style: const TextStyle(
+                  color: Color(0xFF201C16),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -301,7 +286,7 @@ class RiderHome extends StatelessWidget {
                   'The Buyer, Seller, Logistics, and Rider all use this same MarketplaceOrder record.',
                   style: TextStyle(
                     color: Color(0xFF918677),
-                    fontSize: 8,
+                    fontSize: 7.5,
                     height: 1.45,
                   ),
                 ),
@@ -352,7 +337,6 @@ class RiderHome extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -370,19 +354,15 @@ class RiderHome extends StatelessWidget {
                       'Delivery Fee',
                       style: TextStyle(
                         color: Color(0xFF918677),
-                        fontSize: 7,
+                        fontSize: 6.5,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        _peso(current.deliveryFee),
-                        style: const TextStyle(
-                          color: Color(0xFF201C16),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    Text(
+                      _peso(current.deliveryFee),
+                      style: const TextStyle(
+                        color: Color(0xFF201C16),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -393,35 +373,14 @@ class RiderHome extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
-                child: _stage(
-                  1,
-                  'Picked Up',
-                  current.pickupDone,
-                  !current.pickupDone,
-                  _gold,
-                ),
-              ),
+              Expanded(child: _stage(1, 'Picked Up', current.pickupDone,
+                  !current.pickupDone, _gold)),
               const SizedBox(width: 7),
-              Expanded(
-                child: _stage(
-                  2,
-                  'In Transit',
-                  current.transitDone,
-                  current.status == 'in_transit',
-                  _blue,
-                ),
-              ),
+              Expanded(child: _stage(2, 'In Transit', current.transitDone,
+                  current.status == 'in_transit', _blue)),
               const SizedBox(width: 7),
-              Expanded(
-                child: _stage(
-                  3,
-                  'Delivered',
-                  current.deliveredDone,
-                  false,
-                  _green,
-                ),
-              ),
+              Expanded(child: _stage(3, 'Delivered', current.deliveredDone,
+                  false, _green)),
             ],
           ),
           const SizedBox(height: 14),
@@ -445,7 +404,7 @@ class RiderHome extends StatelessWidget {
           label.toUpperCase(),
           style: const TextStyle(
             color: _blue,
-            fontSize: 7,
+            fontSize: 6.5,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -467,7 +426,7 @@ class RiderHome extends StatelessWidget {
             : const Color(0xFFE5DDD1);
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 6),
+      padding: const EdgeInsets.symmetric(vertical: 13),
       decoration: BoxDecoration(
         color: complete
             ? const Color(0xFFEAF8EF)
@@ -568,7 +527,6 @@ class RiderHome extends StatelessWidget {
               backgroundColor: accent,
               foregroundColor: Colors.white,
               elevation: 0,
-              minimumSize: const Size.fromHeight(42),
             ),
             child: Text(
               current.actionLabel,
@@ -677,11 +635,15 @@ class RiderHome extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Text(
-                      'ASSIGNED',
+                    Text(
+                      order.statusLabel.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Color(0xFFAA6D00),
-                        fontSize: 6,
+                        color: order.status == 'delivered'
+                            ? _green
+                            : const Color(0xFFAA6D00),
+                        fontSize: 5.8,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
