@@ -5,7 +5,6 @@ import 'models/buyer_order_model.dart';
 import 'widgets/buyer_header.dart';
 import 'widgets/buyer_order_card.dart';
 import 'buyer_order_details.dart';
-import 'buyer_messages.dart';
 
 class BuyerOrders extends StatefulWidget {
   final ValueChanged<int>? onTabChanged;
@@ -136,7 +135,7 @@ class _BuyerOrdersState extends State<BuyerOrders> {
     final orders = _filteredOrders;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF7F5F1),
       body: Column(
         children: [
           BuyerHeader(
@@ -148,7 +147,7 @@ class _BuyerOrdersState extends State<BuyerOrders> {
           ),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(12, 15, 12, 26),
+              padding: const EdgeInsets.fromLTRB(12, 16, 12, 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -167,10 +166,11 @@ class _BuyerOrdersState extends State<BuyerOrders> {
                         child: BuyerOrderCard(
                           order: order,
                           onCopy: () => _copyOrderNumber(order),
-                          onMessageSeller: () =>
-                              _openMessages(order.sellerAccountId),
+                          onMessageSeller: () => _toast(
+                            'Messages page will connect to Seller #${order.sellerAccountId}.',
+                          ),
                           onViewDetails: () => _openOrderDetails(order),
-                          onTrackOrder: () => _openOrderDetails(order),
+                          onTrackOrder: () => _showTracking(order),
                           onReturnRequest: order.isDelivered
                               ? () => _showReturnRequest(order)
                               : null,
@@ -217,8 +217,8 @@ class _BuyerOrdersState extends State<BuyerOrders> {
               'SARI PURCHASE CENTER',
               style: TextStyle(
                 color: Color(0xFFB87908),
-                fontSize: 8,
-                fontWeight: FontWeight.w800,
+                fontSize: 8.5,
+                fontWeight: FontWeight.w900,
                 letterSpacing: 1.3,
               ),
             ),
@@ -229,7 +229,7 @@ class _BuyerOrdersState extends State<BuyerOrders> {
           'My Orders',
           style: TextStyle(
             color: Color(0xFF181818),
-            fontSize: 30,
+            fontSize: 26,
             height: 1.05,
             fontWeight: FontWeight.w700,
             letterSpacing: -1.2,
@@ -302,7 +302,7 @@ class _BuyerOrdersState extends State<BuyerOrders> {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 2.25,
+      childAspectRatio: 2.05,
       children: items.map((item) {
         return Container(
           margin: const EdgeInsets.all(3),
@@ -340,8 +340,8 @@ class _BuyerOrdersState extends State<BuyerOrders> {
                       item.$2.toUpperCase(),
                       style: const TextStyle(
                         color: Color(0xFFA09B91),
-                        fontSize: 6.5,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 7.3,
+                        fontWeight: FontWeight.w800,
                         letterSpacing: .5,
                       ),
                     ),
@@ -349,8 +349,8 @@ class _BuyerOrdersState extends State<BuyerOrders> {
                       '${item.$3}',
                       style: const TextStyle(
                         color: Color(0xFF272521),
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ],
@@ -1003,18 +1003,6 @@ class _BuyerOrdersState extends State<BuyerOrders> {
     _toast('${order.orderNumber} copied.');
   }
 
-
-  void _openMessages(int sellerId) {
-    Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BuyerMessages(
-          initialSellerId: sellerId,
-        ),
-      ),
-    );
-  }
-
   void _openOrderDetails(BuyerOrder order) {
     Navigator.push<void>(
       context,
@@ -1030,8 +1018,15 @@ class _BuyerOrdersState extends State<BuyerOrders> {
               ),
             );
           },
-          onMessageSeller: () =>
-              _openMessages(order.sellerAccountId),
+          onMessageSeller: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Messages will open for Seller #${order.sellerAccountId} when buyer_messages.dart is built.',
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -1076,11 +1071,38 @@ class _BuyerOrdersState extends State<BuyerOrders> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Full Order Tracking page will be connected when we build buyer_order_details.dart.',
+                'View the full order page for the complete delivery timeline and order details.',
                 style: TextStyle(
                   color: Color(0xFF9A958C),
                   fontSize: 8,
                   height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _openOrderDetails(order);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFC98D19),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  minimumSize: const Size.fromHeight(42),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.route_outlined,
+                  size: 16,
+                ),
+                label: const Text(
+                  'View Full Tracking',
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],

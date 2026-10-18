@@ -16,7 +16,7 @@ class BuyerShipping extends StatelessWidget {
     final data = shipments ?? _demoShipments;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFAF8),
+      backgroundColor: const Color(0xFFF7F5F1),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFFFDF9),
         surfaceTintColor: Colors.transparent,

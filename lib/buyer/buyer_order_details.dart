@@ -27,7 +27,7 @@ class BuyerOrderDetails extends StatelessWidget {
     return Scaffold(
       backgroundColor: _pageBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFDFA),
+        backgroundColor: const Color(0xFFF7F5F1),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleSpacing: 0,

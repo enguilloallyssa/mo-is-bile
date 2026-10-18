@@ -94,7 +94,7 @@ class _BuyerProductDetailsState extends State<BuyerProductDetails> {
     return Scaffold(
       backgroundColor: _background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFDFA),
+        backgroundColor: const Color(0xFFF7F5F1),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleSpacing: 0,
@@ -128,7 +128,7 @@ class _BuyerProductDetailsState extends State<BuyerProductDetails> {
                       color: _gold,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: const Color(0xFFFFFDFA),
+                        color: const Color(0xFFF7F5F1),
                         width: 2,
                       ),
                     ),

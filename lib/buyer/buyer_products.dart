@@ -335,7 +335,7 @@ class _BuyerProductsState extends State<BuyerProducts> {
     final products = _filteredProducts;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFDFA),
+      backgroundColor: const Color(0xFFF7F5F1),
       body: Column(
         children: [
           BuyerHeader(
@@ -349,7 +349,7 @@ class _BuyerProductsState extends State<BuyerProducts> {
           ),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(10, 12, 10, 22),
+              padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -383,7 +383,7 @@ class _BuyerProductsState extends State<BuyerProducts> {
                       showQuickAdd: true,
                       onTap: () => _openProductDetails(products.first),
                       onAddToCart: () => _addToCart(products.first),
-                      onBuyNow: () => _openProductDetails(
+                      onBuyNow: () => _openProductModal(
                         products.first,
                         buyNow: true,
                       ),
@@ -399,7 +399,7 @@ class _BuyerProductsState extends State<BuyerProducts> {
                           crossAxisCount: 2,
                           crossAxisSpacing: 9,
                           mainAxisSpacing: 9,
-                          childAspectRatio: .45,
+                          mainAxisExtent: 312,
                         ),
                         itemBuilder: (context, index) {
                           final product = products[index + 1];
@@ -411,7 +411,7 @@ class _BuyerProductsState extends State<BuyerProducts> {
                             showQuickAdd: true,
                             onTap: () => _openProductDetails(product),
                             onAddToCart: () => _addToCart(product),
-                            onBuyNow: () => _openProductDetails(
+                            onBuyNow: () => _openProductModal(
                               product,
                               buyNow: true,
                             ),
@@ -439,9 +439,9 @@ class _BuyerProductsState extends State<BuyerProducts> {
           'SARI MARKETPLACE',
           style: TextStyle(
             color: Color(0xFFA87316),
-            fontSize: 7,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.25,
+            fontSize: 8,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.1,
           ),
         ),
         SizedBox(height: 6),
@@ -457,7 +457,7 @@ class _BuyerProductsState extends State<BuyerProducts> {
           ),
           style: TextStyle(
             color: Color(0xFF17130F),
-            fontSize: 31,
+            fontSize: 27,
             height: 1.03,
             fontWeight: FontWeight.w700,
             letterSpacing: -1.3,
