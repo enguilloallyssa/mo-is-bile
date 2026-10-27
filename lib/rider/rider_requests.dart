@@ -1,386 +1,185 @@
 import 'package:flutter/material.dart';
 
 import 'models/rider_delivery_model.dart';
+import 'widgets/rider_ui.dart';
 
-class RiderRequests extends StatelessWidget {
+class RiderRequests extends StatefulWidget {
   final RiderDelivery? activeOrder;
   final List<RiderDelivery> orders;
+  final ValueChanged<RiderDelivery> onAdvanceDelivery;
   final VoidCallback onOpenWorkflow;
   final VoidCallback onOpenPickups;
+  final VoidCallback onOpenDelivery;
 
-  const RiderRequests({
+  RiderRequests({
     super.key,
     required this.activeOrder,
     required this.orders,
+    required this.onAdvanceDelivery,
     required this.onOpenWorkflow,
     required this.onOpenPickups,
+    required this.onOpenDelivery,
   });
 
-  static const Color _gold = Color(0xFFD99600);
-  static const Color _blue = Color(0xFF3C6E91);
-  static const Color _border = Color(0xFFEADFC9);
+  @override
+  State<RiderRequests> createState() => _RiderRequestsState();
+}
+
+class _RiderRequestsState extends State<RiderRequests> {
+  String _filter = 'All';
 
   @override
   Widget build(BuildContext context) {
-    final visibleOrders =
-        orders.where((order) => order.status != 'delivered').toList();
-    final visibleActive =
-        activeOrder != null && activeOrder!.status != 'delivered'
-            ? activeOrder
-            : null;
+    final visible = widget.orders.where((order) {
+      if (order.isComplete) return false;
+      if (_filter == 'Pickup') return order.isPickupFlow;
+      if (_filter == 'Delivery') return order.isDeliveryFlow;
+      return true;
+    }).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF8F1),
+      backgroundColor: RiderColors.bg,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: const Color(0xFFFFFDF8),
-        surfaceTintColor: Colors.transparent,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'My Assignments',
-              style: TextStyle(
-                color: Color(0xFF211D17),
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              'Dispatched by SARI Logistics',
-              style: TextStyle(
-                color: Color(0xFF918677),
-                fontSize: 8,
-              ),
-            ),
-          ],
-        ),
+        toolbarHeight: 74,
+        titleSpacing: 16,
+        title: RiderHeaderTitle(title: 'Rider Jobs', subtitle: 'Assigned by SARI Logistics'),
         actions: [
-          TextButton.icon(
-            onPressed: onOpenPickups,
-            icon: const Icon(Icons.inventory_2_outlined, size: 16),
-            label: const Text(
-              'Pickups',
-              style: TextStyle(fontSize: 8),
-            ),
-          ),
-          const SizedBox(width: 4),
+          IconButton(tooltip: 'Pickup queue', onPressed: widget.onOpenPickups, icon: Icon(Icons.inventory_2_outlined)),
+          SizedBox(width: 8),
         ],
       ),
       body: RefreshIndicator(
-        color: _gold,
-        onRefresh: () async {
-          await Future<void>.delayed(const Duration(milliseconds: 350));
-        },
+        color: RiderColors.gold,
+        onRefresh: () async => Future<void>.delayed(Duration(milliseconds: 350)),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
+          padding: EdgeInsets.fromLTRB(14, 14, 14, 26),
           children: [
-            _intro(),
-            if (visibleActive != null) ...[
-              const SizedBox(height: 12),
-              _activeAssignment(visibleActive),
-            ],
-            const SizedBox(height: 14),
-            if (visibleOrders.isEmpty)
-              _emptyState()
+            _dispatchBanner(),
+            SizedBox(height: 14),
+            _filters(),
+            SizedBox(height: 14),
+            if (visible.isEmpty)
+              RiderEmptyState(icon: Icons.assignment_turned_in_outlined, title: 'No jobs in this filter', message: 'New logistics assignments will appear here automatically.')
             else
-              ...visibleOrders.map(
-                (order) => Padding(
-                  padding: const EdgeInsets.only(bottom: 11),
-                  child: _assignmentCard(order),
-                ),
-              ),
+              ...visible.map((order) => Padding(padding: EdgeInsets.only(bottom: 11), child: _jobCard(order))),
           ],
         ),
       ),
     );
   }
 
-  Widget _intro() {
+  Widget _dispatchBanner() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(17),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFDF8),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _border),
+        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          colors: RiderColors.isDark
+              ? [RiderColors.goldSoft, RiderColors.surfaceElevated]
+              : [RiderColors.goldSoft, RiderColors.surfaceElevated],
+        ),
+        border: Border.all(color: RiderColors.gold.withValues(alpha: .35)),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _border),
-            ),
-            child: const Text(
-              'LOGISTICS DISPATCH',
-              style: TextStyle(
-                color: Color(0xFF8A7F70),
-                fontSize: 7,
-                fontWeight: FontWeight.w800,
-                letterSpacing: .8,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Assigned delivery jobs',
-            style: TextStyle(
-              color: Color(0xFF211D17),
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Riders no longer self-accept public delivery requests. SARI Logistics assigns one active job at a time.',
-            style: TextStyle(
-              color: Color(0xFF817769),
-              fontSize: 8.5,
-              height: 1.5,
-            ),
-          ),
+          CircleAvatar(radius: 22, backgroundColor: RiderColors.gold, child: Icon(Icons.campaign_outlined, color: Colors.white)),
+          SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Dispatch Center', style: TextStyle(color: RiderColors.text, fontSize: 16, fontWeight: FontWeight.w900)),
+            SizedBox(height: 4),
+            Text('Review the parcel, route and fee first. Accept only the job currently assigned to you.', style: TextStyle(color: RiderColors.muted, fontSize: 11, height: 1.4)),
+          ])),
         ],
       ),
     );
   }
 
-  Widget _activeAssignment(RiderDelivery order) {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F8FB),
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: const Color(0xFFD2DFE9)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Current assignment: ${order.orderNumber}',
-            style: const TextStyle(
-              color: _blue,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
+  Widget _filters() {
+    return Row(children: [
+      for (final item in const ['All','Pickup','Delivery'])
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: item == 'Delivery' ? 0 : 8),
+            child: ChoiceChip(
+              label: SizedBox(width: double.infinity, child: Text(item, textAlign: TextAlign.center, style: TextStyle(fontSize: 11))),
+              selected: _filter == item,
+              onSelected: (_) => setState(() => _filter = item),
+              selectedColor: RiderColors.goldSoft,
+              backgroundColor: RiderColors.surface,
+              side: BorderSide(color: RiderColors.border),
+              labelStyle: TextStyle(color: _filter == item ? RiderColors.goldDark : RiderColors.muted, fontWeight: FontWeight.w800),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            order.statusLabel,
-            style: const TextStyle(
-              color: Color(0xFF6F8190),
-              fontSize: 7.5,
+        ),
+    ]);
+  }
+
+  Widget _jobCard(RiderDelivery order) {
+    final accent = riderStatusColor(order.status);
+    return RiderSurface(
+      padding: EdgeInsets.zero,
+      shadow: order == widget.activeOrder,
+      child: Column(children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(15, 15, 15, 12),
+          child: Column(children: [
+            Row(children: [
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(order.orderNumber, style: TextStyle(color: RiderColors.text, fontSize: 15, fontWeight: FontWeight.w900)),
+                SizedBox(height: 3),
+                Text('${order.legLabel} • ${order.packageCode}', style: TextStyle(color: RiderColors.muted, fontSize: 10.5)),
+              ])),
+              RiderStatusPill(label: order.statusLabel, color: accent, background: riderStatusSoftColor(order.status)),
+            ]),
+            SizedBox(height: 14),
+            _locationRow(
+              icon: order.isDeliveryFlow ? Icons.warehouse_outlined : Icons.storefront_outlined,
+              label: order.isDeliveryFlow ? 'FROM HUB' : 'FROM SELLER',
+              name: order.isDeliveryFlow ? order.sortingCenterName : order.pickupName,
+              address: order.isDeliveryFlow ? order.sortingCenterAddress : order.pickupAddress,
+              color: order.isDeliveryFlow ? RiderColors.blue : RiderColors.gold,
             ),
-          ),
-          const SizedBox(height: 9),
-          ElevatedButton(
-            onPressed: onOpenWorkflow,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _blue,
-              foregroundColor: Colors.white,
-              elevation: 0,
+            Padding(padding: EdgeInsets.only(left: 19), child: SizedBox(height: 14, child: VerticalDivider(color: RiderColors.border, thickness: 1.4))),
+            _locationRow(
+              icon: order.isDeliveryFlow ? Icons.home_outlined : Icons.warehouse_outlined,
+              label: order.isDeliveryFlow ? 'TO CUSTOMER' : 'TO HUB',
+              name: order.isDeliveryFlow ? order.buyerName : order.sortingCenterName,
+              address: order.isDeliveryFlow ? order.buyerAddress : order.sortingCenterAddress,
+              color: order.isDeliveryFlow ? RiderColors.green : RiderColors.blue,
             ),
-            child: const Text(
-              'Open Delivery Workflow',
-              style: TextStyle(
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
+          ]),
+        ),
+        Container(
+          padding: EdgeInsets.fromLTRB(15, 12, 15, 14),
+          decoration: BoxDecoration(color: RiderColors.surfaceSoft, borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)), border: Border(top: BorderSide(color: RiderColors.border))),
+          child: Row(children: [
+            Expanded(child: Text('Fee ₱${order.deliveryFee.toStringAsFixed(0)}', style: TextStyle(color: RiderColors.green, fontSize: 13, fontWeight: FontWeight.w900))),
+            if (order.status == 'arrived_buyer')
+              FilledButton(onPressed: widget.onOpenDelivery, style: FilledButton.styleFrom(backgroundColor: RiderColors.blue), child: Text('Record result'))
+            else if (order.nextStatus != null)
+              FilledButton(onPressed: () => widget.onAdvanceDelivery(order), style: FilledButton.styleFrom(backgroundColor: accent), child: Text(order.actionLabel))
+            else
+              OutlinedButton(onPressed: widget.onOpenWorkflow, child: Text('Open workflow')),
+          ]),
+        ),
+      ]),
     );
   }
 
-  Widget _assignmentCard(RiderDelivery order) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFDF8),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      order.orderNumber,
-                      style: const TextStyle(
-                        color: Color(0xFF29241E),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      order.sellerName,
-                      style: const TextStyle(
-                        color: Color(0xFF918677),
-                        fontSize: 7.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF6E1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _border),
-                ),
-                child: const Text(
-                  'ASSIGNED',
-                  style: TextStyle(
-                    color: Color(0xFFA56B00),
-                    fontSize: 6.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _locationCard(
-                  'PICKUP',
-                  order.pickupName,
-                  order.pickupAddress,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _locationCard(
-                  'BUYER',
-                  order.buyerName,
-                  order.buyerAddress,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFEEE5D6)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Text(
-                _peso(order.deliveryFee),
-                style: const TextStyle(
-                  color: Color(0xFF29241E),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              ElevatedButton(
-                onPressed: onOpenWorkflow,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _gold,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Start Workflow',
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  Widget _locationRow({required IconData icon, required String label, required String name, required String address, required Color color}) {
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(width: 38, height: 38, decoration: BoxDecoration(color: color.withValues(alpha: .11), shape: BoxShape.circle), child: Icon(icon, size: 19, color: color)),
+      SizedBox(width: 10),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: .6)),
+        SizedBox(height: 2),
+        Text(name, style: TextStyle(color: RiderColors.text, fontSize: 12, fontWeight: FontWeight.w800)),
+        SizedBox(height: 2),
+        Text(address, style: TextStyle(color: RiderColors.muted, fontSize: 10, height: 1.35)),
+      ])),
+    ]);
   }
-
-  Widget _locationCard(String label, String name, String address) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: const Color(0xFFEEE5D6)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFFA09484),
-              fontSize: 6.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: .7,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            name,
-            style: const TextStyle(
-              color: Color(0xFF2A251F),
-              fontSize: 8.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            address.isEmpty ? 'Address unavailable' : address,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF8A8073),
-              fontSize: 6.5,
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _emptyState() {
-    return Container(
-      padding: const EdgeInsets.all(34),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFDF8),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFDCD2C3)),
-      ),
-      child: const Column(
-        children: [
-          Text(
-            'No Logistics assignment yet.',
-            style: TextStyle(
-              color: Color(0xFF51483D),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          SizedBox(height: 5),
-          Text(
-            'When Logistics assigns an order to you, it will appear here automatically.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFF918677),
-              fontSize: 8,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _peso(double value) => '₱${value.toStringAsFixed(2)}';
 }

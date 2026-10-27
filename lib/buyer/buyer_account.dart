@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'buyer_messages.dart';
 import 'buyer_notifications.dart';
+import 'buyer_recent_activity.dart';
+import 'buyer_recent_orders.dart';
 import 'buyer_rewards.dart';
 import 'buyer_shipping.dart';
+import 'models/buyer_address_model.dart';
 import 'models/buyer_profile_model.dart';
 import 'widgets/buyer_header.dart';
 
@@ -36,6 +39,8 @@ class _BuyerAccountState extends State<BuyerAccount> {
   late final TextEditingController _address;
   final TextEditingController _complaint = TextEditingController();
 
+  late List<BuyerAddress> _addresses;
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +48,19 @@ class _BuyerAccountState extends State<BuyerAccount> {
     _lastName = TextEditingController(text: widget.profile.lastName);
     _contact = TextEditingController(text: widget.profile.contactNo);
     _address = TextEditingController(text: widget.profile.streetAddress);
+    _addresses = <BuyerAddress>[
+      BuyerAddress(
+        id: 1,
+        label: 'Home',
+        recipientName: widget.profile.fullName,
+        contactNo: widget.profile.contactNo,
+        streetAddress: widget.profile.streetAddress,
+        barangayName: widget.profile.barangayName,
+        municipalityName: widget.profile.municipalityName,
+        provinceName: widget.profile.provinceName,
+        isDefault: true,
+      ),
+    ];
   }
 
   @override
@@ -77,6 +95,8 @@ class _BuyerAccountState extends State<BuyerAccount> {
                 _buyerCenter(),
                 const SizedBox(height: 12),
                 _profileForm(),
+                const SizedBox(height: 12),
+                _addressBook(),
                 const SizedBox(height: 12),
                 _supportCard(),
               ],
@@ -232,6 +252,8 @@ class _BuyerAccountState extends State<BuyerAccount> {
 
   Widget _buyerCenter() {
     final items = <(IconData, String, String, Color, VoidCallback)>[
+      (Icons.receipt_long_outlined, 'Recent Orders', 'Latest purchases', const Color(0xFFFFEED7), () => _push(const BuyerRecentOrders())),
+      (Icons.history_rounded, 'Activity', 'Order updates', const Color(0xFFE8EEF7), () => _push(const BuyerRecentActivity())),
       (Icons.local_shipping_outlined, 'Shipping', 'Track parcels', const Color(0xFFE7F0F7), () => _push(const BuyerShipping())),
       (Icons.notifications_none_rounded, 'Updates', 'Order alerts', const Color(0xFFFFEED7), () => _push(const BuyerNotifications())),
       (Icons.card_giftcard_outlined, 'Rewards', 'Points & perks', const Color(0xFFF0EAF7), () => _push(const BuyerRewards())),
@@ -427,6 +449,353 @@ class _BuyerAccountState extends State<BuyerAccount> {
         ),
       ),
     );
+  }
+
+  Widget _addressBook() {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Delivery Addresses',
+                      style: TextStyle(
+                        color: _text,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Choose the address used during checkout.',
+                      style: TextStyle(color: _muted, fontSize: 8.5),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _addresses.length >= 5 ? null : () => _openAddressEditor(),
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text('Add'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_addresses.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAF8F4),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: _border),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.location_off_outlined, color: Color(0xFFB58A45)),
+                  SizedBox(height: 7),
+                  Text(
+                    'No saved delivery addresses',
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Add Home, Office, or another preferred location.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: _muted, fontSize: 8),
+                  ),
+                ],
+              ),
+            )
+          else
+            ..._addresses.map(_addressCard),
+          if (_addresses.length >= 5) ...[
+            const SizedBox(height: 7),
+            const Text(
+              'You have reached the maximum of 5 saved addresses.',
+              style: TextStyle(color: _muted, fontSize: 8),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _addressCard(BuyerAddress address) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: address.isDefault
+            ? const Color(0xFFFFFAF0)
+            : const Color(0xFFFCFAF7),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: address.isDefault
+              ? const Color(0xFFDCB665)
+              : const Color(0xFFEEE7DC),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  address.label,
+                  style: const TextStyle(
+                    color: _text,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              if (address.isDefault)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEDC8),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'ACTIVE',
+                    style: TextStyle(
+                      color: Color(0xFF94600A),
+                      fontSize: 6.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Text(
+            address.recipientName,
+            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '${address.streetAddress}\n${address.area}, Philippines\n${address.contactNo}',
+            style: const TextStyle(
+              color: _muted,
+              fontSize: 8.5,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 9),
+          Row(
+            children: [
+              if (!address.isDefault)
+                TextButton.icon(
+                  onPressed: () => _setDefaultAddress(address.id),
+                  icon: const Icon(Icons.check_circle_outline, size: 14),
+                  label: const Text('Use'),
+                ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Edit address',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _openAddressEditor(address),
+                icon: const Icon(Icons.edit_outlined, size: 17),
+              ),
+              IconButton(
+                tooltip: 'Delete address',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _removeAddress(address),
+                icon: const Icon(Icons.delete_outline, size: 17, color: Color(0xFFB85353)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openAddressEditor([BuyerAddress? existing]) async {
+    final formKey = GlobalKey<FormState>();
+    final label = TextEditingController(text: existing?.label ?? 'Home');
+    final recipient = TextEditingController(
+      text: existing?.recipientName ?? widget.profile.fullName,
+    );
+    final phone = TextEditingController(
+      text: existing?.contactNo ?? widget.profile.contactNo,
+    );
+    final street = TextEditingController(text: existing?.streetAddress ?? '');
+    final barangay = TextEditingController(text: existing?.barangayName ?? '');
+    final municipality = TextEditingController(text: existing?.municipalityName ?? '');
+    final province = TextEditingController(text: existing?.provinceName ?? '');
+    final postalCode = TextEditingController(text: existing?.postalCode ?? '');
+
+    final result = await showModalBottomSheet<BuyerAddress>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            4,
+            16,
+            MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+          ),
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    existing == null ? 'Add Delivery Address' : 'Edit Delivery Address',
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 14),
+                  _addressField(label, 'Label', maxLength: 30),
+                  const SizedBox(height: 9),
+                  _addressField(recipient, 'Recipient Name', maxLength: 100),
+                  const SizedBox(height: 9),
+                  _addressField(
+                    phone,
+                    'Contact Number',
+                    keyboardType: TextInputType.phone,
+                    validator: _phoneValidator,
+                  ),
+                  const SizedBox(height: 9),
+                  _addressField(street, 'House, unit, building, or street', maxLength: 500),
+                  const SizedBox(height: 9),
+                  _addressField(barangay, 'Barangay', maxLength: 100),
+                  const SizedBox(height: 9),
+                  _addressField(municipality, 'City / Municipality', maxLength: 100),
+                  const SizedBox(height: 9),
+                  _addressField(province, 'Province', maxLength: 100),
+                  const SizedBox(height: 9),
+                  _addressField(
+                    postalCode,
+                    'Postal Code (optional)',
+                    required: false,
+                    keyboardType: TextInputType.number,
+                    maxLength: 10,
+                  ),
+                  const SizedBox(height: 14),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (!(formKey.currentState?.validate() ?? false)) return;
+                      Navigator.pop(
+                        sheetContext,
+                        BuyerAddress(
+                          id: existing?.id ?? DateTime.now().millisecondsSinceEpoch,
+                          label: label.text.trim(),
+                          recipientName: recipient.text.trim(),
+                          contactNo: phone.text.trim(),
+                          streetAddress: street.text.trim(),
+                          barangayName: barangay.text.trim(),
+                          municipalityName: municipality.text.trim(),
+                          provinceName: province.text.trim(),
+                          postalCode: postalCode.text.trim(),
+                          isDefault: existing?.isDefault ?? _addresses.isEmpty,
+                        ),
+                      );
+                    },
+                    child: Text(existing == null ? 'Save Address' : 'Update Address'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    label.dispose();
+    recipient.dispose();
+    phone.dispose();
+    street.dispose();
+    barangay.dispose();
+    municipality.dispose();
+    province.dispose();
+    postalCode.dispose();
+
+    if (result == null || !mounted) return;
+    setState(() {
+      final index = _addresses.indexWhere((item) => item.id == result.id);
+      if (index < 0) {
+        _addresses.add(result);
+      } else {
+        _addresses[index] = result;
+      }
+    });
+    _toast(existing == null ? 'Address added.' : 'Address updated.');
+  }
+
+  Widget _addressField(
+    TextEditingController controller,
+    String label, {
+    bool required = true,
+    TextInputType? keyboardType,
+    int? maxLength,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLength: maxLength,
+      style: const TextStyle(fontSize: 11),
+      decoration: InputDecoration(labelText: label, counterText: ''),
+      validator: validator ?? (required ? _required : null),
+    );
+  }
+
+  String? _phoneValidator(String? value) {
+    final phone = (value ?? '').trim();
+    if (phone.isEmpty) return 'This field is required.';
+    if (!RegExp(r'^(09\d{9}|\+639\d{9})$').hasMatch(phone)) {
+      return 'Use 09XXXXXXXXX or +639XXXXXXXXX.';
+    }
+    return null;
+  }
+
+  void _setDefaultAddress(int id) {
+    setState(() {
+      _addresses = _addresses
+          .map((address) => address.copyWith(isDefault: address.id == id))
+          .toList();
+    });
+    _toast('Active delivery address updated.');
+  }
+
+  Future<void> _removeAddress(BuyerAddress address) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete address?'),
+        content: Text('Remove ${address.label} from your saved delivery addresses?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _addresses.removeWhere((item) => item.id == address.id);
+      if (address.isDefault && _addresses.isNotEmpty) {
+        _addresses[0] = _addresses[0].copyWith(isDefault: true);
+      }
+    });
+    _toast('Address removed.');
   }
 
   Widget _supportCard() {

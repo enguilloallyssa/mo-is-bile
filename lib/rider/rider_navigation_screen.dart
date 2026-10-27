@@ -7,11 +7,12 @@ import 'package:latlong2/latlong.dart';
 
 import 'models/rider_delivery_model.dart';
 import 'services/rider_navigation_service.dart';
+import 'widgets/rider_ui.dart';
 
 class RiderNavigationScreen extends StatefulWidget {
   final RiderDelivery delivery;
 
-  const RiderNavigationScreen({
+  RiderNavigationScreen({
     super.key,
     required this.delivery,
   });
@@ -44,9 +45,7 @@ class _RiderNavigationScreenState
       );
 
   String get _destinationLabel =>
-      widget.delivery.isHeadingToBuyer
-          ? 'Buyer'
-          : 'Seller';
+      widget.delivery.destinationRoleLabel;
 
   @override
   void initState() {
@@ -96,7 +95,7 @@ class _RiderNavigationScreenState
       }
 
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
+        locationSettings: LocationSettings(
           accuracy: LocationAccuracy.high,
           timeLimit: Duration(seconds: 15),
         ),
@@ -120,7 +119,7 @@ class _RiderNavigationScreenState
 
       _positionSubscription =
           Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
+        locationSettings: LocationSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 10,
         ),
@@ -191,7 +190,7 @@ class _RiderNavigationScreenState
 
     if (lastRequest != null &&
         DateTime.now().difference(lastRequest) <
-            const Duration(seconds: 15)) {
+            Duration(seconds: 15)) {
       return false;
     }
 
@@ -256,7 +255,7 @@ class _RiderNavigationScreenState
     _mapController.fitCamera(
       CameraFit.coordinates(
         coordinates: coordinates,
-        padding: const EdgeInsets.fromLTRB(
+        padding: EdgeInsets.fromLTRB(
           45,
           130,
           45,
@@ -299,9 +298,9 @@ class _RiderNavigationScreenState
               ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF8F1),
+      backgroundColor: RiderColors.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFDF8),
+        backgroundColor: RiderColors.surface,
         surfaceTintColor: Colors.transparent,
         titleSpacing: 0,
         title: Column(
@@ -309,19 +308,19 @@ class _RiderNavigationScreenState
           children: [
             Text(
               'Navigate to $_destinationLabel',
-              style: const TextStyle(
-                color: Color(0xFF211D17),
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
+              style: TextStyle(
+                color: RiderColors.text,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
               ),
             ),
             Text(
               widget.delivery.destinationName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF817769),
-                fontSize: 8,
+              style: TextStyle(
+                color: RiderColors.muted,
+                fontSize: 10.5,
               ),
             ),
           ],
@@ -330,7 +329,7 @@ class _RiderNavigationScreenState
           IconButton(
             tooltip: 'Fit route',
             onPressed: _fitRoute,
-            icon: const Icon(
+            icon: Icon(
               Icons.route_outlined,
             ),
           ),
@@ -347,7 +346,7 @@ class _RiderNavigationScreenState
                 minZoom: 3,
                 maxZoom: 19,
                 backgroundColor:
-                    const Color(0xFFF2EFE9),
+                    RiderColors.surfaceSoft,
                 onMapReady: () {
                   _mapReady = true;
                   WidgetsBinding.instance
@@ -383,7 +382,7 @@ class _RiderNavigationScreenState
                       points: routePoints,
                       strokeWidth: 6,
                       color:
-                          const Color(0xFF3C6E91),
+                          RiderColors.blue,
                     ),
                   ],
                 ),
@@ -398,9 +397,7 @@ class _RiderNavigationScreenState
                       child: Container(
                         decoration:
                             BoxDecoration(
-                          color: const Color(
-                            0xFF3C6E91,
-                          ),
+                          color: RiderColors.blue,
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: Colors.white,
@@ -416,7 +413,7 @@ class _RiderNavigationScreenState
                             ),
                           ],
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.two_wheeler,
                           color: Colors.white,
                           size: 24,
@@ -440,14 +437,11 @@ class _RiderNavigationScreenState
                                     .location_on
                                 : Icons
                                     .location_on,
-                            color: widget.delivery
-                                    .isHeadingToBuyer
-                                ? const Color(
-                                    0xFF4F7D63,
-                                  )
-                                : const Color(
-                                    0xFFD99600,
-                                  ),
+                            color: widget.delivery.isHeadingToBuyer
+                                ? RiderColors.green
+                                : widget.delivery.isHeadingToSortingCenter
+                                    ? RiderColors.blue
+                                    : RiderColors.gold,
                             size: 42,
                             shadows: const [
                               Shadow(
@@ -462,7 +456,7 @@ class _RiderNavigationScreenState
                           ),
                           Container(
                             padding:
-                                const EdgeInsets
+                                EdgeInsets
                                     .symmetric(
                               horizontal: 5,
                               vertical: 2,
@@ -470,7 +464,7 @@ class _RiderNavigationScreenState
                             decoration:
                                 BoxDecoration(
                               color:
-                                  Colors.white,
+                                  RiderColors.surfaceElevated,
                               borderRadius:
                                   BorderRadius
                                       .circular(5),
@@ -478,10 +472,8 @@ class _RiderNavigationScreenState
                             child: Text(
                               _destinationLabel,
                               style:
-                                  const TextStyle(
-                                color: Color(
-                                  0xFF3D372F,
-                                ),
+                                  TextStyle(
+                                color: RiderColors.text,
                                 fontSize: 6,
                                 fontWeight:
                                     FontWeight
@@ -494,7 +486,7 @@ class _RiderNavigationScreenState
                     ),
                   ],
                 ),
-                const SimpleAttributionWidget(
+                SimpleAttributionWidget(
                   source: Text(
                     '© OpenStreetMap contributors',
                     style: TextStyle(
@@ -505,6 +497,14 @@ class _RiderNavigationScreenState
               ],
             ),
           ),
+          if (RiderColors.isDark)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ColoredBox(
+                  color: Color(0x32111D24),
+                ),
+              ),
+            ),
           Positioned(
             left: 12,
             right: 12,
@@ -521,9 +521,9 @@ class _RiderNavigationScreenState
                       'rider-nav-location',
                   onPressed: _centerOnRider,
                   backgroundColor:
-                      Colors.white,
+                      RiderColors.surfaceElevated,
                   foregroundColor:
-                      const Color(0xFF3C6E91),
+                      RiderColors.blue,
                   child: Icon(
                     _followRider
                         ? Icons
@@ -532,7 +532,7 @@ class _RiderNavigationScreenState
                             .location_searching,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 FloatingActionButton.small(
                   heroTag:
                       'rider-nav-refresh',
@@ -544,10 +544,10 @@ class _RiderNavigationScreenState
                                 fitRoute: true,
                               ),
                   backgroundColor:
-                      Colors.white,
+                      RiderColors.surfaceElevated,
                   foregroundColor:
-                      const Color(0xFF3C6E91),
-                  child: const Icon(
+                      RiderColors.blue,
+                  child: Icon(
                     Icons.refresh_rounded,
                   ),
                 ),
@@ -562,9 +562,9 @@ class _RiderNavigationScreenState
                 _instructionPanel(),
           ),
           if (_loading)
-            const Positioned.fill(
+            Positioned.fill(
               child: ColoredBox(
-                color: Color(0x44FFFFFF),
+                color: RiderColors.overlay,
                 child: Center(
                   child:
                       CircularProgressIndicator(),
@@ -580,13 +580,13 @@ class _RiderNavigationScreenState
     final route = _route;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color:
-            Colors.white.withValues(alpha: .96),
+            RiderColors.surfaceElevated,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFEADFC9),
+          color: RiderColors.border,
         ),
         boxShadow: const [
           BoxShadow(
@@ -603,17 +603,17 @@ class _RiderNavigationScreenState
             height: 38,
             decoration: BoxDecoration(
               color:
-                  const Color(0xFFEAF2F7),
+                  RiderColors.blueSoft,
               borderRadius:
                   BorderRadius.circular(11),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.navigation_rounded,
-              color: Color(0xFF3C6E91),
+              color: RiderColors.blue,
               size: 20,
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -625,29 +625,29 @@ class _RiderNavigationScreenState
                   maxLines: 1,
                   overflow:
                       TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF211D17),
+                  style: TextStyle(
+                    color: RiderColors.text,
                     fontSize: 10.5,
                     fontWeight:
                         FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 3),
+                SizedBox(height: 3),
                 Text(
                   widget.delivery
                       .destinationAddress,
                   maxLines: 1,
                   overflow:
                       TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF817769),
+                  style: TextStyle(
+                    color: RiderColors.muted,
                     fontSize: 7,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Column(
             crossAxisAlignment:
                 CrossAxisAlignment.end,
@@ -658,8 +658,8 @@ class _RiderNavigationScreenState
                     : _distanceLabel(
                         route.distanceMeters,
                       ),
-                style: const TextStyle(
-                  color: Color(0xFF211D17),
+                style: TextStyle(
+                  color: RiderColors.text,
                   fontSize: 11,
                   fontWeight:
                       FontWeight.w800,
@@ -671,8 +671,8 @@ class _RiderNavigationScreenState
                     : _durationLabel(
                         route.durationSeconds,
                       ),
-                style: const TextStyle(
-                  color: Color(0xFF817769),
+                style: TextStyle(
+                  color: RiderColors.muted,
                   fontSize: 7,
                 ),
               ),
@@ -693,17 +693,17 @@ class _RiderNavigationScreenState
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(
+        padding: EdgeInsets.fromLTRB(
           15,
           13,
           15,
           14,
         ),
-        decoration: const BoxDecoration(
-          color: Color(0xFFFFFDF8),
+        decoration: BoxDecoration(
+          color: RiderColors.surface,
           border: Border(
             top: BorderSide(
-              color: Color(0xFFEADFC9),
+              color: RiderColors.border,
             ),
           ),
         ),
@@ -715,18 +715,18 @@ class _RiderNavigationScreenState
             if (_error != null) ...[
               Container(
                 padding:
-                    const EdgeInsets.all(9),
+                    EdgeInsets.all(9),
                 decoration: BoxDecoration(
                   color:
-                      const Color(0xFFFDECEC),
+                      RiderColors.redSoft,
                   borderRadius:
                       BorderRadius.circular(10),
                 ),
                 child: Text(
                   _error!,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color:
-                        Color(0xFF9A4D4D),
+                        RiderColors.red,
                     fontSize: 7.5,
                     height: 1.4,
                     fontWeight:
@@ -734,25 +734,25 @@ class _RiderNavigationScreenState
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
             ],
-            const Text(
+            Text(
               'NEXT DIRECTION',
               style: TextStyle(
-                color: Color(0xFFA8731F),
+                color: RiderColors.goldDark,
                 fontSize: 6.5,
                 fontWeight: FontWeight.w800,
                 letterSpacing: .7,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               firstStep?.instruction ??
                   (_loading
                       ? 'Getting your current location and route...'
                       : 'Follow the highlighted route to the destination.'),
-              style: const TextStyle(
-                color: Color(0xFF211D17),
+              style: TextStyle(
+                color: RiderColors.text,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 height: 1.35,
@@ -760,11 +760,11 @@ class _RiderNavigationScreenState
             ),
             if (firstStep != null &&
                 firstStep.distanceMeters > 0) ...[
-              const SizedBox(height: 3),
+              SizedBox(height: 3),
               Text(
                 'In ${_distanceLabel(firstStep.distanceMeters)}',
-                style: const TextStyle(
-                  color: Color(0xFF817769),
+                style: TextStyle(
+                  color: RiderColors.muted,
                   fontSize: 7.5,
                 ),
               ),

@@ -1,14 +1,12 @@
-// ignore_for_file: duplicate_import
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/material.dart';
 
 import 'buyer/buyer_shell.dart';
 import 'logistics/logistics_shell.dart';
 import 'rider/rider_shell.dart';
 import 'screen/login_screen.dart';
 import 'screen/register_screen.dart';
+import 'screen/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +20,7 @@ class SariApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'SARI',
+      title: 'Sari',
       theme: ThemeData(
         useMaterial3: true,
         textTheme: GoogleFonts.poppinsTextTheme(),
@@ -32,8 +30,9 @@ class SariApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
       ),
-      initialRoute: '/login',
+      initialRoute: '/splash',
       routes: {
+        '/splash': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/buyer': (context) => const BuyerShell(),

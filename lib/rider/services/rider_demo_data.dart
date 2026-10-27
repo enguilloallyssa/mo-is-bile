@@ -5,16 +5,19 @@ import '../models/rider_message_model.dart';
 import '../models/rider_profile_model.dart';
 
 class RiderDemoData {
-  // One demo delivery only while Laravel/API is not connected.
-  // Coordinates are demo Lucena-area coordinates so the Mapbox screen
-  // has a real place to center on during the local workflow.
+  // Local/demo only. API/database connection is not enabled yet.
   static const RiderDelivery currentDelivery = RiderDelivery(
     id: 101,
     orderNumber: 'SARI-2026-0051',
+    packageCode: 'PKG-0051-LCN',
     pickupName: 'SARI Tech Corner',
     pickupAddress: 'Quezon Avenue, Lucena City',
     pickupLatitude: 13.9409,
     pickupLongitude: 121.6129,
+    sortingCenterName: 'SARI Lucena Sorting Center',
+    sortingCenterAddress: 'Diversion Road, Lucena City',
+    sortingCenterLatitude: 13.9448,
+    sortingCenterLongitude: 121.6208,
     buyerName: 'Juan Dela Cruz',
     buyerAddress: 'Brgy. Ibabang Dupay, Lucena City',
     buyerLatitude: 13.9522,
@@ -23,54 +26,16 @@ class RiderDemoData {
     riderLongitude: 121.6187,
     sellerName: 'SARI Tech Corner',
     deliveryFee: 80,
-    status: 'courier_accepted',
+    status: 'pickup_assigned',
   );
 
-  static const List<RiderDelivery> assignments = [
-    currentDelivery,
-  ];
+  static const List<RiderDelivery> assignments = [currentDelivery];
 
   static const List<RiderHistoryRecord> history = [
-    RiderHistoryRecord(
-      order: 'SARI-2026-0042',
-      customer: 'Ana Cruz',
-      route: 'Downtown Seller → Brgy. 5',
-      date: 'Oct 07, 2026',
-      time: '11:40 AM',
-      fee: 80,
-      status: 'Completed',
-      isToday: true,
-    ),
-    RiderHistoryRecord(
-      order: 'SARI-2026-0041',
-      customer: 'Paolo Reyes',
-      route: 'Local Essentials → Brgy. Cotta',
-      date: 'Oct 07, 2026',
-      time: '09:15 AM',
-      fee: 95,
-      status: 'Completed',
-      isToday: true,
-    ),
-    RiderHistoryRecord(
-      order: 'SARI-2026-0037',
-      customer: 'Mika Santos',
-      route: 'SARI Tech Corner → Brgy. Dalahican',
-      date: 'Oct 06, 2026',
-      time: '04:25 PM',
-      fee: 80,
-      status: 'Completed',
-      isToday: false,
-    ),
-    RiderHistoryRecord(
-      order: 'SARI-2026-0033',
-      customer: 'John Lim',
-      route: 'Daily Finds → Brgy. Bocohan',
-      date: 'Oct 05, 2026',
-      time: '02:10 PM',
-      fee: 85,
-      status: 'Completed',
-      isToday: false,
-    ),
+    RiderHistoryRecord(order: 'SARI-2026-0048', customer: 'Ana Cruz', route: 'Daily Finds → SARI Hub → Brgy. 5', date: 'Oct 20, 2026', time: '02:40 PM', fee: 85, status: 'Completed', isToday: true),
+    RiderHistoryRecord(order: 'SARI-2026-0047', customer: 'Paolo Reyes', route: 'Local Essentials → SARI Hub → Brgy. Cotta', date: 'Oct 20, 2026', time: '11:15 AM', fee: 95, status: 'Completed', isToday: true),
+    RiderHistoryRecord(order: 'SARI-2026-0044', customer: 'Mika Santos', route: 'SARI Tech Corner → SARI Hub → Brgy. Dalahican', date: 'Oct 19, 2026', time: '04:25 PM', fee: 80, status: 'Completed', isToday: false),
+    RiderHistoryRecord(order: 'SARI-2026-0040', customer: 'John Lim', route: 'Downtown Seller → SARI Hub → Brgy. Bocohan', date: 'Oct 18, 2026', time: '06:10 PM', fee: 85, status: 'Failed', isToday: false),
   ];
 
   static const List<RiderDailyEarning> dailyEarnings = [
@@ -84,42 +49,14 @@ class RiderDemoData {
   ];
 
   static const List<RiderEarningTransaction> transactions = [
-    RiderEarningTransaction(
-      order: 'SARI-2026-0042',
-      date: 'Oct 07, 2026',
-      type: 'Delivery Fee',
-      amount: 80,
-      status: 'Credited',
-    ),
-    RiderEarningTransaction(
-      order: 'SARI-2026-0041',
-      date: 'Oct 07, 2026',
-      type: 'Delivery Fee',
-      amount: 95,
-      status: 'Credited',
-    ),
-    RiderEarningTransaction(
-      order: 'SARI-2026-0037',
-      date: 'Oct 06, 2026',
-      type: 'Delivery Fee',
-      amount: 80,
-      status: 'Credited',
-    ),
+    RiderEarningTransaction(order: 'SARI-2026-0048', date: 'Oct 20, 2026', type: 'Delivery Fee', amount: 85, status: 'Credited'),
+    RiderEarningTransaction(order: 'SARI-2026-0047', date: 'Oct 20, 2026', type: 'Delivery Fee', amount: 95, status: 'Credited'),
+    RiderEarningTransaction(order: 'SARI-2026-0044', date: 'Oct 19, 2026', type: 'Delivery Fee', amount: 80, status: 'Credited'),
   ];
 
   static const List<RiderMessage> messages = [
-    RiderMessage(
-      id: 1,
-      senderRole: 'logistics',
-      body: 'You have a new delivery assignment. Please check the pickup details.',
-      createdAt: 'Oct 07, 02:10 PM',
-    ),
-    RiderMessage(
-      id: 2,
-      senderRole: 'rider',
-      body: 'Received. I will proceed to the seller pickup point.',
-      createdAt: 'Oct 07, 02:12 PM',
-    ),
+    RiderMessage(id: 1, senderRole: 'logistics', body: 'Pickup SARI-2026-0051 is ready. Please review the seller route.', createdAt: 'Oct 20, 05:40 PM'),
+    RiderMessage(id: 2, senderRole: 'rider', body: 'Received. I will review the assignment now.', createdAt: 'Oct 20, 05:42 PM'),
   ];
 
   static RiderProfile profile = RiderProfile(

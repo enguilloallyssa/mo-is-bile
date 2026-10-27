@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'models/buyer_product_model.dart';
+import 'models/buyer_cart_model.dart';
 import 'widgets/buyer_header.dart';
 import 'widgets/buyer_product_card.dart';
 import 'buyer_product_details.dart';
 import 'buyer_shop.dart';
 import 'buyer_messages.dart';
+import 'buyer_checkout.dart';
 import 'models/buyer_shop_model.dart';
 
 class BuyerProducts extends StatefulWidget {
@@ -1810,8 +1812,27 @@ class _BuyerProductsState extends State<BuyerProducts> {
                                   ? null
                                   : () {
                                       Navigator.pop(sheetContext);
-                                      _toast(
-                                        'Buy Now preview for ${product.name}. Checkout will be connected next.',
+                                      Navigator.push<void>(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => BuyerCheckout(
+                                            items: [
+                                              BuyerCartItem(
+                                                id: product.id,
+                                                productId: product.id,
+                                                sellerId: product.sellerAccountId,
+                                                storeName: product.shopName,
+                                                productName: product.name,
+                                                variantLabel: variation ?? '',
+                                                image: product.image,
+                                                unitPrice: product.price,
+                                                quantity: quantity,
+                                                maxStock: product.stock,
+                                                freeShipping: product.freeShipping,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       );
                                     },
                               style: OutlinedButton.styleFrom(

@@ -1,550 +1,135 @@
 import 'package:flutter/material.dart';
 
 import 'models/rider_earning_model.dart';
+import 'widgets/rider_ui.dart';
 
 class RiderEarnings extends StatefulWidget {
   final List<RiderDailyEarning> daily;
   final List<RiderEarningTransaction> transactions;
   final VoidCallback onOpenHistory;
 
-  const RiderEarnings({
-    super.key,
-    required this.daily,
-    required this.transactions,
-    required this.onOpenHistory,
-  });
+  RiderEarnings({super.key, required this.daily, required this.transactions, required this.onOpenHistory});
 
   @override
   State<RiderEarnings> createState() => _RiderEarningsState();
 }
 
 class _RiderEarningsState extends State<RiderEarnings> {
-  static const Color _gold = Color(0xFFD9930A);
-  static const Color _blue = Color(0xFF3C6E91);
-  static const Color _border = Color(0xFFEEE4D3);
-
-  final List<RiderPayoutRequest> _payoutRequests = [
-    const RiderPayoutRequest(
-      amount: 500,
-      status: 'Pending',
-    ),
-  ];
-
-  double get _today => widget.daily.isEmpty ? 0 : widget.daily.last.amount;
-
-  double get _week => widget.daily.fold<double>(
-        0,
-        (sum, day) => sum + day.amount,
-      );
-
-  double get _month => _week * 3.2;
-
-  double get _pending => _payoutRequests
-      .where((item) => item.status.toLowerCase() == 'pending')
-      .fold<double>(0, (sum, item) => sum + item.amount);
-
-  double get _available {
-    final value = _week - _pending;
-    return value < 0 ? 0 : value;
-  }
-
-  double get _maxDaily {
-    if (widget.daily.isEmpty) return 1;
-    double max = 1;
-    for (final day in widget.daily) {
-      if (day.amount > max) max = day.amount;
-    }
-    return max;
-  }
+  double _pendingPayout = 0;
+  double get _weeklyTotal => widget.daily.fold(0.0, (sum, item) => sum + item.amount);
+  double get _walletBalance => widget.transactions.fold(0.0, (sum, item) => sum + item.amount) - _pendingPayout;
 
   @override
   Widget build(BuildContext context) {
+    final maxAmount = widget.daily.isEmpty ? 1.0 : widget.daily.map((e) => e.amount).reduce((a, b) => a > b ? a : b);
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF8F1),
+      backgroundColor: RiderColors.bg,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: const Color(0xFFFFFDF8),
-        surfaceTintColor: Colors.transparent,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Profit Dashboard',
-              style: TextStyle(
-                color: Color(0xFF211D17),
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              'Courier Earnings',
-              style: TextStyle(
-                color: Color(0xFF918677),
-                fontSize: 8,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'History',
-            onPressed: widget.onOpenHistory,
-            icon: const Icon(Icons.history),
-          ),
-          const SizedBox(width: 4),
-        ],
+        toolbarHeight: 74,
+        titleSpacing: 16,
+        title: RiderHeaderTitle(title: 'Rider Wallet', subtitle: 'Earnings, payouts and delivery fees'),
+        actions: [IconButton(onPressed: widget.onOpenHistory, icon: Icon(Icons.receipt_long_outlined)), SizedBox(width: 8)],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
+        padding: EdgeInsets.fromLTRB(14, 14, 14, 26),
         children: [
-          _heading(),
-          const SizedBox(height: 14),
-          _summaryCards(),
-          const SizedBox(height: 14),
-          _weeklyPerformance(),
-          const SizedBox(height: 14),
-          _payoutSummary(),
-          const SizedBox(height: 14),
-          _recentEarnings(),
+          _walletHero(),
+          SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: RiderMetricTile(value: '₱${_weeklyTotal.toStringAsFixed(0)}', label: 'This week', icon: Icons.calendar_view_week_outlined, accent: RiderColors.blue, softColor: RiderColors.blueSoft)),
+            SizedBox(width: 10),
+            Expanded(child: RiderMetricTile(value: '${widget.transactions.length}', label: 'Transactions', icon: Icons.receipt_outlined, accent: RiderColors.purple, softColor: RiderColors.purpleSoft)),
+          ]),
+          SizedBox(height: 20),
+          RiderSectionHeader(title: 'Weekly performance', subtitle: 'Delivery fees credited per day'),
+          SizedBox(height: 10),
+          RiderSurface(
+            padding: EdgeInsets.fromLTRB(14, 18, 14, 12),
+            child: SizedBox(
+              height: 180,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: widget.daily.map((item) {
+                  final ratio = maxAmount <= 0 ? 0.0 : item.amount / maxAmount;
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                        Text('₱${item.amount.toStringAsFixed(0)}', style: TextStyle(color: RiderColors.muted, fontSize: 8.5, fontWeight: FontWeight.w700)),
+                        SizedBox(height: 5),
+                        Flexible(child: FractionallySizedBox(heightFactor: ratio.clamp(.08, 1.0).toDouble(), alignment: Alignment.bottomCenter, child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [RiderColors.gold, Color(0xFFF0B84C)]))))),
+                        SizedBox(height: 7),
+                        Text(item.day, style: TextStyle(color: RiderColors.text, fontSize: 9.5, fontWeight: FontWeight.w800)),
+                      ]),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          SizedBox(height: 20),
+          RiderSectionHeader(title: 'Recent earnings', subtitle: 'Latest credited rider fees'),
+          SizedBox(height: 10),
+          ...widget.transactions.map((item) => Padding(padding: EdgeInsets.only(bottom: 9), child: _transaction(item))),
         ],
       ),
     );
   }
 
-  Widget _heading() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Courier Earnings',
-          style: TextStyle(
-            color: Color(0xFF211D17),
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 5),
-        const Text(
-          'Track credited delivery fees, pending earnings, and weekly performance.',
-          style: TextStyle(
-            color: Color(0xFF817769),
-            fontSize: 8.5,
-            height: 1.45,
-          ),
-        ),
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: () => _toast('Statement download preview ready.'),
-          icon: const Icon(Icons.download_outlined, size: 16),
-          label: const Text(
-            'Download Statement',
-            style: TextStyle(fontSize: 8),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryCards() {
-    final cards = [
-      ('Today', _peso(_today), const Color(0xFFFFF2D8),
-          const Color(0xFFB77900)),
-      ('This Week', _peso(_week), const Color(0xFFEAF2F7), _blue),
-      ('This Month', _peso(_month), const Color(0xFFEAF3ED),
-          const Color(0xFF4F7D63)),
-      ('Pending', _peso(_pending), const Color(0xFFF0ECF6),
-          const Color(0xFF715A86)),
-      ('Available', _peso(_available), const Color(0xFFECF5EE),
-          const Color(0xFF437356)),
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: cards.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 1.35,
-      ),
-      itemBuilder: (context, index) {
-        final item = cards[index];
-
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFFDF9),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: _border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 9,
-                height: 9,
-                decoration: BoxDecoration(
-                  color: item.$4,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                item.$1,
-                style: const TextStyle(
-                  color: Color(0xFF887E70),
-                  fontSize: 7.5,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                item.$2,
-                style: const TextStyle(
-                  color: Color(0xFF211D17),
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _weeklyPerformance() {
+  Widget _walletHero() {
     return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFDF9),
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Weekly Performance',
-            style: TextStyle(
-              color: Color(0xFF211D17),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 3),
-          const Text(
-            'Delivery earnings for the current week.',
-            style: TextStyle(
-              color: Color(0xFF918677),
-              fontSize: 7.5,
-            ),
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            height: 220,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: widget.daily.map((day) {
-                final ratio = day.amount / _maxDaily;
-                final height = 30 + (150 * ratio);
-
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          '₱${day.amount.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            color: Color(0xFF645B4F),
-                            fontSize: 6,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Container(
-                          height: height,
-                          decoration: BoxDecoration(
-                            color: _blue,
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(9),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          day.day,
-                          style: const TextStyle(
-                            color: Color(0xFF857B6D),
-                            fontSize: 7,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
+      padding: EdgeInsets.all(19),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF3E755B), RiderColors.green, Color(0xFF608F73)]), boxShadow: const [BoxShadow(color: Color(0x254F7D63), blurRadius: 24, offset: Offset(0, 10))]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('AVAILABLE BALANCE', style: TextStyle(color: Colors.white.withValues(alpha: .78), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: .8)),
+        SizedBox(height: 6),
+        Text('₱${_walletBalance.toStringAsFixed(2)}', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: -.8)),
+        SizedBox(height: 5),
+        Text(_pendingPayout > 0 ? '₱${_pendingPayout.toStringAsFixed(0)} payout pending' : 'Ready for payout request', style: TextStyle(color: Colors.white.withValues(alpha: .82), fontSize: 11)),
+        SizedBox(height: 16),
+        ElevatedButton.icon(onPressed: _walletBalance <= 0 ? null : _requestPayout, style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: RiderColors.green, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))), icon: Icon(Icons.payments_outlined, size: 18), label: Text('Request Payout', style: TextStyle(fontWeight: FontWeight.w900))),
+      ]),
     );
   }
 
-  Widget _payoutSummary() {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFDF9),
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Payout Summary',
-            style: TextStyle(
-              color: Color(0xFF211D17),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 3),
-          const Text(
-            'Current courier balance',
-            style: TextStyle(
-              color: Color(0xFF918677),
-              fontSize: 7.5,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _blue,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'AVAILABLE BALANCE',
-                  style: TextStyle(
-                    color: Colors.white60,
-                    fontSize: 7,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: .7,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  _peso(_available),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                const Text(
-                  'Next scheduled payout: Friday',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 7.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 11),
-          ElevatedButton(
-            onPressed: _available <= 0 ? null : _requestPayout,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _gold,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            child: const Text(
-              'Request Payout',
-              style: TextStyle(
-                fontSize: 8.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          if (_payoutRequests.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            ..._payoutRequests.map(
-              (payout) => Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(11),
-                  border: Border.all(color: _border),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      _peso(payout.amount),
-                      style: const TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      payout.status.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 6.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _recentEarnings() {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFDF9),
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Recent Earnings',
-            style: TextStyle(
-              color: Color(0xFF211D17),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 3),
-          const Text(
-            'Latest delivery fee credits.',
-            style: TextStyle(
-              color: Color(0xFF918677),
-              fontSize: 7.5,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (widget.transactions.isEmpty)
-            const Text(
-              'No earnings yet.',
-              textAlign: TextAlign.center,
-            )
-          else
-            ...widget.transactions.map(
-              (transaction) => Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(11),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFF0E8DB)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            transaction.order,
-                            style: const TextStyle(
-                              color: Color(0xFF302A23),
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '+${_peso(transaction.amount)}',
-                          style: const TextStyle(
-                            color: Color(0xFF302A23),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      '${transaction.date} · ${transaction.type}',
-                      style: const TextStyle(
-                        color: Color(0xFF81776A),
-                        fontSize: 7,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFECF7F0),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          transaction.status,
-                          style: const TextStyle(
-                            color: Color(0xFF3F7B55),
-                            fontSize: 6.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
+  Widget _transaction(RiderEarningTransaction item) {
+    return RiderSurface(
+      padding: EdgeInsets.all(14),
+      child: Row(children: [
+        CircleAvatar(radius: 21, backgroundColor: RiderColors.greenSoft, child: Icon(Icons.add_rounded, color: RiderColors.green)),
+        SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(item.order, style: TextStyle(color: RiderColors.text, fontSize: 12.5, fontWeight: FontWeight.w900)),
+          SizedBox(height: 2),
+          Text('${item.type} • ${item.date}', style: TextStyle(color: RiderColors.muted, fontSize: 10)),
+        ])),
+        Text('+₱${item.amount.toStringAsFixed(0)}', style: TextStyle(color: RiderColors.green, fontSize: 14, fontWeight: FontWeight.w900)),
+      ]),
     );
   }
 
   void _requestPayout() {
-    final amount = _available;
-
-    setState(() {
-      _payoutRequests.insert(
-        0,
-        RiderPayoutRequest(
-          amount: amount,
-          status: 'Pending',
-        ),
-      );
-    });
-
-    _toast('Payout request preview submitted.');
-  }
-
-  void _toast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    final controller = TextEditingController(text: _walletBalance.toStringAsFixed(0));
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Request payout'),
+        content: TextField(controller: controller, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(prefixText: '₱ ', labelText: 'Amount', border: OutlineInputBorder())),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              final amount = double.tryParse(controller.text.trim()) ?? 0;
+              if (amount <= 0 || amount > _walletBalance) return;
+              setState(() => _pendingPayout += amount);
+              Navigator.pop(dialogContext);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Demo payout request created. API connection comes later.')));
+            },
+            child: Text('Submit'),
+          ),
+        ],
+      ),
     );
   }
-
-  String _peso(double value) => '₱${value.toStringAsFixed(2)}';
 }

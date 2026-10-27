@@ -1,394 +1,94 @@
 import 'package:flutter/material.dart';
 
 import 'models/rider_history_model.dart';
+import 'widgets/rider_ui.dart';
 
 class RiderHistory extends StatefulWidget {
   final List<RiderHistoryRecord> history;
-
-  const RiderHistory({
-    super.key,
-    required this.history,
-  });
+  RiderHistory({super.key, required this.history});
 
   @override
   State<RiderHistory> createState() => _RiderHistoryState();
 }
 
 class _RiderHistoryState extends State<RiderHistory> {
-  static const Color _gold = Color(0xFFD9930A);
-  static const Color _border = Color(0xFFEEE4D3);
-
-  final TextEditingController _searchController = TextEditingController();
-  String _filter = 'all';
+  final TextEditingController _search = TextEditingController();
+  String _filter = 'All';
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  List<RiderHistoryRecord> get _filtered {
-    final query = _searchController.text.trim().toLowerCase();
-
-    return widget.history.where((row) {
-      final searchMatch = query.isEmpty || row.searchable.contains(query);
-      final dayMatch = _filter == 'all' ||
-          (_filter == 'today' && row.isToday) ||
-          (_filter == 'previous' && !row.isToday);
-      return searchMatch && dayMatch;
-    }).toList();
-  }
-
-  int get _todayCount =>
-      widget.history.where((row) => row.isToday).length;
-
-  int get _totalCount => widget.history.length;
-
-  double get _successRate => widget.history.isEmpty ? 0 : 100;
-
-  double get _averageFee {
-    if (widget.history.isEmpty) return 0;
-    final total = widget.history.fold<double>(
-      0,
-      (sum, row) => sum + row.fee,
-    );
-    return total / widget.history.length;
-  }
+  void dispose() { _search.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
-    final rows = _filtered;
+    final query = _search.text.trim().toLowerCase();
+    final records = widget.history.where((item) {
+      final matchesSearch = query.isEmpty || item.searchable.contains(query);
+      final matchesFilter = _filter == 'All' || (_filter == 'Today' && item.isToday) || (_filter == 'Failed' && item.status.toLowerCase().contains('fail'));
+      return matchesSearch && matchesFilter;
+    }).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF8F1),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFDF8),
-        surfaceTintColor: Colors.transparent,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Delivery History',
-              style: TextStyle(
-                color: Color(0xFF211D17),
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              'Completed Deliveries',
-              style: TextStyle(
-                color: Color(0xFF918677),
-                fontSize: 8,
-              ),
-            ),
-          ],
-        ),
-      ),
+      backgroundColor: RiderColors.bg,
+      appBar: AppBar(toolbarHeight: 70, title: RiderHeaderTitle(title: 'Delivery History', subtitle: 'Completed and failed rider jobs')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
+        padding: EdgeInsets.fromLTRB(14, 14, 14, 26),
         children: [
-          _heading(),
-          const SizedBox(height: 14),
-          _stats(),
-          const SizedBox(height: 14),
-          _controls(),
-          const SizedBox(height: 12),
-          if (rows.isEmpty)
-            _empty()
-          else
-            ...rows.map(
-              (row) => Padding(
-                padding: const EdgeInsets.only(bottom: 9),
-                child: _historyCard(row),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _heading() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Delivery History',
-          style: TextStyle(
-            color: Color(0xFF211D17),
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 5),
-        const Text(
-          'Review completed deliveries, routes, completion time, and earned courier fees.',
-          style: TextStyle(
-            color: Color(0xFF817769),
-            fontSize: 8.5,
-            height: 1.5,
-          ),
-        ),
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: () => _toast('History export preview complete.'),
-          icon: const Icon(Icons.download_outlined, size: 16),
-          label: const Text(
-            'Export',
-            style: TextStyle(fontSize: 8),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _stats() {
-    final stats = [
-      ('Completed Today', '$_todayCount', 'Successful trips'),
-      ('Total Completed', '$_totalCount', 'Since joining'),
-      ('Success Rate', '${_successRate.toStringAsFixed(1)}%', 'Completion rate'),
-      ('Average Fee', _peso(_averageFee), 'Per completed delivery'),
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: stats.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 1.55,
-      ),
-      itemBuilder: (context, index) {
-        final stat = stats[index];
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFFDF9),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: _border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                stat.$1,
-                style: const TextStyle(
-                  color: Color(0xFF887E70),
-                  fontSize: 7.5,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                stat.$2,
-                style: const TextStyle(
-                  color: Color(0xFF211D17),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                stat.$3,
-                style: const TextStyle(
-                  color: Color(0xFF9B9183),
-                  fontSize: 6.5,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _controls() {
-    return Container(
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFDF9),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        children: [
-          DropdownButtonFormField<String>(
-            value: _filter,
-            decoration: const InputDecoration(
-              labelText: 'Filter',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            items: const [
-              DropdownMenuItem(
-                value: 'all',
-                child: Text('All deliveries'),
-              ),
-              DropdownMenuItem(
-                value: 'today',
-                child: Text('Today'),
-              ),
-              DropdownMenuItem(
-                value: 'previous',
-                child: Text('Previous days'),
-              ),
-            ],
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() {
-                _filter = value;
-              });
-            },
-          ),
-          const SizedBox(height: 9),
           TextField(
-            controller: _searchController,
+            controller: _search,
             onChanged: (_) => setState(() {}),
-            style: const TextStyle(fontSize: 9),
             decoration: InputDecoration(
-              hintText: 'Search order, customer, route...',
-              prefixIcon: const Icon(Icons.search, size: 18),
+              hintText: 'Search order, customer or route',
+              prefixIcon: Icon(Icons.search_rounded),
               filled: true,
-              fillColor: Colors.white,
-              isDense: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(11),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(11),
-                borderSide: const BorderSide(color: _gold),
-              ),
+              fillColor: RiderColors.surface,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: RiderColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: RiderColors.border)),
             ),
           ),
+          SizedBox(height: 12),
+          Row(children: [
+            for (final filter in const ['All','Today','Failed'])
+              Expanded(child: Padding(
+                padding: EdgeInsets.only(right: filter == 'Failed' ? 0 : 8),
+                child: ChoiceChip(label: SizedBox(width: double.infinity, child: Text(filter, textAlign: TextAlign.center)), selected: _filter == filter, onSelected: (_) => setState(() => _filter = filter), selectedColor: RiderColors.goldSoft, backgroundColor: RiderColors.surface, side: BorderSide(color: RiderColors.border)),
+              )),
+          ]),
+          SizedBox(height: 14),
+          if (records.isEmpty)
+            RiderEmptyState(icon: Icons.history_rounded, title: 'No matching history', message: 'Try another search or filter.')
+          else
+            ...records.map((item) => Padding(padding: EdgeInsets.only(bottom: 10), child: _historyCard(item))),
         ],
       ),
     );
   }
 
-  Widget _historyCard(RiderHistoryRecord row) {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFDF9),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  row.order,
-                  style: const TextStyle(
-                    color: Color(0xFF302A23),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECF7F0),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFC5E4D0)),
-                ),
-                child: Text(
-                  row.status,
-                  style: const TextStyle(
-                    color: Color(0xFF3F7B55),
-                    fontSize: 6.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _line('Customer', row.customer),
-          _line('Route', row.route),
-          _line('Date', row.date),
-          _line('Time', row.time),
-          const Divider(height: 16),
-          Row(
-            children: [
-              const Text(
-                'Courier Fee',
-                style: TextStyle(
-                  color: Color(0xFF81776A),
-                  fontSize: 7.5,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                _peso(row.fee),
-                style: const TextStyle(
-                  color: Color(0xFF302A23),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+  Widget _historyCard(RiderHistoryRecord item) {
+    final failed = item.status.toLowerCase().contains('fail');
+    final color = failed ? RiderColors.red : RiderColors.green;
+    final soft = failed ? RiderColors.redSoft : RiderColors.greenSoft;
+    return RiderSurface(
+      padding: EdgeInsets.all(15),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(width: 44, height: 44, decoration: BoxDecoration(color: soft, borderRadius: BorderRadius.circular(14)), child: Icon(failed ? Icons.close_rounded : Icons.check_rounded, color: color)),
+        SizedBox(width: 11),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text(item.order, style: TextStyle(color: RiderColors.text, fontSize: 13, fontWeight: FontWeight.w900))),
+            Text('₱${item.fee.toStringAsFixed(0)}', style: TextStyle(color: RiderColors.green, fontSize: 13, fontWeight: FontWeight.w900)),
+          ]),
+          SizedBox(height: 3),
+          Text(item.customer, style: TextStyle(color: RiderColors.text, fontSize: 11, fontWeight: FontWeight.w700)),
+          SizedBox(height: 3),
+          Text(item.route, style: TextStyle(color: RiderColors.muted, fontSize: 10, height: 1.35)),
+          SizedBox(height: 7),
+          Row(children: [
+            RiderStatusPill(label: item.status, color: color, background: soft),
+            Spacer(),
+            Text('${item.date} • ${item.time}', style: TextStyle(color: RiderColors.muted, fontSize: 9)),
+          ]),
+        ])),
+      ]),
     );
   }
-
-  Widget _line(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 58,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF9A9187),
-                fontSize: 7,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Color(0xFF746A5E),
-                fontSize: 7.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _empty() {
-    return const Padding(
-      padding: EdgeInsets.all(30),
-      child: Text(
-        'No matching completed deliveries.',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Color(0xFF918677),
-          fontSize: 9,
-        ),
-      ),
-    );
-  }
-
-  void _toast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  String _peso(double value) => '₱${value.toStringAsFixed(2)}';
 }

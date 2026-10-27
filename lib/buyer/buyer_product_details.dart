@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'models/buyer_product_model.dart';
 import 'models/buyer_cart_model.dart';
+import 'models/buyer_shop_model.dart';
+import 'buyer_cart.dart';
 import 'buyer_checkout.dart';
 import 'buyer_messages.dart';
+import 'buyer_shop.dart';
 
 class BuyerProductDetails extends StatefulWidget {
   final BuyerProduct product;
@@ -909,8 +912,23 @@ class _BuyerProductDetailsState extends State<BuyerProductDetails> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: widget.onVisitShop ??
-                          () => _toast(
-                                'Shop page will be connected later.',
+                          () => Navigator.push<void>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => BuyerShop(
+                                    shop: BuyerShopData(
+                                      sellerAccountId: product.sellerAccountId,
+                                      storeName: product.shopName,
+                                      description: 'Approved SARI marketplace seller',
+                                      products: <BuyerProduct>[
+                                        product,
+                                        ...widget.relatedProducts.where(
+                                          (item) => item.sellerAccountId == product.sellerAccountId,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
                       child: const Text(
                         'Visit Shop',
@@ -1688,7 +1706,10 @@ class _BuyerProductDetailsState extends State<BuyerProductDetails> {
       return;
     }
 
-    _toast('Cart page will be connected next.');
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => const BuyerCart()),
+    );
   }
 
   void _notice(String message, {bool danger = false}) {
