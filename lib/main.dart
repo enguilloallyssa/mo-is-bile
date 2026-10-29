@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'buyer/buyer_shell.dart';
 import 'logistics/logistics_shell.dart';
@@ -7,9 +6,11 @@ import 'rider/rider_shell.dart';
 import 'screen/login_screen.dart';
 import 'screen/register_screen.dart';
 import 'screen/splash_screen.dart';
+import 'screen/welcome_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
   runApp(const SariApp());
 }
 
@@ -19,25 +20,58 @@ class SariApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'Sari',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        textTheme: GoogleFonts.poppinsTextTheme(),
-        scaffoldBackgroundColor: const Color(0xFFF7F4EE),
+        brightness: Brightness.light,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFD48F08),
+          seedColor: const Color(0xFFD4A62A),
           brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: const Color(0xFFF7F5F1),
+        fontFamilyFallback: const <String>[
+          'Roboto',
+          'Arial',
+          'sans-serif',
+        ],
+        appBarTheme: const AppBarTheme(
+          centerTitle: false,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+        ),
+        snackBarTheme: const SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
         ),
       ),
       initialRoute: '/splash',
-      routes: {
-        '/splash': (context) => const SplashScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
-        '/buyer': (context) => const BuyerShell(),
-        '/rider': (context) => const RiderShell(),
-        '/logistics': (context) => const LogisticsShell(),
+      routes: <String, WidgetBuilder>{
+        '/splash': (BuildContext context) =>
+            const SplashScreen(),
+
+        '/welcome': (BuildContext context) =>
+            const WelcomeScreen(),
+
+        '/login': (BuildContext context) =>
+            const LoginScreen(),
+
+        '/register': (BuildContext context) =>
+            const RegisterScreen(),
+
+        '/buyer': (BuildContext context) =>
+            const BuyerShell(),
+
+        '/rider': (BuildContext context) =>
+            const RiderShell(),
+
+        '/logistics': (BuildContext context) =>
+            const LogisticsShell(),
+      },
+      onUnknownRoute: (RouteSettings settings) {
+        return MaterialPageRoute<void>(
+          builder: (BuildContext context) =>
+              const WelcomeScreen(),
+        );
       },
     );
   }

@@ -4,6 +4,9 @@ class RegistrationPendingScreen extends StatelessWidget {
   final String role;
   final String email;
   final String reviewerName;
+
+  // Pinanatili para compatible sa existing constructor calls.
+  // Hindi na ito nagpapakita ng preview-only message.
   final bool previewMode;
 
   const RegistrationPendingScreen({
@@ -14,332 +17,644 @@ class RegistrationPendingScreen extends StatelessWidget {
     this.previewMode = false,
   });
 
-  String get roleLabel {
-    switch (role) {
-      case 'logistics':
-        return 'Logistics';
+  static const Color _background = Color(0xFF0A0A0C);
+  static const Color _surface = Color(0xFF18181C);
+  static const Color _innerSurface = Color(0xFF222226);
+  static const Color _border = Color(0xFF37373D);
+  static const Color _gold = Color(0xFFD4A62A);
+  static const Color _muted = Color(0xFFAAAAB2);
+  static const Color _green = Color(0xFF79C58E);
+
+  bool get _isRider => role.toLowerCase() == 'rider';
+
+  String get _roleLabel {
+    switch (role.toLowerCase()) {
       case 'rider':
         return 'Rider';
+
+      case 'logistics':
+        return 'Logistics';
+
+      case 'buyer':
       default:
         return 'Buyer';
     }
   }
 
-  List<_FlowStep> get flow {
-    if (role == 'rider') {
-      return const [
-        _FlowStep(Icons.hub_outlined, 'Choose provider'),
-        _FlowStep(Icons.description_outlined, 'Register'),
-        _FlowStep(Icons.mail_outline, 'Verify email'),
-        _FlowStep(Icons.fact_check_outlined, 'Document review'),
-        _FlowStep(Icons.groups_outlined, 'Provider review'),
-        _FlowStep(Icons.check_circle_outline, 'Approved'),
-        _FlowStep(Icons.login, 'Can log in'),
+  String get _reviewer {
+    final String name = reviewerName.trim();
+
+    if (name.isNotEmpty) {
+      return name;
+    }
+
+    return _isRider
+        ? 'your Logistics provider'
+        : 'the SARI administrator';
+  }
+
+  List<_RegistrationFlowStep> get _flow {
+    if (_isRider) {
+      return const <_RegistrationFlowStep>[
+        _RegistrationFlowStep(
+          icon: Icons.hub_outlined,
+          label: 'Provider selected',
+          status: _StepStatus.completed,
+        ),
+        _RegistrationFlowStep(
+          icon: Icons.description_outlined,
+          label: 'Application submitted',
+          status: _StepStatus.completed,
+        ),
+        _RegistrationFlowStep(
+          icon: Icons.mark_email_read_outlined,
+          label: 'Email verified',
+          status: _StepStatus.completed,
+        ),
+        _RegistrationFlowStep(
+          icon: Icons.fact_check_outlined,
+          label: 'Under review',
+          status: _StepStatus.current,
+        ),
+        _RegistrationFlowStep(
+          icon: Icons.check_circle_outline_rounded,
+          label: 'Account approved',
+          status: _StepStatus.pending,
+        ),
       ];
     }
 
-    if (role == 'logistics') {
-      return const [
-        _FlowStep(Icons.description_outlined, 'Register'),
-        _FlowStep(Icons.mail_outline, 'Verify email'),
-        _FlowStep(Icons.warehouse_outlined, 'Business requirements'),
-        _FlowStep(Icons.shield_outlined, 'Admin review'),
-        _FlowStep(Icons.check_circle_outline, 'Approved'),
-        _FlowStep(Icons.login, 'Can log in'),
-      ];
-    }
-
-    return const [
-      _FlowStep(Icons.description_outlined, 'Register'),
-      _FlowStep(Icons.mail_outline, 'Verify email'),
-      _FlowStep(Icons.shield_outlined, 'Admin review'),
-      _FlowStep(Icons.check_circle_outline, 'Approved'),
-      _FlowStep(Icons.login, 'Can log in'),
+    return const <_RegistrationFlowStep>[
+      _RegistrationFlowStep(
+        icon: Icons.description_outlined,
+        label: 'Registration submitted',
+        status: _StepStatus.completed,
+      ),
+      _RegistrationFlowStep(
+        icon: Icons.mark_email_read_outlined,
+        label: 'Email verified',
+        status: _StepStatus.completed,
+      ),
+      _RegistrationFlowStep(
+        icon: Icons.fact_check_outlined,
+        label: 'Under review',
+        status: _StepStatus.current,
+      ),
+      _RegistrationFlowStep(
+        icon: Icons.check_circle_outline_rounded,
+        label: 'Account approved',
+        status: _StepStatus.pending,
+      ),
     ];
+  }
+
+  void _goToLogin(BuildContext context) {
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/login',
+      (Route<dynamic> route) => false,
+    );
+  }
+
+  void _goToWelcome(BuildContext context) {
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/welcome',
+      (Route<dynamic> route) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    const background = Color(0xFFF7F4EE);
-    const gold = Color(0xFFC9870B);
-    const ink = Color(0xFF1F2328);
-    const muted = Color(0xFF666D76);
-
-    return Scaffold(
-      backgroundColor: background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(13, 16, 13, 24),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 620),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE6DED1)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(.055),
-                      blurRadius: 35,
-                      offset: const Offset(0, 10),
-                    ),
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: _background,
+        body: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(0, -0.75),
+                  radius: 1.15,
+                  colors: <Color>[
+                    Color(0xFF303034),
+                    Color(0xFF151518),
+                    Color(0xFF08080A),
                   ],
-                ),
-                child: Column(
-                  children: [
-                    if (previewMode)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF7E8),
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: const Text(
-                          'UI PREVIEW — not submitted to Laravel',
-                          style: TextStyle(
-                            color: Color(0xFFA96F06),
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: .6,
-                          ),
-                        ),
-                      ),
-                    Image.asset(
-                      'assets/images/sari-logo.png',
-                      width: 112,
-                      height: 58,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text(
-                        'SARI',
-                        style: TextStyle(
-                          fontSize: 27,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 11),
-                    Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF8E9),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: const Icon(
-                        Icons.hourglass_top_rounded,
-                        color: gold,
-                        size: 30,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'APPLICATION SUBMITTED',
-                      style: TextStyle(
-                        color: gold,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.25,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Waiting for $reviewerName review',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: ink,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -.4,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      role == 'rider'
-                          ? 'Your SARI Rider registration has been saved. '
-                              'Your selected Logistics team must review your information '
-                              'and documents before your account can log in.'
-                          : 'Your SARI $roleLabel registration has been saved. '
-                              'The administrator must review your information and uploaded '
-                              'documents before your account can log in.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: muted,
-                        fontSize: 10.5,
-                        height: 1.6,
-                      ),
-                    ),
-                    if (email.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(11),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFFDF9),
-                          borderRadius: BorderRadius.circular(11),
-                          border: Border.all(
-                            color: const Color(0xFFE7E2DA),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 34,
-                              height: 34,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFBF5E9),
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              child: const Icon(
-                                Icons.mail_outline,
-                                color: Color(0xFFA96F08),
-                                size: 16,
-                              ),
-                            ),
-                            const SizedBox(width: 9),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Decision email will be sent to',
-                                    style: TextStyle(
-                                      color: Color(0xFF8B9198),
-                                      fontSize: 8.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    email,
-                                    style: const TextStyle(
-                                      color: Color(0xFF363B42),
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 18),
-                    const Divider(color: Color(0xFFEEE9E2)),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '$roleLabel registration flow',
-                        style: const TextStyle(
-                          color: ink,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 94,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: flow.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(width: 8),
-                        itemBuilder: (_, index) {
-                          final item = flow[index];
-                          final active = index < 2;
-
-                          return SizedBox(
-                            width: 79,
-                            child: Column(
-                              children: [
-                                Container(
-                                  width: 34,
-                                  height: 34,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: active
-                                        ? const Color(0xFFFFF9ED)
-                                        : Colors.white,
-                                    border: Border.all(
-                                      color: active
-                                          ? const Color(0xFFD6AC60)
-                                          : const Color(0xFFDED8CE),
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    item.icon,
-                                    size: 15,
-                                    color: active
-                                        ? const Color(0xFFA76C08)
-                                        : const Color(0xFF806F55),
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  item.label,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 2,
-                                  style: const TextStyle(
-                                    color: Color(0xFF5F656C),
-                                    fontSize: 8,
-                                    height: 1.25,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 45,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            '/login',
-                            (route) => false,
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: gold,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Go to Login',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
+                  stops: <double>[
+                    0,
+                    0.52,
+                    1,
                   ],
                 ),
               ),
             ),
+            Positioned(
+              top: -120,
+              right: -100,
+              child: Container(
+                width: 280,
+                height: 280,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.04),
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  17,
+                  24,
+                  17,
+                  30,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 620,
+                    ),
+                    child: _buildCard(context),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        24,
+        20,
+        22,
+      ),
+      decoration: BoxDecoration(
+        color: _surface.withOpacity(0.98),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.07),
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withOpacity(0.38),
+            blurRadius: 38,
+            offset: const Offset(0, 15),
+          ),
+        ],
+      ),
+      child: Column(
+        children: <Widget>[
+          _buildLogo(),
+          const SizedBox(height: 20),
+          _buildPendingIcon(),
+          const SizedBox(height: 17),
+          const Text(
+            'APPLICATION SUBMITTED',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _gold,
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Waiting for $_reviewer',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _isRider
+                ? 'Your SARI Rider application has been saved. '
+                    '$_reviewer will review your information, '
+                    'vehicle details, and uploaded documents.'
+                : 'Your SARI $_roleLabel registration has been '
+                    'saved. The administrator will review your '
+                    'information before activating your account.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _muted,
+              fontSize: 11,
+              height: 1.6,
+            ),
+          ),
+          if (email.trim().isNotEmpty) ...<Widget>[
+            const SizedBox(height: 20),
+            _buildEmailCard(),
+          ],
+          const SizedBox(height: 23),
+          Container(
+            height: 1,
+            color: _border,
+          ),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '$_roleLabel registration progress',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _buildFlow(),
+          const SizedBox(height: 23),
+          _buildNotice(),
+          const SizedBox(height: 21),
+          SizedBox(
+            width: double.infinity,
+            height: 51,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                _goToLogin(context);
+              },
+              icon: const Icon(
+                Icons.login_rounded,
+                size: 19,
+              ),
+              label: const Text(
+                'Go to Sign In',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _gold,
+                foregroundColor: const Color(0xFF151515),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 9),
+          TextButton(
+            onPressed: () {
+              _goToWelcome(context);
+            },
+            child: const Text(
+              'Return to welcome page',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogo() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        Container(
+          width: 54,
+          height: 54,
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111113),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.07),
+            ),
+          ),
+          child: Image.asset(
+            'assets/images/sari_s.png',
+            fit: BoxFit.contain,
+            errorBuilder: (
+              BuildContext context,
+              Object error,
+              StackTrace? stackTrace,
+            ) {
+              return const Center(
+                child: Text(
+                  'S',
+                  style: TextStyle(
+                    color: _gold,
+                    fontSize: 29,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              );
+            },
           ),
         ),
+        const SizedBox(width: 11),
+        const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'SARI',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 3,
+              ),
+            ),
+            Text(
+              'ELEVATED EVERYDAY',
+              style: TextStyle(
+                color: Color(0xFF929299),
+                fontSize: 6.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPendingIcon() {
+    return Container(
+      width: 76,
+      height: 76,
+      decoration: BoxDecoration(
+        color: const Color(0xFF292820),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: _gold.withOpacity(0.28),
+        ),
+      ),
+      child: const Icon(
+        Icons.hourglass_top_rounded,
+        color: _gold,
+        size: 34,
+      ),
+    );
+  }
+
+  Widget _buildEmailCard() {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: _innerSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _border,
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 39,
+            height: 39,
+            decoration: BoxDecoration(
+              color: const Color(0xFF292820),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: const Icon(
+              Icons.mail_outline_rounded,
+              color: _gold,
+              size: 19,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'The decision will be sent to',
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 9,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  email.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFlow() {
+    return Column(
+      children: List<Widget>.generate(
+        _flow.length,
+        (int index) {
+          final _RegistrationFlowStep step = _flow[index];
+          final bool isLast = index == _flow.length - 1;
+
+          return _FlowStepTile(
+            step: step,
+            isLast: isLast,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildNotice() {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E2922),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFF355542),
+        ),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(
+            Icons.info_outline_rounded,
+            color: _green,
+            size: 19,
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'You cannot sign in until your account is approved. '
+              'Please wait for the confirmation email before trying again.',
+              style: TextStyle(
+                color: Color(0xFFB8D8C1),
+                fontSize: 10,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _FlowStep {
+enum _StepStatus {
+  completed,
+  current,
+  pending,
+}
+
+class _RegistrationFlowStep {
   final IconData icon;
   final String label;
+  final _StepStatus status;
 
-  const _FlowStep(this.icon, this.label);
+  const _RegistrationFlowStep({
+    required this.icon,
+    required this.label,
+    required this.status,
+  });
+}
+
+class _FlowStepTile extends StatelessWidget {
+  final _RegistrationFlowStep step;
+  final bool isLast;
+
+  const _FlowStepTile({
+    required this.step,
+    required this.isLast,
+  });
+
+  static const Color _gold = Color(0xFFD4A62A);
+  static const Color _muted = Color(0xFFAAAAB2);
+  static const Color _border = Color(0xFF37373D);
+  static const Color _green = Color(0xFF79C58E);
+
+  @override
+  Widget build(BuildContext context) {
+    final bool completed =
+        step.status == _StepStatus.completed;
+
+    final bool current =
+        step.status == _StepStatus.current;
+
+    final Color iconColor = completed
+        ? _green
+        : current
+            ? _gold
+            : const Color(0xFF686870);
+
+    final Color circleColor = completed
+        ? const Color(0xFF1E3024)
+        : current
+            ? const Color(0xFF292820)
+            : const Color(0xFF222226);
+
+    final Color lineColor = completed
+        ? const Color(0xFF42694E)
+        : _border;
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 42,
+            child: Column(
+              children: <Widget>[
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: circleColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: iconColor.withOpacity(0.6),
+                    ),
+                  ),
+                  child: Icon(
+                    completed
+                        ? Icons.check_rounded
+                        : step.icon,
+                    color: iconColor,
+                    size: 17,
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      constraints: const BoxConstraints(
+                        minHeight: 19,
+                      ),
+                      color: lineColor,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: 8,
+                bottom: isLast ? 0 : 21,
+              ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      step.label,
+                      style: TextStyle(
+                        color: completed || current
+                            ? Colors.white
+                            : _muted,
+                        fontSize: 11,
+                        fontWeight: current
+                            ? FontWeight.w800
+                            : FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    completed
+                        ? 'DONE'
+                        : current
+                            ? 'CURRENT'
+                            : 'PENDING',
+                    style: TextStyle(
+                      color: iconColor,
+                      fontSize: 7.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.7,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -129,7 +129,7 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward().whenComplete(() {
       if (!mounted) return;
 
-      Navigator.of(context).pushReplacementNamed('/login');
+      Navigator.of(context).pushReplacementNamed('/welcome');
     });
   }
 

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../config/api_config.dart';
+import '../services/sari_api.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -8,47 +12,61 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  static const Color sariGold = Color(0xFFD48F08);
-  static const Color sariDark = Color(0xFF211C16);
-  static const Color sariMuted = Color(0xFF786E62);
-  static const Color sariBorder = Color(0xFFE7DED1);
+  static const Color _background = Color(0xFF0B0B0D);
+  static const Color _surface = Color(0xFF18181B);
+  static const Color _field = Color(0xFF222226);
+  static const Color _border = Color(0xFF34343A);
+  static const Color _gold = Color(0xFFD7A72C);
+  static const Color _muted = Color(0xFFAAAAB2);
+
+  static const String _tokenKey = 'sari_access_token';
+  static const String _roleKey = 'sari_account_role';
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _emailController =
+      TextEditingController();
 
+  final TextEditingController _passwordController =
+      TextEditingController();
+
+  final FlutterSecureStorage _secureStorage =
+      const FlutterSecureStorage();
+
+  late final SariApi _api;
+
+  String _selectedRole = 'buyer';
   bool _obscurePassword = true;
-  bool _rememberMe = false;
   bool _isSigningIn = false;
 
-  // Local demo accounts for testing.
-  static const Map<String, Map<String, String>> _accounts = {
-    'buyer@sari.com': {
-      'password': 'Buyer123!',
-      'route': '/buyer',
-    },
-    'rider@sari.com': {
-      'password': 'Rider123!',
-      'route': '/rider',
-    },
-    'logistics@sari.com': {
-      'password': 'Logistics123!',
-      'route': '/logistics',
-    },
-  };
+  @override
+  void initState() {
+    super.initState();
+
+    _api = SariApi(
+      baseUrl: ApiConfig.apiBaseUrl,
+      tokenProvider: () {
+        return _secureStorage.read(key: _tokenKey);
+      },
+    );
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _api.dispose();
     super.dispose();
   }
 
   Future<void> _login() async {
     FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) {
+    if (_isSigningIn) {
+      return;
+    }
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
 
@@ -56,50 +74,132 @@ class _LoginScreenState extends State<LoginScreen> {
       _isSigningIn = true;
     });
 
-    await Future<void>.delayed(
-      const Duration(milliseconds: 500),
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    final String email = _emailController.text.trim().toLowerCase();
-    final String password = _passwordController.text;
-
-    final Map<String, String>? account = _accounts[email];
-
-    if (account == null || account['password'] != password) {
-      setState(() {
-        _isSigningIn = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Incorrect email or password.',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
+    try {
+      final SariJson response = await _api.login(
+        role: _selectedRole,
+        email: _emailController.text.trim().toLowerCase(),
+        password: _passwordController.text,
+        deviceName: 'SARI Flutter Android',
       );
 
-      return;
+      final Object? rawData = response['data'];
+
+      if (rawData is! Map) {
+        throw const SariApiException(
+          'The server returned an invalid login response.',
+        );
+      }
+
+      final Map<String, dynamic> data =
+          Map<String, dynamic>.from(rawData);
+
+      final String token =
+          (data['access_token'] ?? data['token'])
+                  ?.toString()
+                  .trim() ??
+              '';
+
+      if (token.isEmpty) {
+        throw const SariApiException(
+          'The server did not return an access token.',
+        );
+      }
+
+      final String role =
+          (data['role'] ?? response['role'] ?? _selectedRole)
+              .toString()
+              .trim()
+              .toLowerCase();
+
+      await _secureStorage.write(
+        key: _tokenKey,
+        value: token,
+      );
+
+      await _secureStorage.write(
+        key: _roleKey,
+        value: role,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final String route;
+
+      switch (role) {
+        case 'rider':
+        case 'courier':
+          route = '/rider';
+          break;
+
+        case 'logistics':
+          route = '/logistics';
+          break;
+
+        case 'buyer':
+          route = '/buyer';
+          break;
+
+        default:
+          await _secureStorage.delete(key: _tokenKey);
+          await _secureStorage.delete(key: _roleKey);
+
+          throw SariApiException(
+            'Unsupported account role: $role',
+          );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        route,
+        (Route<dynamic> route) => false,
+      );
+    } on SariApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      String message = error.message;
+
+      if (error.isUnauthorized) {
+        message = 'Incorrect email, password, or account type.';
+      } else if (error.isForbidden) {
+        message =
+            'This account is not allowed to access the mobile app.';
+      } else if (error.isValidationError) {
+        message = error.message;
+      }
+
+      _showMessage(message);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(
+        'Unable to connect to SARI. Check your internet connection and try again.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSigningIn = false;
+        });
+      }
     }
-
-    final String route = account['route']!;
-
-    Navigator.pushReplacementNamed(
-      context,
-      route,
-    );
   }
 
   void _continueAsGuest() {
     FocusScope.of(context).unfocus();
 
-    Navigator.pushReplacementNamed(
+    Navigator.pushNamedAndRemoveUntil(
       context,
       '/buyer',
+      (Route<dynamic> route) => false,
     );
   }
 
@@ -111,17 +211,24 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _forgotPassword() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Password reset will be available soon.',
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
+    _showMessage(
+      'Password reset will be connected in the next update.',
     );
   }
 
-  InputDecoration _inputDecoration({
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF29292D),
+        ),
+      );
+  }
+
+  InputDecoration _decoration({
     required String hint,
     required IconData icon,
     Widget? suffixIcon,
@@ -129,31 +236,31 @@ class _LoginScreenState extends State<LoginScreen> {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(
-        color: Color(0xFFA49A8E),
+        color: Color(0xFF73737B),
         fontSize: 13,
       ),
       prefixIcon: Icon(
         icon,
-        color: const Color(0xFF9B8D7B),
+        color: const Color(0xFF94949C),
         size: 20,
       ),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: const Color(0xFFFFFDFC),
+      fillColor: _field,
       contentPadding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 15,
+        horizontal: 16,
+        vertical: 16,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(
-          color: sariBorder,
+          color: _border,
         ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(
-          color: sariGold,
+          color: _gold,
           width: 1.5,
         ),
       ),
@@ -170,67 +277,100 @@ class _LoginScreenState extends State<LoginScreen> {
           width: 1.5,
         ),
       ),
+      errorStyle: const TextStyle(
+        color: Color(0xFFFF8A8A),
+      ),
     );
   }
 
-  Widget _backgroundCircle({
-    required double size,
-  }) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withOpacity(0.16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.20),
-        ),
+  Widget _buildRoleSelector() {
+    return DropdownButtonFormField<String>(
+      value: _selectedRole,
+      dropdownColor: _field,
+      iconEnabledColor: const Color(0xFF9999A1),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 13,
       ),
+      decoration: _decoration(
+        hint: 'Select account type',
+        icon: Icons.person_outline_rounded,
+      ),
+      items: const <DropdownMenuItem<String>>[
+        DropdownMenuItem<String>(
+          value: 'buyer',
+          child: Text('Buyer'),
+        ),
+        DropdownMenuItem<String>(
+          value: 'rider',
+          child: Text('Rider'),
+        ),
+        DropdownMenuItem<String>(
+          value: 'logistics',
+          child: Text('Logistics'),
+        ),
+      ],
+      onChanged: _isSigningIn
+          ? null
+          : (String? value) {
+              if (value == null) {
+                return;
+              }
+
+              setState(() {
+                _selectedRole = value;
+              });
+            },
+      validator: (String? value) {
+        if (value == null || value.isEmpty) {
+          return 'Please select your account type.';
+        }
+
+        return null;
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _background,
       resizeToAvoidBottomInset: true,
       body: Stack(
         fit: StackFit.expand,
-        children: [
+        children: <Widget>[
           const DecoratedBox(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFFFFCF7),
-                  Color(0xFFF7EBD3),
-                  Color(0xFFE7B451),
+              gradient: RadialGradient(
+                center: Alignment(0, -0.7),
+                radius: 1.2,
+                colors: <Color>[
+                  Color(0xFF303035),
+                  Color(0xFF151518),
+                  Color(0xFF08080A),
                 ],
-                stops: [
-                  0.0,
-                  0.62,
-                  1.0,
+                stops: <double>[
+                  0,
+                  0.52,
+                  1,
                 ],
               ),
             ),
           ),
-
           Positioned(
-            top: -90,
-            right: -80,
-            child: _backgroundCircle(
-              size: 250,
+            top: -110,
+            right: -90,
+            child: Container(
+              width: 260,
+              height: 260,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.04),
+                ),
+              ),
             ),
           ),
-
-          Positioned(
-            bottom: -120,
-            left: -80,
-            child: _backgroundCircle(
-              size: 300,
-            ),
-          ),
-
           SafeArea(
             child: LayoutBuilder(
               builder: (
@@ -242,151 +382,180 @@ class _LoginScreenState extends State<LoginScreen> {
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.fromLTRB(
                     20,
-                    22,
+                    28,
                     20,
                     24,
                   ),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight - 46,
+                      minHeight: constraints.maxHeight - 52,
                     ),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(
                           maxWidth: 430,
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 92,
-                              height: 92,
-                              padding: const EdgeInsets.all(7),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF17130F),
-                                borderRadius: BorderRadius.circular(25),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFF6E4500,
-                                    ).withOpacity(0.25),
-                                    blurRadius: 28,
-                                    offset: const Offset(0, 10),
-                                  ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: Image.asset(
-                                  'assets/images/sari-logo.png',
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (
-                                    BuildContext context,
-                                    Object error,
-                                    StackTrace? stackTrace,
-                                  ) {
-                                    return const Center(
-                                      child: Text(
-                                        'S',
-                                        style: TextStyle(
-                                          color: Color(0xFFFFD67A),
-                                          fontSize: 48,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment:
+                                CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              Center(
+                                child: Container(
+                                  width: 94,
+                                  height: 94,
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF111113),
+                                    borderRadius:
+                                        BorderRadius.circular(26),
+                                    border: Border.all(
+                                      color:
+                                          Colors.white.withOpacity(0.08),
+                                    ),
+                                    boxShadow: <BoxShadow>[
+                                      BoxShadow(
+                                        color:
+                                            Colors.black.withOpacity(0.45),
+                                        blurRadius: 30,
+                                        offset: const Offset(0, 14),
                                       ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 10),
-
-                            const Text(
-                              'SARI',
-                              style: TextStyle(
-                                color: sariDark,
-                                fontSize: 23,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 5,
-                              ),
-                            ),
-
-                            const SizedBox(height: 18),
-
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.fromLTRB(
-                                22,
-                                24,
-                                22,
-                                22,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.96),
-                                borderRadius: BorderRadius.circular(26),
-                                border: Border.all(
-                                  color: Colors.white,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFF725119,
-                                    ).withOpacity(0.13),
-                                    blurRadius: 35,
-                                    offset: const Offset(0, 14),
+                                    ],
                                   ),
-                                ],
+                                  child: ClipRRect(
+                                    borderRadius:
+                                        BorderRadius.circular(20),
+                                    child: Image.asset(
+                                      'assets/images/sari-logo.png',
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (
+                                        BuildContext context,
+                                        Object error,
+                                        StackTrace? stackTrace,
+                                      ) {
+                                        return const Center(
+                                          child: Text(
+                                            'S',
+                                            style: TextStyle(
+                                              color: _gold,
+                                              fontSize: 48,
+                                              fontWeight:
+                                                  FontWeight.bold,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
                               ),
-                              child: Form(
-                                key: _formKey,
+                              const SizedBox(height: 14),
+                              const Text(
+                                'SARI',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 5,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'ELEVATED EVERYDAY',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Color(0xFF929299),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 2.5,
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              Container(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  24,
+                                  20,
+                                  20,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _surface.withOpacity(0.96),
+                                  borderRadius:
+                                      BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color:
+                                        Colors.white.withOpacity(0.07),
+                                  ),
+                                  boxShadow: <BoxShadow>[
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withOpacity(0.35),
+                                      blurRadius: 35,
+                                      offset: const Offset(0, 14),
+                                    ),
+                                  ],
+                                ),
                                 child: Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
-                                  children: [
+                                  children: <Widget>[
                                     const Text(
                                       'Welcome back',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        color: sariDark,
+                                        color: Colors.white,
                                         fontSize: 25,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
-
-                                    const SizedBox(height: 5),
-
+                                    const SizedBox(height: 6),
                                     const Text(
-                                      'Sign in to continue to your Sari account',
+                                      'Sign in using your SARI account',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        color: sariMuted,
+                                        color: _muted,
                                         fontSize: 12,
                                       ),
                                     ),
-
-                                    const SizedBox(height: 22),
-
+                                    const SizedBox(height: 24),
                                     const Text(
-                                      'Email address',
+                                      'Account type',
                                       style: TextStyle(
-                                        color: sariDark,
+                                        color: Colors.white,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-
-                                    const SizedBox(height: 7),
-
+                                    const SizedBox(height: 8),
+                                    _buildRoleSelector(),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      'Email address',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
                                     TextFormField(
                                       controller: _emailController,
+                                      enabled: !_isSigningIn,
                                       keyboardType:
                                           TextInputType.emailAddress,
                                       textInputAction:
                                           TextInputAction.next,
-                                      decoration: _inputDecoration(
+                                      autocorrect: false,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                      decoration: _decoration(
                                         hint: 'you@example.com',
-                                        icon: Icons.mail_outline_rounded,
+                                        icon:
+                                            Icons.mail_outline_rounded,
                                       ),
                                       validator: (String? value) {
                                         final String email =
@@ -396,44 +565,45 @@ class _LoginScreenState extends State<LoginScreen> {
                                           return 'Please enter your email.';
                                         }
 
-                                        final RegExp emailPattern = RegExp(
-                                          r'^[^@]+@[^@]+\.[^@]+$',
+                                        final RegExp emailPattern =
+                                            RegExp(
+                                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
                                         );
 
-                                        if (!emailPattern.hasMatch(email)) {
-                                          return 'Please enter a valid email.';
+                                        if (!emailPattern
+                                            .hasMatch(email)) {
+                                          return 'Enter a valid email address.';
                                         }
 
                                         return null;
                                       },
                                     ),
-
-                                    const SizedBox(height: 15),
-
+                                    const SizedBox(height: 16),
                                     const Text(
                                       'Password',
                                       style: TextStyle(
-                                        color: sariDark,
+                                        color: Colors.white,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-
-                                    const SizedBox(height: 7),
-
+                                    const SizedBox(height: 8),
                                     TextFormField(
                                       controller: _passwordController,
+                                      enabled: !_isSigningIn,
                                       obscureText: _obscurePassword,
                                       textInputAction:
                                           TextInputAction.done,
-                                      onFieldSubmitted: (
-                                        String value,
-                                      ) {
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                      onFieldSubmitted: (_) {
                                         _login();
                                       },
-                                      decoration: _inputDecoration(
+                                      decoration: _decoration(
                                         hint: 'Enter your password',
-                                        icon: Icons.lock_outline_rounded,
+                                        icon:
+                                            Icons.lock_outline_rounded,
                                         suffixIcon: IconButton(
                                           tooltip: _obscurePassword
                                               ? 'Show password'
@@ -446,10 +616,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                           },
                                           icon: Icon(
                                             _obscurePassword
-                                                ? Icons.visibility_outlined
+                                                ? Icons
+                                                    .visibility_outlined
                                                 : Icons
                                                     .visibility_off_outlined,
-                                            color: const Color(0xFF94887A),
+                                            color: const Color(
+                                              0xFF9999A1,
+                                            ),
                                             size: 20,
                                           ),
                                         ),
@@ -462,75 +635,47 @@ class _LoginScreenState extends State<LoginScreen> {
                                         return null;
                                       },
                                     ),
-
-                                    const SizedBox(height: 8),
-
-                                    Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: Checkbox(
-                                            value: _rememberMe,
-                                            activeColor: sariGold,
-                                            onChanged: (bool? value) {
-                                              setState(() {
-                                                _rememberMe =
-                                                    value ?? false;
-                                              });
-                                            },
-                                          ),
-                                        ),
-
-                                        const SizedBox(width: 5),
-
-                                        const Text(
-                                          'Remember me',
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: TextButton(
+                                        onPressed: _isSigningIn
+                                            ? null
+                                            : _forgotPassword,
+                                        child: const Text(
+                                          'Forgot password?',
                                           style: TextStyle(
-                                            color: sariMuted,
+                                            color: _gold,
                                             fontSize: 11,
                                           ),
                                         ),
-
-                                        const Spacer(),
-
-                                        TextButton(
-                                          onPressed: _forgotPassword,
-                                          child: const Text(
-                                            'Forgot password?',
-                                            style: TextStyle(
-                                              color: Color(0xFFA86B06),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
-
-                                    const SizedBox(height: 8),
-
                                     SizedBox(
-                                      height: 50,
+                                      height: 51,
                                       child: ElevatedButton(
                                         onPressed: _isSigningIn
                                             ? null
                                             : _login,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: sariGold,
-                                          foregroundColor: Colors.white,
+                                        style:
+                                            ElevatedButton.styleFrom(
+                                          backgroundColor: _gold,
+                                          foregroundColor:
+                                              const Color(0xFF141414),
                                           disabledBackgroundColor:
-                                              sariGold.withOpacity(0.60),
+                                              const Color(0xFF5E5130),
                                           elevation: 0,
-                                          shape: RoundedRectangleBorder(
+                                          shape:
+                                              RoundedRectangleBorder(
                                             borderRadius:
-                                                BorderRadius.circular(14),
+                                                BorderRadius.circular(
+                                              14,
+                                            ),
                                           ),
                                         ),
                                         child: _isSigningIn
                                             ? const SizedBox(
-                                                width: 20,
-                                                height: 20,
+                                                width: 21,
+                                                height: 21,
                                                 child:
                                                     CircularProgressIndicator(
                                                   strokeWidth: 2,
@@ -540,94 +685,98 @@ class _LoginScreenState extends State<LoginScreen> {
                                             : const Text(
                                                 'Sign In',
                                                 style: TextStyle(
-                                                  fontSize: 14,
+                                                  fontSize: 13,
                                                   fontWeight:
                                                       FontWeight.w700,
                                                 ),
                                               ),
                                       ),
                                     ),
-
-                                    const SizedBox(height: 14),
-
-                                    const Row(
-                                      children: [
-                                        Expanded(
+                                    const SizedBox(height: 17),
+                                    Row(
+                                      children: <Widget>[
+                                        const Expanded(
                                           child: Divider(
-                                            color: sariBorder,
+                                            color: _border,
                                           ),
                                         ),
                                         Padding(
-                                          padding: EdgeInsets.symmetric(
+                                          padding:
+                                              const EdgeInsets.symmetric(
                                             horizontal: 12,
                                           ),
                                           child: Text(
                                             'OR',
                                             style: TextStyle(
-                                              color: sariMuted,
-                                              fontSize: 10,
+                                              color: Colors.white
+                                                  .withOpacity(0.45),
+                                              fontSize: 9,
+                                              fontWeight:
+                                                  FontWeight.w600,
                                             ),
                                           ),
                                         ),
-                                        Expanded(
+                                        const Expanded(
                                           child: Divider(
-                                            color: sariBorder,
+                                            color: _border,
                                           ),
                                         ),
                                       ],
                                     ),
-
-                                    const SizedBox(height: 14),
-
+                                    const SizedBox(height: 17),
                                     SizedBox(
-                                      height: 48,
+                                      height: 49,
                                       child: OutlinedButton.icon(
-                                        onPressed: _continueAsGuest,
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: sariDark,
-                                          side: const BorderSide(
-                                            color: sariBorder,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(14),
-                                          ),
-                                        ),
+                                        onPressed: _isSigningIn
+                                            ? null
+                                            : _continueAsGuest,
                                         icon: const Icon(
-                                          Icons.person_outline_rounded,
-                                          size: 20,
+                                          Icons.storefront_outlined,
+                                          size: 19,
                                         ),
                                         label: const Text(
                                           'Continue as Guest',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
+                                        ),
+                                        style:
+                                            OutlinedButton.styleFrom(
+                                          foregroundColor:
+                                              Colors.white,
+                                          side: const BorderSide(
+                                            color: _border,
+                                          ),
+                                          shape:
+                                              RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                              14,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-
-                                    const SizedBox(height: 18),
-
+                                    const SizedBox(height: 16),
                                     Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
-                                      children: [
+                                      children: <Widget>[
                                         const Text(
-                                          "Don't have an account? ",
+                                          'No account yet?',
                                           style: TextStyle(
-                                            color: sariMuted,
+                                            color: _muted,
                                             fontSize: 11,
                                           ),
                                         ),
-                                        GestureDetector(
-                                          onTap: _createAccount,
+                                        TextButton(
+                                          onPressed: _isSigningIn
+                                              ? null
+                                              : _createAccount,
                                           child: const Text(
-                                            'Create one',
+                                            'Create account',
                                             style: TextStyle(
-                                              color: Color(0xFFA86B06),
+                                              color: _gold,
                                               fontSize: 11,
-                                              fontWeight: FontWeight.w700,
+                                              fontWeight:
+                                                  FontWeight.w700,
                                             ),
                                           ),
                                         ),
@@ -636,19 +785,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ],
                                 ),
                               ),
-                            ),
-
-                            const SizedBox(height: 17),
-
-                            Text(
-                              '© ${DateTime.now().year} Sari. '
-                              'All rights reserved.',
-                              style: TextStyle(
-                                color: sariDark.withOpacity(0.62),
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

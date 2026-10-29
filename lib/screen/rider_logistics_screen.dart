@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/registration_api.dart';
 import 'rider_register_screen.dart';
 
 class LogisticsProvider {
@@ -16,133 +17,352 @@ class LogisticsProvider {
     required this.coverage,
     required this.approvedRiders,
   });
+
+  factory LogisticsProvider.fromMap(
+    Map<String, Object> data,
+  ) {
+    return LogisticsProvider(
+      id: _toInt(data['id']),
+      name: _toText(
+        data['name'],
+        fallback: 'Logistics Provider',
+      ),
+      location: _toText(
+        data['location'],
+        fallback: 'SARI Logistics network',
+      ),
+      coverage: _toText(
+        data['coverage'],
+        fallback: 'Philippines',
+      ),
+      approvedRiders: _toInt(
+        data['approvedRiders'],
+      ),
+    );
+  }
+
+  static int _toInt(Object? value) {
+    if (value is int) {
+      return value;
+    }
+
+    return int.tryParse(
+          value?.toString().replaceAll(',', '') ?? '',
+        ) ??
+        0;
+  }
+
+  static String _toText(
+    Object? value, {
+    required String fallback,
+  }) {
+    final String text = value?.toString().trim() ?? '';
+
+    return text.isEmpty ? fallback : text;
+  }
 }
 
 class RiderLogisticsScreen extends StatefulWidget {
-  final List<LogisticsProvider> providers;
-
   const RiderLogisticsScreen({
     super.key,
-    this.providers = const [],
   });
 
   @override
-  State<RiderLogisticsScreen> createState() => _RiderLogisticsScreenState();
+  State<RiderLogisticsScreen> createState() =>
+      _RiderLogisticsScreenState();
 }
 
-class _RiderLogisticsScreenState extends State<RiderLogisticsScreen> {
-  static const Color gold = Color(0xFFD48F08);
-  static const Color background = Color(0xFFF7F4EE);
-  static const Color ink = Color(0xFF211D17);
-  static const Color muted = Color(0xFF81786C);
+class _RiderLogisticsScreenState
+    extends State<RiderLogisticsScreen> {
+  static const Color _background = Color(0xFF0A0A0C);
+  static const Color _surface = Color(0xFF18181C);
+  static const Color _fieldColor = Color(0xFF222226);
+  static const Color _border = Color(0xFF37373D);
+  static const Color _gold = Color(0xFFD4A62A);
+  static const Color _muted = Color(0xFFAAAAB2);
 
-  final search = TextEditingController();
+  final TextEditingController _searchController =
+      TextEditingController();
+
+  List<LogisticsProvider> _providers =
+      <LogisticsProvider>[];
+
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProviders();
+  }
 
   @override
   void dispose() {
-    search.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  List<LogisticsProvider> get filtered {
-    final q = search.text.trim().toLowerCase();
-    if (q.isEmpty) return widget.providers;
+  List<LogisticsProvider> get _filteredProviders {
+    final String query =
+        _searchController.text.trim().toLowerCase();
 
-    return widget.providers.where((provider) {
-      return provider.name.toLowerCase().contains(q) ||
-          provider.location.toLowerCase().contains(q) ||
-          provider.coverage.toLowerCase().contains(q);
-    }).toList();
+    if (query.isEmpty) {
+      return _providers;
+    }
+
+    return _providers.where(
+      (LogisticsProvider provider) {
+        return provider.name.toLowerCase().contains(query) ||
+            provider.location
+                .toLowerCase()
+                .contains(query) ||
+            provider.coverage
+                .toLowerCase()
+                .contains(query);
+      },
+    ).toList();
+  }
+
+  Future<void> _loadProviders() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      final List<Map<String, Object>> result =
+          await RegistrationApi.instance
+              .loadRiderLogistics();
+
+      if (!mounted) {
+        return;
+      }
+
+      final List<LogisticsProvider> loadedProviders =
+          result
+              .map(
+                (Map<String, Object> data) =>
+                    LogisticsProvider.fromMap(data),
+              )
+              .where(
+                (LogisticsProvider provider) =>
+                    provider.id > 0,
+              )
+              .toList();
+
+      setState(() {
+        _providers = loadedProviders;
+        _isLoading = false;
+      });
+    } on RegistrationApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _errorMessage = error.message;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _errorMessage =
+            'Cannot load Logistics providers. '
+            'Check the Laravel server and SARI_API_URL.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _openRegistration(
+    LogisticsProvider provider,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) {
+          return RiderRegisterScreen(
+            provider: provider,
+          );
+        },
+      ),
+    );
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: background,
+      backgroundColor: _background,
       appBar: AppBar(
-        backgroundColor: background,
+        backgroundColor: _background,
+        foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         title: const Text(
           'Choose Logistics',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       body: SafeArea(
         top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 700),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'SARI RIDER NETWORK',
-                    style: TextStyle(
-                      color: Color(0xFFB97805),
-                      fontSize: 9,
-                      letterSpacing: 1.4,
-                      fontWeight: FontWeight.w700,
-                    ),
+        child: RefreshIndicator(
+          color: _gold,
+          backgroundColor: _surface,
+          onRefresh: _loadProviders,
+          child: ListView(
+            physics:
+                const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              12,
+              16,
+              30,
+            ),
+            children: <Widget>[
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 700,
                   ),
-                  const SizedBox(height: 7),
-                  const Text(
-                    'Choose your Logistics team',
-                    style: TextStyle(
-                      color: ink,
-                      fontSize: 27,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Rider applications are reviewed by Logistics. Choose an active provider, then submit your Rider requirements directly to their team.',
-                    style: TextStyle(
-                      color: muted,
-                      fontSize: 11,
-                      height: 1.55,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(17),
-                      border: Border.all(color: const Color(0xFFE7E0D7)),
-                    ),
-                    child: TextField(
-                      controller: search,
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        hintText: 'Search name, province, or city',
-                        prefixIcon: const Icon(Icons.search, size: 19),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 12),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(11),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE3DDD4),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(11),
-                          borderSide: const BorderSide(color: gold),
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      const Text(
+                        'SARI RIDER NETWORK',
+                        style: TextStyle(
+                          color: _gold,
+                          fontSize: 9,
+                          letterSpacing: 1.5,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Choose your Logistics team',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.7,
+                        ),
+                      ),
+                      const SizedBox(height: 9),
+                      const Text(
+                        'Choose an approved provider and '
+                        'submit your Rider application '
+                        'directly to its Logistics team.',
+                        style: TextStyle(
+                          color: _muted,
+                          fontSize: 11.5,
+                          height: 1.55,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      _buildSearchField(),
+                      const SizedBox(height: 17),
+                      _buildContent(),
+                    ],
                   ),
-                  const SizedBox(height: 14),
-                  if (filtered.isEmpty)
-                    _emptyState()
-                  else
-                    ...filtered.map(_providerCard),
-                ],
+                ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return _buildLoadingState();
+    }
+
+    if (_errorMessage != null) {
+      return _buildErrorState();
+    }
+
+    if (_filteredProviders.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return Column(
+      children: _filteredProviders
+          .map(_buildProviderCard)
+          .toList(),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.07),
+        ),
+      ),
+      child: TextField(
+        controller: _searchController,
+        enabled: !_isLoading,
+        style: const TextStyle(
+          color: Colors.white,
+        ),
+        onChanged: (String value) {
+          setState(() {});
+        },
+        decoration: InputDecoration(
+          hintText:
+              'Search provider, province, or city',
+          hintStyle: const TextStyle(
+            color: Color(0xFF77777F),
+            fontSize: 12,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: _muted,
+            size: 20,
+          ),
+          suffixIcon: _searchController.text.isEmpty
+              ? null
+              : IconButton(
+                  onPressed: _clearSearch,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: _muted,
+                    size: 19,
+                  ),
+                ),
+          filled: true,
+          fillColor: _fieldColor,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: const BorderSide(
+              color: _border,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: const BorderSide(
+              color: _gold,
+              width: 1.4,
             ),
           ),
         ),
@@ -150,46 +370,32 @@ class _RiderLogisticsScreenState extends State<RiderLogisticsScreen> {
     );
   }
 
-  Widget _emptyState() {
+  Widget _buildLoadingState() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 42),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.85),
-        borderRadius: BorderRadius.circular(19),
-        border: Border.all(color: const Color(0xFFDDD3C4)),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 22,
+        vertical: 55,
       ),
-      child: Column(
-        children: [
-          Container(
-            width: 55,
-            height: 55,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFFFFF5DF),
-            ),
-            child: const Icon(
-              Icons.warehouse_outlined,
-              color: Color(0xFFB67814),
-            ),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.07),
+        ),
+      ),
+      child: const Column(
+        children: <Widget>[
+          CircularProgressIndicator(
+            color: _gold,
+            strokeWidth: 2.5,
           ),
-          const SizedBox(height: 13),
-          const Text(
-            'No Logistics providers loaded yet',
-            style: TextStyle(
-              color: Color(0xFF322C25),
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 7),
-          const Text(
-            'This Flutter screen is ready for your Laravel provider API. '
-            'Once connected, approved and active Logistics accounts will appear here.',
+          SizedBox(height: 17),
+          Text(
+            'Loading Logistics providers...',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Color(0xFF91887D),
-              fontSize: 10.5,
-              height: 1.55,
+              color: _muted,
+              fontSize: 11,
             ),
           ),
         ],
@@ -197,120 +403,296 @@ class _RiderLogisticsScreenState extends State<RiderLogisticsScreen> {
     );
   }
 
-  Widget _providerCard(LogisticsProvider provider) {
+  Widget _buildErrorState() {
+    return Container(
+      padding: const EdgeInsets.all(23),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF744545),
+        ),
+      ),
+      child: Column(
+        children: <Widget>[
+          Container(
+            width: 58,
+            height: 58,
+            decoration: const BoxDecoration(
+              color: Color(0xFF372426),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.cloud_off_outlined,
+              color: Color(0xFFFF8A8A),
+            ),
+          ),
+          const SizedBox(height: 15),
+          const Text(
+            'Unable to load providers',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            _errorMessage ??
+                'An unexpected error occurred.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _muted,
+              fontSize: 10.5,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 17),
+          OutlinedButton.icon(
+            onPressed: _loadProviders,
+            icon: const Icon(
+              Icons.refresh_rounded,
+              size: 18,
+            ),
+            label: const Text('Try again'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(
+                color: _border,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    final bool hasSearch =
+        _searchController.text.trim().isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 22,
+        vertical: 45,
+      ),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.07),
+        ),
+      ),
+      child: Column(
+        children: <Widget>[
+          Container(
+            width: 59,
+            height: 59,
+            decoration: const BoxDecoration(
+              color: Color(0xFF292820),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.warehouse_outlined,
+              color: _gold,
+            ),
+          ),
+          const SizedBox(height: 15),
+          Text(
+            hasSearch
+                ? 'No matching provider'
+                : 'No available Logistics provider',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            hasSearch
+                ? 'Try searching with a different '
+                    'provider name, province, or city.'
+                : 'Approved and active Logistics '
+                    'providers will appear here.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _muted,
+              fontSize: 10.5,
+              height: 1.5,
+            ),
+          ),
+          if (hasSearch) ...<Widget>[
+            const SizedBox(height: 14),
+            TextButton(
+              onPressed: _clearSearch,
+              child: const Text(
+                'Clear search',
+                style: TextStyle(
+                  color: _gold,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProviderCard(
+    LogisticsProvider provider,
+  ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 13),
       child: Container(
-        padding: const EdgeInsets.all(17),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE7E0D7)),
-          boxShadow: [
+          color: _surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.07),
+          ),
+          boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.black.withOpacity(.045),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
+              color: Colors.black.withOpacity(0.28),
+              blurRadius: 25,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+          crossAxisAlignment:
+              CrossAxisAlignment.stretch,
+          children: <Widget>[
             Row(
-              children: [
+              children: <Widget>[
                 Container(
-                  width: 47,
-                  height: 47,
+                  width: 51,
+                  height: 51,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF5DF),
-                    borderRadius: BorderRadius.circular(13),
+                    color: const Color(0xFF292820),
+                    borderRadius:
+                        BorderRadius.circular(15),
                   ),
                   child: const Icon(
-                    Icons.warehouse_outlined,
-                    color: Color(0xFFB67814),
+                    Icons.local_shipping_outlined,
+                    color: _gold,
+                    size: 25,
                   ),
                 ),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEDF7F2),
-                    borderRadius: BorderRadius.circular(30),
+                    color: const Color(0xFF213329),
+                    borderRadius:
+                        BorderRadius.circular(30),
                   ),
                   child: const Text(
-                    '●  Active',
+                    '●  ACTIVE',
                     style: TextStyle(
-                      color: Color(0xFF438461),
+                      color: Color(0xFF79C58E),
                       fontSize: 8,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 15),
             Text(
               provider.name,
               style: const TextStyle(
-                color: Color(0xFF29241E),
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 3),
-            Text(
-              provider.location,
-              style: const TextStyle(
-                color: Color(0xFF8E857B),
-                fontSize: 10,
-              ),
-            ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 5),
             Row(
-              children: [
-                Expanded(
-                  child: _stat(
-                    'Approved Riders',
-                    provider.approvedRiders.toString(),
-                  ),
+              children: <Widget>[
+                const Icon(
+                  Icons.location_on_outlined,
+                  color: _muted,
+                  size: 15,
                 ),
+                const SizedBox(width: 5),
                 Expanded(
-                  child: _stat(
-                    'Coverage',
-                    provider.coverage,
+                  child: Text(
+                    provider.location,
+                    style: const TextStyle(
+                      color: _muted,
+                      fontSize: 10.5,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            SizedBox(
-              height: 45,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RiderRegisterScreen(
-                        provider: provider,
-                      ),
+            const SizedBox(height: 17),
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: _fieldColor,
+                borderRadius:
+                    BorderRadius.circular(14),
+                border: Border.all(
+                  color: _border,
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _buildStat(
+                      label: 'Approved riders',
+                      value: provider.approvedRiders
+                          .toString(),
                     ),
-                  );
+                  ),
+                  Container(
+                    width: 1,
+                    height: 31,
+                    color: _border,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: _buildStat(
+                      label: 'Coverage',
+                      value: provider.coverage,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 15),
+            SizedBox(
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  _openRegistration(provider);
                 },
+                icon: const Icon(
+                  Icons.assignment_outlined,
+                  size: 19,
+                ),
+                label: const Text(
+                  'Apply to this Logistics',
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF211F18),
-                  foregroundColor: Colors.white,
+                  backgroundColor: _gold,
+                  foregroundColor:
+                      const Color(0xFF151515),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius:
+                        BorderRadius.circular(13),
                   ),
-                ),
-                child: const Text(
-                  'Apply to this Logistics  →',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
+                  textStyle: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -321,26 +703,32 @@ class _RiderLogisticsScreenState extends State<RiderLogisticsScreen> {
     );
   }
 
-  Widget _stat(String label, String value) {
+  Widget _buildStat({
+    required String label,
+    required String value,
+  }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: <Widget>[
         Text(
           label.toUpperCase(),
           style: const TextStyle(
-            color: Color(0xFF9B9288),
+            color: Color(0xFF7D7D85),
             fontSize: 7.5,
-            letterSpacing: .8,
+            letterSpacing: 0.7,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 5),
         Text(
           value,
+          maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            color: Color(0xFF2B261F),
+            color: Colors.white,
             fontSize: 12,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ],
