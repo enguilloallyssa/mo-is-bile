@@ -214,7 +214,7 @@ Future<SariJson> login({
     'auth/login',
     authenticated: false,
     jsonBody: {
-      'account_type': role,
+      'role': role,
       'email': email.trim().toLowerCase(),
       'password': password,
       'device_name': deviceName,

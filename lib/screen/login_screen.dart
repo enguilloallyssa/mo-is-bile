@@ -105,11 +105,12 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
 
-      final String role =
-          (data['role'] ?? response['role'] ?? _selectedRole)
-              .toString()
-              .trim()
-              .toLowerCase();
+      final String role = (
+        (data['user'] is Map ? (data['user'] as Map)['role'] : null)
+        ?? data['role']
+        ?? response['role']
+        ?? _selectedRole
+      ).toString().trim().toLowerCase();
 
       await _secureStorage.write(
         key: _tokenKey,
@@ -159,7 +160,12 @@ class _LoginScreenState extends State<LoginScreen> {
         route,
         (Route<dynamic> route) => false,
       );
-    } on SariApiException catch (error) {
+    } on SariApiException catch (error, stackTrace) {
+      // Diagnostic details only: never log passwords or access tokens.
+      debugPrint('SARI LOGIN API ERROR: ${error.message}');
+      debugPrint('SARI LOGIN HTTP STATUS: ${error.statusCode ?? 'none'}');
+      debugPrintStack(label: 'SARI LOGIN API STACK', stackTrace: stackTrace);
+
       if (!mounted) {
         return;
       }
@@ -167,23 +173,26 @@ class _LoginScreenState extends State<LoginScreen> {
       String message = error.message;
 
       if (error.isUnauthorized) {
-        message = 'Incorrect email, password, or account type.';
+        message = 'Incorrect email, password, or selected account role.';
       } else if (error.isForbidden) {
         message =
             'This account is not allowed to access the mobile app.';
-      } else if (error.isValidationError) {
-        message = error.message;
       }
 
-      _showMessage(message);
-    } catch (_) {
+      final statusLabel = error.statusCode == null
+          ? ''
+          : ' (HTTP ${error.statusCode})';
+      _showMessage('$message$statusLabel');
+    } catch (error, stackTrace) {
+      // Show a generic message to the user and a diagnostic in the console.
+      debugPrint('SARI LOGIN UNEXPECTED ERROR: $error');
+      debugPrintStack(label: 'SARI LOGIN STACK', stackTrace: stackTrace);
+
       if (!mounted) {
         return;
       }
 
-      _showMessage(
-        'Unable to connect to SARI. Check your internet connection and try again.',
-      );
+      _showMessage('Login failed. Check the Flutter debug console.');
     } finally {
       if (mounted) {
         setState(() {

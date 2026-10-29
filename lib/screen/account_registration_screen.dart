@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/registration_api.dart';
+import '../widgets/sari_address_picker.dart';
 import 'registration_pending_screen.dart';
 
 class AccountRegistrationScreen extends StatefulWidget {
@@ -731,20 +732,10 @@ class _AccountRegistrationScreenState
             icon: Icons.location_on_outlined,
           ),
           const SizedBox(height: 20),
-          _field(
-            controller: _provinceController,
-            label: 'Province *',
-            hint: 'Laguna',
-          ),
-          _field(
-            controller: _municipalityController,
-            label: 'City or municipality *',
-            hint: 'Santa Cruz',
-          ),
-          _field(
-            controller: _barangayController,
-            label: 'Barangay *',
-            hint: 'Barangay name',
+          SariAddressPicker(
+            province: _provinceController,
+            municipality: _municipalityController,
+            barangay: _barangayController,
           ),
           _field(
             controller: _streetController,

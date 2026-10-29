@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/registration_api.dart';
+import '../widgets/sari_address_picker.dart';
 import 'registration_pending_screen.dart';
 import 'rider_logistics_screen.dart';
 
@@ -834,20 +835,10 @@ class _RiderRegisterScreenState
             eyebrow: '02 · ADDRESS',
             title: 'Home address',
           ),
-          _input(
-            controller: _provinceController,
-            label: 'Province *',
-            hint: 'Laguna',
-          ),
-          _input(
-            controller: _municipalityController,
-            label: 'City or municipality *',
-            hint: 'Santa Cruz',
-          ),
-          _input(
-            controller: _barangayController,
-            label: 'Barangay *',
-            hint: 'Barangay name',
+          SariAddressPicker(
+            province: _provinceController,
+            municipality: _municipalityController,
+            barangay: _barangayController,
           ),
           _input(
             controller: _streetController,
