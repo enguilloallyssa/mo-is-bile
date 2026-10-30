@@ -16,10 +16,10 @@ class RiderBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = <_RiderNavItem>[
       const _RiderNavItem(Icons.home_outlined, Icons.home_rounded, 'Home'),
-      const _RiderNavItem(Icons.assignment_outlined, Icons.assignment_rounded, 'Jobs'),
-      const _RiderNavItem(Icons.navigation_outlined, Icons.navigation_rounded, 'Route'),
-      const _RiderNavItem(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'Wallet'),
-      const _RiderNavItem(Icons.person_outline_rounded, Icons.person_rounded, 'Me'),
+      const _RiderNavItem(Icons.assignment_outlined, Icons.assignment_rounded, 'Pickups'),
+      const _RiderNavItem(Icons.navigation_outlined, Icons.navigation_rounded, 'Deliveries'),
+      const _RiderNavItem(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'Earnings'),
+      const _RiderNavItem(Icons.person_outline_rounded, Icons.person_rounded, 'Account'),
     ];
 
     return SafeArea(

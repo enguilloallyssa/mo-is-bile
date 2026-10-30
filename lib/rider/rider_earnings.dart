@@ -1,135 +1,719 @@
+
 import 'package:flutter/material.dart';
 
 import 'models/rider_earning_model.dart';
+import 'rider_remittances.dart';
 import 'widgets/rider_ui.dart';
 
 class RiderEarnings extends StatefulWidget {
+  const RiderEarnings({
+    super.key,
+    required this.daily,
+    required this.transactions,
+    required this.onOpenHistory,
+  });
+
   final List<RiderDailyEarning> daily;
   final List<RiderEarningTransaction> transactions;
   final VoidCallback onOpenHistory;
-
-  RiderEarnings({super.key, required this.daily, required this.transactions, required this.onOpenHistory});
 
   @override
   State<RiderEarnings> createState() => _RiderEarningsState();
 }
 
 class _RiderEarningsState extends State<RiderEarnings> {
-  double _pendingPayout = 0;
-  double get _weeklyTotal => widget.daily.fold(0.0, (sum, item) => sum + item.amount);
-  double get _walletBalance => widget.transactions.fold(0.0, (sum, item) => sum + item.amount) - _pendingPayout;
+  String _filter = 'All';
+
+  double get _weeklyEarnings => widget.daily.fold<double>(
+        0,
+        (total, day) => total + day.amount,
+      );
+
+  double get _loadedEarnings =>
+      widget.transactions.fold<double>(
+        0,
+        (total, transaction) => total + transaction.amount,
+      );
+
+  List<RiderEarningTransaction> get _filteredTransactions {
+    if (_filter == 'All') return widget.transactions;
+
+    return widget.transactions.where((transaction) {
+      return transaction.status.toLowerCase() ==
+          _filter.toLowerCase();
+    }).toList();
+  }
+
+  void _openRemittances() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const RiderRemittances(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final maxAmount = widget.daily.isEmpty ? 1.0 : widget.daily.map((e) => e.amount).reduce((a, b) => a > b ? a : b);
     return Scaffold(
       backgroundColor: RiderColors.bg,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        toolbarHeight: 74,
-        titleSpacing: 16,
-        title: RiderHeaderTitle(title: 'Rider Wallet', subtitle: 'Earnings, payouts and delivery fees'),
-        actions: [IconButton(onPressed: widget.onOpenHistory, icon: Icon(Icons.receipt_long_outlined)), SizedBox(width: 8)],
+        backgroundColor: RiderColors.surface,
+        foregroundColor: RiderColors.text,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        title: const RiderHeaderTitle(
+          title: 'Rider Earnings',
+          subtitle: 'Earnings and Payout Management',
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Delivery History',
+            onPressed: widget.onOpenHistory,
+            icon: const Icon(Icons.history_rounded),
+          ),
+        ],
       ),
       body: ListView(
-        padding: EdgeInsets.fromLTRB(14, 14, 14, 26),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 36),
         children: [
-          _walletHero(),
-          SizedBox(height: 14),
-          Row(children: [
-            Expanded(child: RiderMetricTile(value: '₱${_weeklyTotal.toStringAsFixed(0)}', label: 'This week', icon: Icons.calendar_view_week_outlined, accent: RiderColors.blue, softColor: RiderColors.blueSoft)),
-            SizedBox(width: 10),
-            Expanded(child: RiderMetricTile(value: '${widget.transactions.length}', label: 'Transactions', icon: Icons.receipt_outlined, accent: RiderColors.purple, softColor: RiderColors.purpleSoft)),
-          ]),
-          SizedBox(height: 20),
-          RiderSectionHeader(title: 'Weekly performance', subtitle: 'Delivery fees credited per day'),
-          SizedBox(height: 10),
-          RiderSurface(
-            padding: EdgeInsets.fromLTRB(14, 18, 14, 12),
-            child: SizedBox(
-              height: 180,
+          _hero(),
+          const SizedBox(height: 18),
+          _summaryCards(),
+          const SizedBox(height: 22),
+          _section(
+            'Weekly Performance',
+            'Earnings from currently loaded records.',
+          ),
+          const SizedBox(height: 12),
+          _earningsChart(),
+          const SizedBox(height: 24),
+          _section(
+            'Payout Summary',
+            'Track rider earnings separately from COD cash.',
+          ),
+          const SizedBox(height: 12),
+          _payoutSummary(),
+          const SizedBox(height: 24),
+          _section(
+            'Payout Method',
+            'Options available on the Laravel Rider website.',
+          ),
+          const SizedBox(height: 12),
+          _payoutMethods(),
+          const SizedBox(height: 24),
+          _section(
+            'Recent Earnings',
+            'Transaction history from loaded data.',
+          ),
+          const SizedBox(height: 12),
+          _filters(),
+          const SizedBox(height: 12),
+          if (_filteredTransactions.isEmpty)
+            _empty(
+              'No earnings records',
+              'Transactions will appear here when available.',
+            )
+          else
+            ..._filteredTransactions.map(
+              (transaction) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _transactionCard(transaction),
+              ),
+            ),
+          const SizedBox(height: 24),
+          _section(
+            'Recent Payout Requests',
+            'Requests must be confirmed by Laravel.',
+          ),
+          const SizedBox(height: 12),
+          _empty(
+            'No payout requests loaded',
+            'Connect the Rider payout API to view actual requests.',
+          ),
+          const SizedBox(height: 18),
+          _notice(
+            'Preview mode: earnings use locally supplied Flutter '
+            'data. Balances, payout eligibility, and requests '
+            'must come from the authenticated Laravel API.',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hero() {
+    return Container(
+      padding: const EdgeInsets.all(21),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: RiderColors.heroGradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: Colors.white70,
+                size: 18,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'RIDER FINANCIAL OVERVIEW',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          const Text(
+            'Earnings & Payouts',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Review your rider fees, payout activity, '
+            'and cash remittance requirements.',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 19),
+          OutlinedButton.icon(
+            onPressed: _openRemittances,
+            icon: const Icon(Icons.payments_outlined),
+            label: const Text('COD Cash Remittance'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white54),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryCards() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _metric(
+                'Weekly Earnings',
+                _money(_weeklyEarnings),
+                Icons.trending_up_rounded,
+                RiderColors.green,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _metric(
+                'Loaded Earnings',
+                _money(_loadedEarnings),
+                Icons.wallet_outlined,
+                RiderColors.blue,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _metric(
+                'Transactions',
+                '${widget.transactions.length}',
+                Icons.receipt_long_outlined,
+                RiderColors.purple,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _metric(
+                'Payout Requests',
+                '—',
+                Icons.payments_outlined,
+                RiderColors.goldDark,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _money(double value) =>
+      '₱${value.toStringAsFixed(2)}';
+
+  Widget _metric(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: RiderColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: RiderColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 23),
+          const SizedBox(height: 13),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: RiderColors.text,
+                fontSize: 23,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: RiderColors.muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _section(String title, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: RiderColors.text,
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          subtitle,
+          style: TextStyle(
+            color: RiderColors.muted,
+            fontSize: 11,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _earningsChart() {
+    final maxAmount = widget.daily.isEmpty
+        ? 0.0
+        : widget.daily
+            .map((entry) => entry.amount)
+            .reduce((a, b) => a > b ? a : b);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 20, 14, 16),
+      decoration: _decoration(),
+      child: widget.daily.isEmpty
+          ? SizedBox(
+              height: 150,
+              child: Center(
+                child: Text(
+                  'No weekly earnings loaded.',
+                  style: TextStyle(color: RiderColors.muted),
+                ),
+              ),
+            )
+          : SizedBox(
+              height: 190,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                children: widget.daily.map((item) {
-                  final ratio = maxAmount <= 0 ? 0.0 : item.amount / maxAmount;
+                children: widget.daily.map((entry) {
+                  final ratio = maxAmount <= 0
+                      ? 0.0
+                      : (entry.amount / maxAmount).clamp(0.0, 1.0);
+
                   return Expanded(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-                        Text('₱${item.amount.toStringAsFixed(0)}', style: TextStyle(color: RiderColors.muted, fontSize: 8.5, fontWeight: FontWeight.w700)),
-                        SizedBox(height: 5),
-                        Flexible(child: FractionallySizedBox(heightFactor: ratio.clamp(.08, 1.0).toDouble(), alignment: Alignment.bottomCenter, child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [RiderColors.gold, Color(0xFFF0B84C)]))))),
-                        SizedBox(height: 7),
-                        Text(item.day, style: TextStyle(color: RiderColors.text, fontSize: 9.5, fontWeight: FontWeight.w800)),
-                      ]),
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            '₱${entry.amount.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              color: RiderColors.muted,
+                              fontSize: 9,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: FractionallySizedBox(
+                                heightFactor: ratio,
+                                widthFactor: .75,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: RiderColors.blue,
+                                    borderRadius: BorderRadius.circular(7),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 9),
+                          Text(
+                            entry.day,
+                            style: TextStyle(
+                              color: RiderColors.text,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }).toList(),
               ),
             ),
-          ),
-          SizedBox(height: 20),
-          RiderSectionHeader(title: 'Recent earnings', subtitle: 'Latest credited rider fees'),
-          SizedBox(height: 10),
-          ...widget.transactions.map((item) => Padding(padding: EdgeInsets.only(bottom: 9), child: _transaction(item))),
-        ],
-      ),
     );
   }
 
-  Widget _walletHero() {
+  Widget _payoutSummary() {
     return Container(
-      padding: EdgeInsets.all(19),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF3E755B), RiderColors.green, Color(0xFF608F73)]), boxShadow: const [BoxShadow(color: Color(0x254F7D63), blurRadius: 24, offset: Offset(0, 10))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('AVAILABLE BALANCE', style: TextStyle(color: Colors.white.withValues(alpha: .78), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: .8)),
-        SizedBox(height: 6),
-        Text('₱${_walletBalance.toStringAsFixed(2)}', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: -.8)),
-        SizedBox(height: 5),
-        Text(_pendingPayout > 0 ? '₱${_pendingPayout.toStringAsFixed(0)} payout pending' : 'Ready for payout request', style: TextStyle(color: Colors.white.withValues(alpha: .82), fontSize: 11)),
-        SizedBox(height: 16),
-        ElevatedButton.icon(onPressed: _walletBalance <= 0 ? null : _requestPayout, style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: RiderColors.green, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))), icon: Icon(Icons.payments_outlined, size: 18), label: Text('Request Payout', style: TextStyle(fontWeight: FontWeight.w900))),
-      ]),
-    );
-  }
-
-  Widget _transaction(RiderEarningTransaction item) {
-    return RiderSurface(
-      padding: EdgeInsets.all(14),
-      child: Row(children: [
-        CircleAvatar(radius: 21, backgroundColor: RiderColors.greenSoft, child: Icon(Icons.add_rounded, color: RiderColors.green)),
-        SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(item.order, style: TextStyle(color: RiderColors.text, fontSize: 12.5, fontWeight: FontWeight.w900)),
-          SizedBox(height: 2),
-          Text('${item.type} • ${item.date}', style: TextStyle(color: RiderColors.muted, fontSize: 10)),
-        ])),
-        Text('+₱${item.amount.toStringAsFixed(0)}', style: TextStyle(color: RiderColors.green, fontSize: 14, fontWeight: FontWeight.w900)),
-      ]),
-    );
-  }
-
-  void _requestPayout() {
-    final controller = TextEditingController(text: _walletBalance.toStringAsFixed(0));
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Request payout'),
-        content: TextField(controller: controller, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(prefixText: '₱ ', labelText: 'Amount', border: OutlineInputBorder())),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              final amount = double.tryParse(controller.text.trim()) ?? 0;
-              if (amount <= 0 || amount > _walletBalance) return;
-              setState(() => _pendingPayout += amount);
-              Navigator.pop(dialogContext);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Demo payout request created. API connection comes later.')));
-            },
-            child: Text('Submit'),
+      padding: const EdgeInsets.all(16),
+      decoration: _decoration(),
+      child: Column(
+        children: [
+          _summaryRow(
+            'Awaiting COD Remittance',
+            'Not loaded',
+            Icons.inventory_2_outlined,
+          ),
+          Divider(height: 24, color: RiderColors.border),
+          _summaryRow(
+            'Reserved for Payout',
+            'Not loaded',
+            Icons.lock_outline,
+          ),
+          Divider(height: 24, color: RiderColors.border),
+          _summaryRow(
+            'Available for Payout',
+            'Not loaded',
+            Icons.account_balance_wallet_outlined,
+          ),
+          const SizedBox(height: 15),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.payments_outlined),
+              label: const Text('Request Payout'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Payout requests are disabled until Laravel '
+            'provides the actual available balance.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: RiderColors.muted,
+              fontSize: 10,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _summaryRow(
+    String label,
+    String value,
+    IconData icon,
+  ) {
+    return Row(
+      children: [
+        Icon(icon, color: RiderColors.blue, size: 19),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: RiderColors.muted,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: RiderColors.text,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _payoutMethods() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _decoration(),
+      child: Column(
+        children: [
+          _methodTile(
+            Icons.phone_android_rounded,
+            'GCash',
+            'Requires validated account name and number.',
+          ),
+          Divider(color: RiderColors.border),
+          _methodTile(
+            Icons.payments_outlined,
+            'Manual Cash Release',
+            'Processed and recorded by SARI Logistics.',
+          ),
+          const SizedBox(height: 12),
+          _notice(
+            'Payout method selection and account details '
+            'will be enabled after secure Laravel API integration.',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _methodTile(
+    IconData icon,
+    String title,
+    String description,
+  ) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: RiderColors.blue),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: RiderColors.text,
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+        ),
+      ),
+      subtitle: Text(
+        description,
+        style: TextStyle(
+          color: RiderColors.muted,
+          fontSize: 11,
+        ),
+      ),
+      trailing: Icon(
+        Icons.lock_outline,
+        color: RiderColors.muted,
+        size: 18,
+      ),
+    );
+  }
+
+  Widget _filters() {
+    final statuses = <String>{
+      'All',
+      ...widget.transactions.map(
+        (transaction) => transaction.status,
+      ),
+    };
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: statuses.map((filter) {
+          final selected = _filter == filter;
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 7),
+            child: ChoiceChip(
+              label: Text(filter),
+              selected: selected,
+              showCheckmark: false,
+              onSelected: (_) => setState(() => _filter = filter),
+              selectedColor: RiderColors.blueSoft,
+              backgroundColor: RiderColors.surface,
+              side: BorderSide(
+                color: selected
+                    ? RiderColors.blue
+                    : RiderColors.border,
+              ),
+              labelStyle: TextStyle(
+                color: selected
+                    ? RiderColors.blue
+                    : RiderColors.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _transactionCard(RiderEarningTransaction entry) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: _decoration(),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: RiderColors.greenSoft,
+            child: Icon(
+              Icons.receipt_long_outlined,
+              color: RiderColors.green,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.order,
+                  style: TextStyle(
+                    color: RiderColors.text,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${entry.type} • ${entry.date}',
+                  style: TextStyle(
+                    color: RiderColors.muted,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  entry.status,
+                  style: TextStyle(
+                    color: RiderColors.blue,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            _money(entry.amount),
+            style: TextStyle(
+              color: RiderColors.green,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _empty(String title, String message) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: _decoration(),
+      child: Column(
+        children: [
+          Icon(
+            Icons.receipt_long_outlined,
+            color: RiderColors.muted,
+            size: 36,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: TextStyle(
+              color: RiderColors.text,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: RiderColors.muted,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _notice(String message) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: RiderColors.goldSoft,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: RiderColors.goldDark,
+            size: 19,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: RiderColors.text,
+                fontSize: 11,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  BoxDecoration _decoration() {
+    return BoxDecoration(
+      color: RiderColors.surface,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: RiderColors.border),
     );
   }
 }
