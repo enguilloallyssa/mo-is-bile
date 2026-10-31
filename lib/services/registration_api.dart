@@ -1,6 +1,8 @@
+
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
@@ -17,13 +19,372 @@ class RegistrationApiException implements Exception {
 class RegistrationApi {
   RegistrationApi._();
 
-  static final RegistrationApi instance =
-      RegistrationApi._();
+  static final RegistrationApi instance = RegistrationApi._();
 
-  final Map<String, String> _cookies =
-      <String, String>{};
-
+  final Map<String, String> _cookies = {};
   String? _csrfToken;
+
+  Uri _uri(String path) {
+    final uri = Uri.parse(path);
+
+    if (uri.hasScheme) return uri;
+
+    return Uri.parse(ApiConfig.baseUrl).resolve(path);
+  }
+
+  String _absoluteUrl(String path) => _uri(path).toString();
+
+  bool _isRedirect(int code) =>
+      code == 301 ||
+      code == 302 ||
+      code == 303 ||
+      code == 307 ||
+      code == 308;
+
+  bool _isAllowedHost(Uri uri) {
+    final base = Uri.parse(ApiConfig.baseUrl);
+
+    return uri.scheme == base.scheme &&
+        uri.host == base.host &&
+        uri.port == base.port;
+  }
+
+  String _decodeCookie(String value) {
+    try {
+      return Uri.decodeComponent(value);
+    } catch (_) {
+      return value;
+    }
+  }
+
+  Map<String, String> _headers({
+    String? referer,
+    bool acceptJson = false,
+  }) {
+    final xsrfCookie = _cookies['XSRF-TOKEN'];
+
+    return {
+      'Accept': acceptJson
+          ? 'application/json'
+          : 'text/html,application/xhtml+xml',
+      'Cache-Control': 'no-cache, no-store',
+      'Pragma': 'no-cache',
+      'User-Agent': 'SARI-Mobile/1.0',
+      'Origin': ApiConfig.baseUrl,
+      if (_cookies.isNotEmpty)
+        'Cookie': _cookies.entries
+            .map((entry) => '${entry.key}=${entry.value}')
+            .join('; '),
+      if (xsrfCookie != null && xsrfCookie.isNotEmpty)
+        'X-XSRF-TOKEN': _decodeCookie(xsrfCookie),
+      if (referer != null)
+        'Referer': _absoluteUrl(referer),
+    };
+  }
+
+  void _rememberCookies(Map<String, String> headers) {
+    String? raw;
+
+    for (final entry in headers.entries) {
+      if (entry.key.toLowerCase() == 'set-cookie') {
+        raw = entry.value;
+        break;
+      }
+    }
+
+    if (raw == null || raw.isEmpty) return;
+
+    // Multiple Set-Cookie headers can be combined by
+    // the HTTP client. Match only actual cookie names.
+    for (final name in ['laravel_session', 'XSRF-TOKEN']) {
+      final match = RegExp(
+        '(?:^|,\\s*)${RegExp.escape(name)}=([^;,\\s]*)',
+        caseSensitive: false,
+      ).firstMatch(raw);
+
+      if (match == null) continue;
+
+      final value = match.group(1) ?? '';
+
+      if (value.isEmpty) {
+        _cookies.remove(name);
+      } else {
+        _cookies[name] = value;
+      }
+    }
+  }
+
+  Future<http.Response> _send(
+    http.BaseRequest request,
+  ) async {
+    // Only diagnostic booleans and status codes.
+    // Never print cookies, tokens, passwords, OTP,
+    // submitted fields, or response bodies.
+
+    final cookieHeader = request.headers['Cookie'] ?? '';
+
+    final hasSession =
+        cookieHeader.contains('laravel_session=');
+
+    final hasXsrf =
+        cookieHeader.contains('XSRF-TOKEN=');
+
+    final hasFormToken = request is http.Request
+        ? request.bodyFields.containsKey('_token')
+        : request is http.MultipartRequest
+            ? request.fields.containsKey('_token')
+            : false;
+
+    if (kDebugMode) {
+      debugPrint('Registration method: ${request.method}');
+      debugPrint(
+        'Registration URL path: ${request.url.path}',
+      );
+      debugPrint(
+        'Registration session cookie included: $hasSession',
+      );
+      debugPrint(
+        'Registration XSRF cookie included: $hasXsrf',
+      );
+      debugPrint(
+        'Registration CSRF form token included: $hasFormToken',
+      );
+    }
+
+    final streamed = await request.send();
+
+    final setCookie =
+        streamed.headers['set-cookie'] ?? '';
+
+    if (kDebugMode) {
+      debugPrint(
+        'Registration HTTP status: ${streamed.statusCode}',
+      );
+      debugPrint(
+        'Registration server issued session cookie: '
+        '${setCookie.contains('laravel_session=')}',
+      );
+      debugPrint(
+        'Registration server issued XSRF cookie: '
+        '${setCookie.contains('XSRF-TOKEN=')}',
+      );
+
+      if (_isRedirect(streamed.statusCode)) {
+        final location = streamed.headers['location'];
+
+        debugPrint(
+          'Registration redirect path: '
+          '${location == null ? 'none' : Uri.tryParse(location)?.path ?? 'unknown'}',
+        );
+      }
+    }
+
+    _rememberCookies(streamed.headers);
+
+    return http.Response.fromStream(streamed);
+  }
+
+  Future<http.Response> _get(
+    String path, {
+    String? referer,
+  }) async {
+    final request = http.Request('GET', _uri(path))
+      ..followRedirects = false
+      ..headers.addAll(_headers(referer: referer));
+
+    var response = await _send(request);
+    var redirects = 0;
+
+    while (_isRedirect(response.statusCode) &&
+        redirects < 5) {
+      final location = response.headers['location'];
+
+      if (location == null || location.isEmpty) break;
+
+      final redirectUri = _uri(location);
+
+      if (!_isAllowedHost(redirectUri)) {
+        throw const RegistrationApiException(
+          'SARI redirected to an unexpected website.',
+        );
+      }
+
+      final next = http.Request('GET', redirectUri)
+        ..followRedirects = false
+        ..headers.addAll(_headers(referer: path));
+
+      response = await _send(next);
+      redirects++;
+    }
+
+    if (response.statusCode >= 200 &&
+        response.statusCode < 400) {
+      return response;
+    }
+
+    _throwFor(response);
+  }
+
+  Future<String> _loadCsrf(String path) async {
+    final separator = path.contains('?') ? '&' : '?';
+
+    final freshPath =
+        '$path${separator}_mobile_csrf='
+        '${DateTime.now().millisecondsSinceEpoch}';
+
+    final page = await _get(
+      freshPath,
+      referer: path,
+    );
+
+    final match = RegExp(
+      r'name=["\x27]_token["\x27][^>]*value=["\x27]([^"\x27]+)',
+      caseSensitive: false,
+    ).firstMatch(page.body);
+
+    if (match == null) {
+      throw const RegistrationApiException(
+        'Laravel CSRF token was not found '
+        'on the registration page.',
+      );
+    }
+
+    _csrfToken = match.group(1)!;
+
+    return _csrfToken!;
+  }
+
+  String? _extractPageMessage(String html) {
+    final patterns = [
+      RegExp(
+        r'<[^>]*class=["\x27][^"\x27]*(?:alert-danger|invalid-feedback|text-danger)[^"\x27]*["\x27][^>]*>([\s\S]*?)</[^>]+>',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'<li[^>]*>([\s\S]*?)</li>',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'<[^>]*class=["\x27][^"\x27]*alert-success[^"\x27]*["\x27][^>]*>([\s\S]*?)</[^>]+>',
+        caseSensitive: false,
+      ),
+    ];
+
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(html);
+
+      if (match == null) continue;
+
+      final message = _plainText(match.group(1)!);
+
+      if (message.isNotEmpty) return message;
+    }
+
+    return null;
+  }
+
+  String _plainText(String html) {
+    return html
+        .replaceAll(RegExp(r'<[^>]+>'), ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&#039;', "'")
+        .replaceAll('&quot;', '"')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  Map<String, dynamic> _json(String body) {
+    if (body.trim().isEmpty) return {};
+
+    final decoded = jsonDecode(body);
+
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+
+    if (decoded is Map) {
+      return decoded.map<String, dynamic>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+    }
+
+    return {};
+  }
+
+  Never _throwFor(http.Response response) {
+    if (response.statusCode == 419) {
+      // Do not automatically retry registration POST.
+      _csrfToken = null;
+      _cookies.clear();
+
+      throw const RegistrationApiException(
+        'Registration session or CSRF validation '
+        'failed (HTTP 419). Please return to '
+        'registration and try again.',
+      );
+    }
+
+    if (response.statusCode == 401) {
+      throw const RegistrationApiException(
+        'Incorrect email or password.',
+      );
+    }
+
+    if (response.statusCode == 403) {
+      throw const RegistrationApiException(
+        'This account is not allowed to perform '
+        'that action.',
+      );
+    }
+
+    if (response.statusCode >= 500) {
+      throw RegistrationApiException(
+        'SARI server error (${response.statusCode}). '
+        'Please try again later.',
+      );
+    }
+
+    try {
+      final body = _json(response.body);
+      final errors = body['errors'];
+
+      if (errors is Map && errors.isNotEmpty) {
+        final first = errors.values.first;
+
+        if (first is List && first.isNotEmpty) {
+          throw RegistrationApiException(
+            first.first.toString(),
+          );
+        }
+
+        if (first != null) {
+          throw RegistrationApiException(
+            first.toString(),
+          );
+        }
+      }
+
+      throw RegistrationApiException(
+        body['message']?.toString() ??
+            'SARI request failed '
+                '(HTTP ${response.statusCode}).',
+      );
+    } on RegistrationApiException {
+      rethrow;
+    } catch (_) {
+      throw RegistrationApiException(
+        _extractPageMessage(response.body) ??
+            'SARI request failed '
+                '(HTTP ${response.statusCode}).',
+      );
+    }
+  }
+
+  // =================================================
+  // LOGIN
+  // =================================================
 
   Future<String> login({
     required String email,
@@ -32,33 +393,27 @@ class RegistrationApi {
     _cookies.clear();
     _csrfToken = null;
 
-    final String token = await _loadCsrf('/login');
+    final token = await _loadCsrf('/login');
 
-    final http.Request request = http.Request(
+    final request = http.Request(
       'POST',
       _uri('/login'),
     )
       ..followRedirects = false
-      ..headers.addAll(
-        _headers(referer: '/login'),
-      )
-      ..bodyFields = <String, String>{
+      ..headers.addAll(_headers(referer: '/login'))
+      ..bodyFields = {
         '_token': token,
         'email': email,
         'password': password,
       };
 
-    final http.Response response = await _send(request);
+    final response = await _send(request);
 
     if (_isRedirect(response.statusCode)) {
-      final String location =
-          response.headers['location'] ?? '';
+      final location = response.headers['location'] ?? '';
+      final path = Uri.tryParse(location)?.path ?? location;
 
-      final String path =
-          Uri.tryParse(location)?.path ?? location;
-
-      if (path == '/buyer' ||
-          path.startsWith('/buyer/')) {
+      if (path == '/buyer' || path.startsWith('/buyer/')) {
         return 'buyer';
       }
 
@@ -83,12 +438,12 @@ class RegistrationApi {
       if (path == '/admin' ||
           path.startsWith('/admin/')) {
         throw const RegistrationApiException(
-          'Admin accounts must sign in through '
-          'the SARI website.',
+          'Admin accounts must sign in '
+          'through the SARI website.',
         );
       }
 
-      final http.Response page = await _get('/login');
+      final page = await _get('/login');
 
       throw RegistrationApiException(
         _extractPageMessage(page.body) ??
@@ -96,51 +451,200 @@ class RegistrationApi {
       );
     }
 
-    if (response.statusCode == 419) {
+    _throwFor(response);
+  }
+
+  // =================================================
+  // BUYER REGISTRATION
+  // =================================================
+
+  Future<void> registerBuyer({
+    required Map<String, String> fields,
+    required PlatformFile profileImage,
+  }) async {
+    if (profileImage.path == null) {
       throw const RegistrationApiException(
-        'Your login session expired. Please try again.',
+        'The selected photo cannot be read.',
       );
+    }
+
+    const path = '/register/buyer';
+    final token = await _loadCsrf(path);
+
+    final request = http.MultipartRequest(
+      'POST',
+      _uri(path),
+    )
+      ..followRedirects = false
+      ..headers.addAll(
+        _headers(
+          referer: path,
+          acceptJson: true,
+        ),
+      )
+      ..fields.addAll({
+        ...fields,
+        '_token': token,
+      })
+      ..files.add(
+        await http.MultipartFile.fromPath(
+          'profile_image',
+          profileImage.path!,
+          filename: profileImage.name,
+        ),
+      );
+
+    final response = await _send(request);
+
+    if (_isRedirect(response.statusCode)) {
+      final location = response.headers['location'] ?? '';
+      final redirectPath =
+          Uri.tryParse(location)?.path ?? location;
+
+      if (redirectPath == '/registration/pending' ||
+          redirectPath.startsWith(
+            '/registration/pending/',
+          )) {
+        return;
+      }
+
+      final page = await _get(path);
+      final message = _extractPageMessage(page.body);
+
+      if (message != null &&
+          !message.toLowerCase().contains(
+            'registration saved',
+          ) &&
+          !message.toLowerCase().contains(
+            'verification code sent',
+          )) {
+        throw RegistrationApiException(message);
+      }
+
+      return;
+    }
+
+    if (response.statusCode >= 200 &&
+        response.statusCode < 300) {
+      return;
     }
 
     _throwFor(response);
   }
 
+  // =================================================
+  // BUYER OTP
+  // =================================================
+
+  Future<Map<String, dynamic>> _registrationAction(
+    Map<String, String> fields,
+  ) async {
+    const path = '/register/buyer';
+
+    final token = _csrfToken ?? await _loadCsrf(path);
+
+    final request = http.Request(
+      'POST',
+      _uri(path),
+    )
+      ..followRedirects = false
+      ..headers.addAll(
+        _headers(
+          referer: path,
+          acceptJson: true,
+        ),
+      )
+      ..bodyFields = {
+        ...fields,
+        '_token': token,
+      };
+
+    final response = await _send(request);
+
+    if (response.statusCode >= 200 &&
+        response.statusCode < 300) {
+      return _json(response.body);
+    }
+
+    if (_isRedirect(response.statusCode)) {
+      final page = await _get(path);
+      final message = _extractPageMessage(page.body);
+
+      if (message != null) {
+        throw RegistrationApiException(message);
+      }
+
+      return {
+        'message': 'Verification action completed.',
+      };
+    }
+
+    _throwFor(response);
+  }
+
+  Future<String> sendOtp({
+    required String email,
+    required String role,
+  }) async {
+    final result = await _registrationAction({
+      '_registration_action': 'otp_send',
+      'email': email,
+      'role': role,
+    });
+
+    return result['message']?.toString() ??
+        'Verification code sent.';
+  }
+
+  Future<Map<String, dynamic>> verifyOtp({
+    required String email,
+    required String role,
+    required String otp,
+  }) {
+    return _registrationAction({
+      '_registration_action': 'otp_verify',
+      'email': email,
+      'role': role,
+      'otp': otp,
+    });
+  }
+
+  // =================================================
+  // RIDER LOGISTICS PROVIDERS
+  // =================================================
+
   Future<List<Map<String, Object>>>
       loadRiderLogistics() async {
-    final http.Response page =
-        await _get('/register/rider');
+    final page = await _get('/register/rider');
 
-    final List<Map<String, Object>> providers =
-        <Map<String, Object>>[];
+    final providers = <Map<String, Object>>[];
 
-    final Iterable<RegExpMatch> cards = RegExp(
+    final cards = RegExp(
       r'<article[^>]*rider-provider-card[^>]*>([\s\S]*?)</article>',
       caseSensitive: false,
     ).allMatches(page.body);
 
-    for (final RegExpMatch card in cards) {
-      final String html = card.group(1)!;
+    for (final card in cards) {
+      final html = card.group(1)!;
 
-      final RegExpMatch? href = RegExp(
+      final href = RegExp(
         r'href=["\x27][^"\x27]*/register/rider/(\d+)["\x27]',
         caseSensitive: false,
       ).firstMatch(html);
 
-      final RegExpMatch? heading = RegExp(
+      final heading = RegExp(
         r'<h3[^>]*>([\s\S]*?)</h3>',
         caseSensitive: false,
       ).firstMatch(html);
 
-      final List<RegExpMatch> paragraphs = RegExp(
+      final paragraphs = RegExp(
         r'<p[^>]*>([\s\S]*?)</p>',
         caseSensitive: false,
       ).allMatches(html).toList();
 
-      if (href == null || heading == null) {
-        continue;
-      }
+      if (href == null || heading == null) continue;
 
-      providers.add(<String, Object>{
+      providers.add({
         'id': int.parse(href.group(1)!),
         'name': _plainText(heading.group(1)!),
         'location': paragraphs.isNotEmpty
@@ -163,128 +667,18 @@ class RegistrationApi {
     return providers;
   }
 
-  Future<void> registerBuyer({
-    required Map<String, String> fields,
-    required PlatformFile profileImage,
-  }) async {
-    if (profileImage.path == null) {
-      throw const RegistrationApiException(
-        'The selected photo cannot be read.',
-      );
-    }
-
-    final String path = '/register/buyer';
-    final String token = await _loadCsrf(path);
-
-    final http.MultipartRequest request =
-        http.MultipartRequest(
-      'POST',
-      _uri(path),
-    )
-          ..followRedirects = false
-          ..headers.addAll(
-            _headers(
-              referer: path,
-              acceptJson: true,
-            ),
-          )
-          ..fields.addAll(<String, String>{
-            ...fields,
-            '_token': token,
-          })
-          ..files.add(
-            await http.MultipartFile.fromPath(
-              'profile_image',
-              profileImage.path!,
-              filename: profileImage.name,
-            ),
-          );
-
-    final http.Response response = await _send(request);
-
-    if (_isRedirect(response.statusCode)) {
-      final String location =
-          response.headers['location'] ?? '';
-
-      final String redirectPath =
-          Uri.tryParse(location)?.path ?? location;
-
-      if (redirectPath ==
-              '/registration/pending' ||
-          redirectPath.startsWith(
-            '/registration/pending/',
-          )) {
-        return;
-      }
-
-      final http.Response page = await _get(path);
-
-      final String? message =
-          _extractPageMessage(page.body);
-
-      if (message != null &&
-          !message
-              .toLowerCase()
-              .contains('registration saved') &&
-          !message
-              .toLowerCase()
-              .contains('verification code sent')) {
-        throw RegistrationApiException(message);
-      }
-
-      return;
-    }
-
-    if (response.statusCode >= 200 &&
-        response.statusCode < 300) {
-      return;
-    }
-
-    _throwFor(response);
-  }
-
-  Future<String> sendOtp({
-    required String email,
-    required String role,
-  }) async {
-    final Map<String, dynamic> result =
-        await _registrationAction(
-      <String, String>{
-        '_registration_action': 'otp_send',
-        'email': email,
-        'role': role,
-      },
-    );
-
-    return result['message']?.toString() ??
-        'Verification code sent.';
-  }
-
-  Future<Map<String, dynamic>> verifyOtp({
-    required String email,
-    required String role,
-    required String otp,
-  }) {
-    return _registrationAction(
-      <String, String>{
-        '_registration_action': 'otp_verify',
-        'email': email,
-        'role': role,
-        'otp': otp,
-      },
-    );
-  }
+  // =================================================
+  // RIDER OTP
+  // =================================================
 
   Future<String> sendRiderOtp({
     required int logisticsId,
     required String email,
   }) async {
-    final String pagePath =
-        '/register/rider/$logisticsId';
+    final pagePath = '/register/rider/$logisticsId';
+    final token = await _loadCsrf(pagePath);
 
-    final String token = await _loadCsrf(pagePath);
-
-    final http.Request request = http.Request(
+    final request = http.Request(
       'POST',
       _uri('$pagePath/email/send'),
     )
@@ -292,13 +686,12 @@ class RegistrationApi {
       ..headers.addAll(
         _headers(referer: pagePath),
       )
-      ..bodyFields = <String, String>{
+      ..bodyFields = {
         '_token': token,
         'email': email,
       };
 
-    final http.Response response =
-        await _send(request);
+    final response = await _send(request);
 
     if (!_isRedirect(response.statusCode) &&
         (response.statusCode < 200 ||
@@ -306,17 +699,14 @@ class RegistrationApi {
       _throwFor(response);
     }
 
-    final http.Response page =
-        await _get(pagePath);
-
-    final String? message =
-        _extractPageMessage(page.body);
+    final page = await _get(pagePath);
+    final message = _extractPageMessage(page.body);
 
     if (message != null &&
         !message.toLowerCase().contains('code sent') &&
-        !message
-            .toLowerCase()
-            .contains('verification code')) {
+        !message.toLowerCase().contains(
+          'verification code',
+        )) {
       throw RegistrationApiException(message);
     }
 
@@ -328,13 +718,11 @@ class RegistrationApi {
     required String email,
     required String otp,
   }) async {
-    final String pagePath =
-        '/register/rider/$logisticsId';
-
-    final String token =
+    final pagePath = '/register/rider/$logisticsId';
+    final token =
         _csrfToken ?? await _loadCsrf(pagePath);
 
-    final http.Request request = http.Request(
+    final request = http.Request(
       'POST',
       _uri('$pagePath/email/verify'),
     )
@@ -342,14 +730,13 @@ class RegistrationApi {
       ..headers.addAll(
         _headers(referer: pagePath),
       )
-      ..bodyFields = <String, String>{
+      ..bodyFields = {
         '_token': token,
         'email': email,
         'otp': otp,
       };
 
-    final http.Response response =
-        await _send(request);
+    final response = await _send(request);
 
     if (!_isRedirect(response.statusCode) &&
         (response.statusCode < 200 ||
@@ -357,24 +744,24 @@ class RegistrationApi {
       _throwFor(response);
     }
 
-    final http.Response page =
-        await _get(pagePath);
-
-    final String? message =
-        _extractPageMessage(page.body);
+    final page = await _get(pagePath);
+    final message = _extractPageMessage(page.body);
 
     if (message != null) {
-      final String lowerMessage =
-          message.toLowerCase();
+      final lower = message.toLowerCase();
 
-      if (lowerMessage.contains('incorrect') ||
-          lowerMessage.contains('request a new') ||
-          lowerMessage.contains('expired') ||
-          lowerMessage.contains('invalid')) {
+      if (lower.contains('incorrect') ||
+          lower.contains('request a new') ||
+          lower.contains('expired') ||
+          lower.contains('invalid')) {
         throw RegistrationApiException(message);
       }
     }
   }
+
+  // =================================================
+  // RIDER REGISTRATION
+  // =================================================
 
   Future<void> registerRider({
     required int logisticsId,
@@ -383,8 +770,7 @@ class RegistrationApi {
     required PlatformFile idDocument,
     required PlatformFile orcrDocument,
   }) async {
-    for (final PlatformFile file
-        in <PlatformFile>[
+    for (final file in [
       profileImage,
       idDocument,
       orcrDocument,
@@ -396,67 +782,59 @@ class RegistrationApi {
       }
     }
 
-    final String path =
-        '/register/rider/$logisticsId';
-
-    final String token =
+    final path = '/register/rider/$logisticsId';
+    final token =
         _csrfToken ?? await _loadCsrf(path);
 
-    final http.MultipartRequest request =
-        http.MultipartRequest(
+    final request = http.MultipartRequest(
       'POST',
       _uri(path),
     )
-          ..followRedirects = false
-          ..headers.addAll(
-            _headers(
-              referer: path,
-              acceptJson: true,
-            ),
-          )
-          ..fields.addAll(<String, String>{
-            ...fields,
-            '_token': token,
-          })
-          ..files.addAll(
-            <http.MultipartFile>[
-              await http.MultipartFile.fromPath(
-                'profile_image',
-                profileImage.path!,
-                filename: profileImage.name,
-              ),
-              await http.MultipartFile.fromPath(
-                'id_document',
-                idDocument.path!,
-                filename: idDocument.name,
-              ),
-              await http.MultipartFile.fromPath(
-                'orcr_document',
-                orcrDocument.path!,
-                filename: orcrDocument.name,
-              ),
-            ],
-          );
+      ..followRedirects = false
+      ..headers.addAll(
+        _headers(
+          referer: path,
+          acceptJson: true,
+        ),
+      )
+      ..fields.addAll({
+        ...fields,
+        '_token': token,
+      })
+      ..files.addAll([
+        await http.MultipartFile.fromPath(
+          'profile_image',
+          profileImage.path!,
+          filename: profileImage.name,
+        ),
+        await http.MultipartFile.fromPath(
+          'id_document',
+          idDocument.path!,
+          filename: idDocument.name,
+        ),
+        await http.MultipartFile.fromPath(
+          'orcr_document',
+          orcrDocument.path!,
+          filename: orcrDocument.name,
+        ),
+      ]);
 
-    final http.Response response =
-        await _send(request);
+    final response = await _send(request);
 
     if (_isRedirect(response.statusCode)) {
-      final String location =
-          response.headers['location'] ?? '';
-
-      final String redirectPath =
+      final location = response.headers['location'] ?? '';
+      final pathAfterRedirect =
           Uri.tryParse(location)?.path ?? location;
 
-      if (redirectPath ==
+      if (pathAfterRedirect ==
               '/registration/pending' ||
-          redirectPath.startsWith(
+          pathAfterRedirect.startsWith(
             '/registration/pending/',
           )) {
         return;
       }
 
-      final http.Response page = await _get(path);
+      final page = await _get(path);
 
       throw RegistrationApiException(
         _extractPageMessage(page.body) ??
@@ -472,6 +850,10 @@ class RegistrationApi {
     _throwFor(response);
   }
 
+  // =================================================
+  // WEB SESSION LOGOUT
+  // =================================================
+
   Future<void> logout(String role) async {
     final String path;
 
@@ -483,451 +865,26 @@ class RegistrationApi {
       path = '/buyer/logout';
     }
 
-    final String token =
+    final token =
         _csrfToken ?? await _loadCsrf('/login');
 
-    final http.Request request = http.Request(
+    final request = http.Request(
       'POST',
       _uri(path),
     )
       ..followRedirects = false
-      ..headers.addAll(
-        _headers(referer: path),
-      )
-      ..bodyFields = <String, String>{
+      ..headers.addAll(_headers(referer: path))
+      ..bodyFields = {
         '_token': token,
       };
 
-    await _send(request);
+    final response = await _send(request);
+
+    if (response.statusCode >= 400) {
+      _throwFor(response);
+    }
 
     _cookies.clear();
     _csrfToken = null;
-  }
-
-  Future<Map<String, dynamic>>
-      _registrationAction(
-    Map<String, String> fields,
-  ) async {
-    const String path = '/register/buyer';
-
-    final String token =
-        _csrfToken ?? await _loadCsrf(path);
-
-    final http.Request request = http.Request(
-      'POST',
-      _uri(path),
-    )
-      ..followRedirects = false
-      ..headers.addAll(
-        _headers(
-          referer: path,
-          acceptJson: true,
-        ),
-      )
-      ..bodyFields = <String, String>{
-        ...fields,
-        '_token': token,
-      };
-
-    final http.Response response =
-        await _send(request);
-
-    if (response.statusCode >= 200 &&
-        response.statusCode < 300) {
-      return _json(response.body);
-    }
-
-    if (_isRedirect(response.statusCode)) {
-      final http.Response page = await _get(path);
-
-      final String? message =
-          _extractPageMessage(page.body);
-
-      if (message != null) {
-        throw RegistrationApiException(message);
-      }
-
-      return <String, dynamic>{
-        'message': 'Verification action completed.',
-      };
-    }
-
-    _throwFor(response);
-  }
-
-  Future<String> _loadCsrf(String path) async {
-    final String separator =
-        path.contains('?') ? '&' : '?';
-
-    final String freshPath =
-        '$path${separator}_mobile_csrf='
-        '${DateTime.now().millisecondsSinceEpoch}';
-
-    final http.Response page = await _get(
-      freshPath,
-      referer: path,
-    );
-
-    final RegExpMatch? match = RegExp(
-      r'name=["\x27]_token["\x27][^>]*value=["\x27]([^"\x27]+)',
-      caseSensitive: false,
-    ).firstMatch(page.body);
-
-    if (match == null) {
-      throw const RegistrationApiException(
-        'Laravel CSRF token was not found. '
-        'Check whether the login page is accessible.',
-      );
-    }
-
-    _csrfToken = match.group(1)!;
-
-    return _csrfToken!;
-  }
-
-  Future<http.Response> _get(
-    String path, {
-    String? referer,
-  }) async {
-    final http.Request request = http.Request(
-      'GET',
-      _uri(path),
-    )
-      ..followRedirects = false
-      ..headers.addAll(
-        _headers(referer: referer),
-      );
-
-    http.Response response = await _send(request);
-
-    int redirectCount = 0;
-
-    while (_isRedirect(response.statusCode) &&
-        redirectCount < 5) {
-      final String? location =
-          response.headers['location'];
-
-      if (location == null ||
-          location.isEmpty) {
-        break;
-      }
-
-      final Uri redirectUri =
-          _resolveLocation(location);
-
-      if (!_isAllowedHost(redirectUri)) {
-        throw const RegistrationApiException(
-          'The SARI server redirected to '
-          'an unexpected website.',
-        );
-      }
-
-      final http.Request redirectRequest =
-          http.Request(
-        'GET',
-        redirectUri,
-      )
-            ..followRedirects = false
-            ..headers.addAll(
-              _headers(referer: path),
-            );
-
-      response = await _send(redirectRequest);
-      redirectCount++;
-    }
-
-    if (response.statusCode >= 200 &&
-        response.statusCode < 400) {
-      return response;
-    }
-
-    _throwFor(response);
-  }
-
-  Future<http.Response> _send(
-    http.BaseRequest request,
-  ) async {
-    final http.StreamedResponse streamedResponse =
-        await request.send();
-
-    _rememberCookies(streamedResponse.headers);
-
-    return http.Response.fromStream(
-      streamedResponse,
-    );
-  }
-
-  Uri _uri(String path) {
-    final Uri parsed = Uri.parse(path);
-
-    if (parsed.hasScheme) {
-      return parsed;
-    }
-
-    return Uri.parse(ApiConfig.baseUrl)
-        .resolve(path);
-  }
-
-  Map<String, String> _headers({
-    String? referer,
-    bool acceptJson = false,
-  }) {
-    final String? xsrfCookie =
-        _cookies['XSRF-TOKEN'];
-
-    return <String, String>{
-      'Accept': acceptJson
-          ? 'application/json'
-          : 'text/html,application/xhtml+xml',
-      'Cache-Control': 'no-cache, no-store',
-      'Pragma': 'no-cache',
-      'User-Agent': 'SARI-Mobile/1.0',
-      'Origin': ApiConfig.baseUrl,
-      if (_cookies.isNotEmpty)
-        'Cookie': _cookies.entries
-            .map(
-              (MapEntry<String, String> cookie) =>
-                  '${cookie.key}=${cookie.value}',
-            )
-            .join('; '),
-      if (xsrfCookie != null &&
-          xsrfCookie.isNotEmpty)
-        'X-XSRF-TOKEN':
-            _decodeCookie(xsrfCookie),
-      if (referer != null)
-        'Referer': _absoluteUrl(referer),
-    };
-  }
-
-  void _rememberCookies(
-    Map<String, String> headers,
-  ) {
-    String? rawCookies;
-
-    for (final MapEntry<String, String> header
-        in headers.entries) {
-      if (header.key.toLowerCase() ==
-          'set-cookie') {
-        rawCookies = header.value;
-        break;
-      }
-    }
-
-    if (rawCookies == null ||
-        rawCookies.trim().isEmpty) {
-      return;
-    }
-
-    for (final String cookieName
-        in const <String>[
-      'XSRF-TOKEN',
-      'laravel_session',
-    ]) {
-      final RegExp pattern = RegExp(
-        '(?:^|,\\s*)'
-        '${RegExp.escape(cookieName)}'
-        '=([^;,\\s]+)',
-        caseSensitive: false,
-      );
-
-      final RegExpMatch? match =
-          pattern.firstMatch(rawCookies);
-
-      if (match != null) {
-        _cookies[cookieName] =
-            match.group(1)!;
-      }
-    }
-  }
-
-  bool _isRedirect(int statusCode) {
-    return statusCode == 301 ||
-        statusCode == 302 ||
-        statusCode == 303 ||
-        statusCode == 307 ||
-        statusCode == 308;
-  }
-
-  Uri _resolveLocation(String location) {
-    final Uri parsed = Uri.parse(location);
-
-    if (parsed.hasScheme) {
-      return parsed;
-    }
-
-    return Uri.parse(ApiConfig.baseUrl)
-        .resolve(location);
-  }
-
-  bool _isAllowedHost(Uri uri) {
-    final Uri base = Uri.parse(ApiConfig.baseUrl);
-
-    return uri.scheme == base.scheme &&
-        uri.host == base.host &&
-        uri.port == base.port;
-  }
-
-  String _absoluteUrl(String path) {
-    final Uri parsed = Uri.parse(path);
-
-    if (parsed.hasScheme) {
-      return parsed.toString();
-    }
-
-    return Uri.parse(ApiConfig.baseUrl)
-        .resolve(path)
-        .toString();
-  }
-
-  String _decodeCookie(String value) {
-    try {
-      return Uri.decodeComponent(value);
-    } catch (_) {
-      return value;
-    }
-  }
-
-  String? _extractPageMessage(String html) {
-    final List<RegExp> patterns = <RegExp>[
-      RegExp(
-        r'<[^>]*class=["\x27][^"\x27]*(?:alert-danger|invalid-feedback|text-danger)[^"\x27]*["\x27][^>]*>([\s\S]*?)</[^>]+>',
-        caseSensitive: false,
-      ),
-      RegExp(
-        r'<li[^>]*>([\s\S]*?)</li>',
-        caseSensitive: false,
-      ),
-      RegExp(
-        r'<[^>]*class=["\x27][^"\x27]*alert-success[^"\x27]*["\x27][^>]*>([\s\S]*?)</[^>]+>',
-        caseSensitive: false,
-      ),
-    ];
-
-    for (final RegExp pattern in patterns) {
-      final RegExpMatch? match =
-          pattern.firstMatch(html);
-
-      if (match == null) {
-        continue;
-      }
-
-      final String text =
-          _plainText(match.group(1)!);
-
-      if (text.isNotEmpty) {
-        return text;
-      }
-    }
-
-    return null;
-  }
-
-  String _plainText(String html) {
-    return html
-        .replaceAll(RegExp(r'<[^>]+>'), ' ')
-        .replaceAll('&amp;', '&')
-        .replaceAll('&#039;', "'")
-        .replaceAll('&quot;', '"')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  }
-
-  Map<String, dynamic> _json(String body) {
-    if (body.trim().isEmpty) {
-      return <String, dynamic>{};
-    }
-
-    final dynamic decoded = jsonDecode(body);
-
-    if (decoded is Map<String, dynamic>) {
-      return decoded;
-    }
-
-    if (decoded is Map) {
-      return decoded.map<String, dynamic>(
-        (dynamic key, dynamic value) =>
-            MapEntry<String, dynamic>(
-          key.toString(),
-          value,
-        ),
-      );
-    }
-
-    return <String, dynamic>{};
-  }
-
-  Never _throwFor(http.Response response) {
-    if (response.statusCode == 419) {
-      throw const RegistrationApiException(
-        'Your SARI session expired. '
-        'Please try again.',
-      );
-    }
-
-    if (response.statusCode == 401) {
-      throw const RegistrationApiException(
-        'Incorrect email or password.',
-      );
-    }
-
-    if (response.statusCode == 403) {
-      throw const RegistrationApiException(
-        'This account is not allowed to '
-        'perform that action.',
-      );
-    }
-
-    if (response.statusCode >= 500) {
-      throw RegistrationApiException(
-        'SARI server error '
-        '(${response.statusCode}). '
-        'Please try again later.',
-      );
-    }
-
-    try {
-      final Map<String, dynamic> body =
-          _json(response.body);
-
-      final dynamic errors = body['errors'];
-
-      if (errors is Map && errors.isNotEmpty) {
-        final dynamic firstError =
-            errors.values.first;
-
-        if (firstError is List &&
-            firstError.isNotEmpty) {
-          throw RegistrationApiException(
-            firstError.first.toString(),
-          );
-        }
-
-        if (firstError != null) {
-          throw RegistrationApiException(
-            firstError.toString(),
-          );
-        }
-      }
-
-      throw RegistrationApiException(
-        body['message']?.toString() ??
-            'Unable to connect to SARI '
-                '(status ${response.statusCode}).',
-      );
-    } on RegistrationApiException {
-      rethrow;
-    } catch (_) {
-      final String? pageMessage =
-          _extractPageMessage(response.body);
-
-      throw RegistrationApiException(
-        pageMessage ??
-            'Server error '
-                '(${response.statusCode}). '
-                'Check the Laravel URL.',
-      );
-    }
   }
 }

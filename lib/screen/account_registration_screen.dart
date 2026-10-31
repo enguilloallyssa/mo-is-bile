@@ -292,54 +292,48 @@ class _AccountRegistrationScreenState
   Future<void> _sendOtp({
     required bool moveToOtpStep,
   }) async {
-    if (_isSendingOtp) {
+    if (_isSendingOtp || _isVerifying) return;
+    FocusScope.of(context).unfocus();
+
+    if (moveToOtpStep && _profileImage == null) {
+      _showMessage('Please select a profile picture first.');
       return;
     }
 
-    setState(() {
-      _isSendingOtp = true;
-    });
+    setState(() => _isSendingOtp = true);
 
     try {
-      final String message =
-          await RegistrationApi.instance.sendOtp(
-        email: _emailController.text.trim().toLowerCase(),
-        role: 'buyer',
-      );
-
-      if (!mounted) {
-        return;
+      if (moveToOtpStep) {
+        // Laravel needs the unverified application in its database
+        // before the OTP send/verify actions can work.
+        await RegistrationApi.instance.registerBuyer(
+          fields: _registrationFields(),
+          profileImage: _profileImage!,
+        );
+      } else {
+        // Resend requires the application created above.
+        await RegistrationApi.instance.sendOtp(
+          email: _emailController.text.trim().toLowerCase(),
+          role: 'buyer',
+        );
       }
 
+      if (!mounted) return;
       setState(() {
         _otpSent = true;
-
-        if (moveToOtpStep) {
-          _step = 3;
-        }
+        if (moveToOtpStep) _step = 3;
       });
-
-      _showMessage(message);
+      _showMessage(moveToOtpStep
+          ? 'Registration saved. Check your email for the 6-digit code.'
+          : 'Verification request processed. Check your email.');
     } on RegistrationApiException catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      _showMessage(error.message);
+      if (mounted) _showMessage(error.message);
     } catch (_) {
-      if (!mounted) {
-        return;
-      }
-
-      _showMessage(
-        'Cannot connect to the SARI server. Check the Laravel server and SARI_API_URL.',
-      );
-    } finally {
       if (mounted) {
-        setState(() {
-          _isSendingOtp = false;
-        });
+        _showMessage('Could not contact SARI. Please check your connection.');
       }
+    } finally {
+      if (mounted) setState(() => _isSendingOtp = false);
     }
   }
 
@@ -380,11 +374,6 @@ class _AccountRegistrationScreenState
         email: _emailController.text.trim().toLowerCase(),
         role: 'buyer',
         otp: otp,
-      );
-
-      await RegistrationApi.instance.registerBuyer(
-        fields: _registrationFields(),
-        profileImage: _profileImage!,
       );
 
       if (!mounted) {
@@ -437,7 +426,7 @@ class _AccountRegistrationScreenState
       'sex': _sex ?? '',
       'email':
           _emailController.text.trim().toLowerCase(),
-      'contact_number': _contactController.text.trim(),
+      'contact_no': _contactController.text.trim(),
       'birthday': _birthdayController.text.trim(),
       'province': _provinceController.text.trim(),
       'municipality':
@@ -447,6 +436,8 @@ class _AccountRegistrationScreenState
       'password': _passwordController.text,
       'password_confirmation':
           _confirmPasswordController.text,
+      'terms': _acceptTerms ? '1' : '0',
+      'profile_image_selected': '1',
     };
   }
 
