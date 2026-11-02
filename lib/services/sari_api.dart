@@ -1,34 +1,3 @@
-// SARI Flutter API client — single-file handoff for the implemented Laravel API v1.
-//
-// Destination in the Flutter project: lib/services/sari_api.dart
-// Install the HTTP dependency: flutter pub add http
-//
-// IMPORTANT:
-//   1. This file is a CLIENT. It does not create server routes or connect directly
-//      to MySQL. Deploy the SARI_Flutter_Laravel_API_Starter Laravel package first.
-//   2. The staging address below works ONLY once that Laravel API is deployed.
-//   3. Store access tokens using OS secure storage (e.g. flutter_secure_storage).
-//      Never embed a password, token or database credentials in your app code.
-//   4. Available now: health, login, me, logout, logout-all, product list/detail,
-//      buyer order list/detail. Cart, checkout, chat, rider delivery, logistics
-//      operations, etc. are NOT implemented in API v1 starter. Do not call them
-//      until the Laravel backend adds and documents those endpoints.
-//
-// Example usage:
-//   final api = SariApi(
-//     baseUrl: 'https://preview.sariph.store/api/v1',
-//     tokenProvider: () async => secureStorage.read(key: 'sari_access_token'),
-//   );
-//   final status = await api.health();
-//   final login = await api.login(
-//     role: 'buyer', email: email, password: password,
-//     deviceName: 'Android Phone',
-//   );
-//   // Persist login['data']['access_token'] in the OS secure storage.
-//   // The tokenProvider supplies it on subsequent authenticated requests.
-//   final products = await api.products(page: 1);
-//   final orders = await api.buyerOrders();
-//   api.dispose();
 
 import 'dart:async';
 import 'dart:convert';
@@ -39,7 +8,11 @@ typedef SariJson = Map<String, dynamic>;
 typedef SariTokenProvider = Future<String?> Function();
 
 class SariApiException implements Exception {
-  const SariApiException(this.message, {this.statusCode, this.errors});
+  const SariApiException(
+    this.message, {
+    this.statusCode,
+    this.errors,
+  });
 
   final String message;
   final int? statusCode;
@@ -50,9 +23,12 @@ class SariApiException implements Exception {
   bool get isValidationError => statusCode == 422;
 
   @override
-  String toString() => statusCode == null
-      ? 'SariApiException: $message'
-      : 'SariApiException ($statusCode): $message';
+  String toString() {
+    if (statusCode == null) {
+      return 'SariApiException: $message';
+    }
+    return 'SariApiException ($statusCode): $message';
+  }
 }
 
 class SariApi {
@@ -65,33 +41,31 @@ class SariApi {
         _client = client ?? http.Client(),
         _ownsClient = client == null {
     final parsed = Uri.tryParse(this.baseUrl);
-    if (parsed == null || parsed.scheme != 'https' || parsed.host.isEmpty) {
+
+    if (parsed == null ||
+        parsed.scheme != 'https' ||
+        parsed.host.isEmpty) {
       throw ArgumentError.value(
         baseUrl,
         'baseUrl',
-        'Use a full HTTPS Laravel API base URL, e.g. https://example.com/api/v1',
+        'Use a full HTTPS Laravel API base URL.',
       );
     }
   }
 
-  /// Example after deployment: https://preview.sariph.store/api/v1
   final String baseUrl;
-
-  /// Return the current device token from OS-backed secure storage.
-  /// Public requests work without this callback.
   final SariTokenProvider? tokenProvider;
-
   final Duration timeout;
+
   final http.Client _client;
   final bool _ownsClient;
 
-  /// Close the HTTP client only if this class created it.
   void dispose() {
-    if (_ownsClient) _client.close();
+    if (_ownsClient) {
+      _client.close();
+    }
   }
 
-  /// Generic helper for API endpoints implemented later by your Laravel team.
-  /// Passing a path does NOT make an unimplemented endpoint available.
   Future<SariJson> request(
     String method,
     String path, {
@@ -100,50 +74,79 @@ class SariApi {
     bool authenticated = true,
   }) async {
     final action = method.toUpperCase();
-    if (!{'GET', 'POST', 'PUT', 'PATCH', 'DELETE'}.contains(action)) {
-      throw ArgumentError.value(method, 'method', 'Unsupported HTTP method');
+
+    if (!{
+      'GET',
+      'POST',
+      'PUT',
+      'PATCH',
+      'DELETE',
+    }.contains(action)) {
+      throw ArgumentError.value(
+        method,
+        'method',
+        'Unsupported HTTP method',
+      );
     }
 
     final cleanPath = path.replaceFirst(RegExp(r'^/+'), '');
+
     if (cleanPath.isEmpty ||
         cleanPath.startsWith('http:') ||
         cleanPath.startsWith('https:') ||
         cleanPath.contains('..') ||
         cleanPath.contains('?') ||
         cleanPath.contains('#')) {
-      throw ArgumentError.value(path, 'path', 'Use a relative endpoint path');
+      throw ArgumentError.value(
+        path,
+        'path',
+        'Use a relative endpoint path',
+      );
     }
 
     final uri = Uri.parse('$baseUrl/$cleanPath').replace(
       queryParameters: query?.isNotEmpty == true ? query : null,
     );
 
-    final headers = <String, String>{'Accept': 'application/json'};
+    final headers = <String, String>{
+      'Accept': 'application/json',
+    };
 
     if (authenticated) {
-      final token = (await tokenProvider?.call())?.trim() ?? '';
+      final token =
+          (await tokenProvider?.call())?.trim() ?? '';
+
       if (token.isEmpty) {
         throw const SariApiException(
           'Login required: no mobile access token is available.',
           statusCode: 401,
         );
       }
+
       headers['Authorization'] = 'Bearer $token';
     }
 
     final req = http.Request(action, uri);
+
     req.headers.addAll(headers);
+
     if (jsonBody != null) {
       req.headers['Content-Type'] = 'application/json';
       req.body = jsonEncode(jsonBody);
     }
 
     late final http.Response response;
+
     try {
-      final stream = await _client.send(req).timeout(timeout);
-      response = await http.Response.fromStream(stream).timeout(timeout);
+      final stream =
+          await _client.send(req).timeout(timeout);
+
+      response = await http.Response.fromStream(stream)
+          .timeout(timeout);
     } on TimeoutException {
-      throw const SariApiException('The request timed out. Please try again.');
+      throw const SariApiException(
+        'The request timed out. Please try again.',
+      );
     } on http.ClientException {
       throw const SariApiException(
         'Unable to connect to SARI. Check your internet connection and API URL.',
@@ -151,6 +154,7 @@ class SariApi {
     }
 
     final String decodedText;
+
     try {
       decodedText = utf8.decode(response.bodyBytes);
     } on FormatException {
@@ -161,68 +165,91 @@ class SariApi {
     }
 
     SariJson data;
+
     try {
-      final decoded = decodedText.trim().isEmpty ? <String, dynamic>{} : jsonDecode(decodedText);
+      final decoded = decodedText.trim().isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(decodedText);
+
       if (decoded is! Map<String, dynamic>) {
-        throw const FormatException('JSON response is not an object');
+        throw const FormatException(
+          'JSON response is not an object',
+        );
       }
+
       data = decoded;
     } on FormatException {
       throw SariApiException(
-        'Laravel returned a non-JSON response (HTTP ${response.statusCode}). '
+        'Laravel returned a non-JSON response '
+        '(HTTP ${response.statusCode}). '
         'Check that the API is deployed and the route exists.',
         statusCode: response.statusCode,
       );
     }
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300) {
       final errors = data['errors'];
+
       throw SariApiException(
         data['message'] is String
             ? data['message'] as String
             : 'Request failed (HTTP ${response.statusCode}).',
         statusCode: response.statusCode,
-        errors: errors is Map<String, dynamic> ? errors : null,
+        errors: errors is Map<String, dynamic>
+            ? errors
+            : null,
       );
     }
+
     return data;
   }
 
-  // ─── Public endpoints ──────────────────────────────────────────────────
+  // PUBLIC ENDPOINTS
 
-  /// GET /health — confirm the Laravel API is reachable.
-  Future<SariJson> health() => request('GET', 'health', authenticated: false);
-
-  /// POST /auth/login — role is buyer, seller, rider, or logistics.
-  /// The server returns data.access_token; store it securely in Flutter.
-Future<SariJson> login({
-  required String role,
-  required String email,
-  required String password,
-  required String deviceName,
-}) {
-  if (!{'buyer', 'seller', 'rider', 'logistics'}.contains(role)) {
-    throw ArgumentError.value(
-      role,
-      'role',
-      'Invalid SARI login role',
+  // GET /api/v1/health
+  Future<SariJson> health() {
+    return request(
+      'GET',
+      'health',
+      authenticated: false,
     );
   }
 
-  return request(
-    'POST',
-    'auth/login',
-    authenticated: false,
-    jsonBody: {
-      'role': role,
-      'email': email.trim().toLowerCase(),
-      'password': password,
-      'device_name': deviceName,
-    },
-  );
-}
+  // POST /api/v1/auth/login
+  Future<SariJson> login({
+    required String role,
+    required String email,
+    required String password,
+    required String deviceName,
+  }) {
+    if (!{
+      'buyer',
+      'seller',
+      'rider',
+      'logistics',
+    }.contains(role)) {
+      throw ArgumentError.value(
+        role,
+        'role',
+        'Invalid SARI login role',
+      );
+    }
 
-  /// GET /products — public, paginated marketplace catalog.
+    return request(
+      'POST',
+      'auth/login',
+      authenticated: false,
+      jsonBody: {
+        'role': role,
+        'email': email.trim().toLowerCase(),
+        'password': password,
+        'device_name': deviceName,
+      },
+    );
+  }
+
+  // GET /api/v1/products
   Future<SariJson> products({
     int page = 1,
     int perPage = 15,
@@ -231,50 +258,96 @@ Future<SariJson> login({
     String sort = 'newest',
   }) {
     if (page < 1 || perPage < 1 || perPage > 30) {
-      throw ArgumentError('page must be >= 1; perPage must be 1–30');
+      throw ArgumentError(
+        'page must be >= 1; perPage must be 1–30',
+      );
     }
-    return request('GET', 'products', authenticated: false, query: {
-      'page': '$page',
-      'per_page': '$perPage',
-      'sort': sort,
-      if (search != null && search.trim().isNotEmpty) 'q': search.trim(),
-      if (category != null && category.trim().isNotEmpty)
-        'category': category.trim(),
-    });
+
+    return request(
+      'GET',
+      'products',
+      authenticated: false,
+      query: {
+        'page': '$page',
+        'per_page': '$perPage',
+        'sort': sort,
+        if (search != null && search.trim().isNotEmpty)
+          'q': search.trim(),
+        if (category != null &&
+            category.trim().isNotEmpty)
+          'category': category.trim(),
+      },
+    );
   }
 
-  /// GET /products/{id} — only buyer-visible products can be fetched.
+  // GET /api/v1/products/{id}
   Future<SariJson> product(int id) {
-    if (id < 1) throw ArgumentError.value(id, 'id', 'Invalid product ID');
-    return request('GET', 'products/$id', authenticated: false);
-  }
-
-  // ─── Authenticated endpoints ───────────────────────────────────────────
-
-  /// GET /auth/me — current role and account profile.
-  Future<SariJson> me() => request('GET', 'auth/me');
-
-  /// POST /auth/logout — revoke the token for this device.
-  /// After successful logout, remove the token from secure storage too.
-  Future<SariJson> logout() => request('POST', 'auth/logout');
-
-  /// POST /auth/logout-all — revoke all SARI mobile tokens for this account.
-  Future<SariJson> logoutAll() => request('POST', 'auth/logout-all');
-
-  /// GET /buyer/orders — requires a buyer mobile token.
-  Future<SariJson> buyerOrders({int page = 1, int perPage = 15}) {
-    if (page < 1 || perPage < 1 || perPage > 30) {
-      throw ArgumentError('page must be >= 1; perPage must be 1–30');
+    if (id < 1) {
+      throw ArgumentError.value(
+        id,
+        'id',
+        'Invalid product ID',
+      );
     }
-    return request('GET', 'buyer/orders', query: {
-      'page': '$page',
-      'per_page': '$perPage',
-    });
+
+    return request(
+      'GET',
+      'products/$id',
+      authenticated: false,
+    );
   }
 
-  /// GET /buyer/orders/{id} — only orders belonging to the buyer.
+  // AUTHENTICATED ENDPOINTS
+
+  // GET /api/v1/auth/me
+  Future<SariJson> me() {
+    return request('GET', 'auth/me');
+  }
+
+  // POST /api/v1/auth/logout
+  Future<SariJson> logout() {
+    return request('POST', 'auth/logout');
+  }
+
+  // POST /api/v1/auth/logout-all
+  Future<SariJson> logoutAll() {
+    return request('POST', 'auth/logout-all');
+  }
+
+  // GET /api/v1/buyer/orders
+  Future<SariJson> buyerOrders({
+    int page = 1,
+    int perPage = 15,
+  }) {
+    if (page < 1 || perPage < 1 || perPage > 30) {
+      throw ArgumentError(
+        'page must be >= 1; perPage must be 1–30',
+      );
+    }
+
+    return request(
+      'GET',
+      'buyer/orders',
+      query: {
+        'page': '$page',
+        'per_page': '$perPage',
+      },
+    );
+  }
+
+  // GET /api/v1/buyer/orders/{id}
   Future<SariJson> buyerOrder(int id) {
-    if (id < 1) throw ArgumentError.value(id, 'id', 'Invalid order ID');
-    return request('GET', 'buyer/orders/$id');
+    if (id < 1) {
+      throw ArgumentError.value(
+        id,
+        'id',
+        'Invalid order ID',
+      );
+    }
+
+    return request(
+      'GET',
+      'buyer/orders/$id',
+    );
   }
 }

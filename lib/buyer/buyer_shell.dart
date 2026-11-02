@@ -1,4 +1,9 @@
+
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../services/sari_live_data.dart';
 
 import 'buyer_account.dart';
 import 'buyer_cart.dart';
@@ -7,6 +12,7 @@ import 'buyer_messages.dart';
 import 'buyer_notifications.dart';
 import 'buyer_orders.dart';
 import 'buyer_products.dart';
+import 'buyer_theme.dart';
 import 'widgets/buyer_bottom_nav.dart';
 
 class BuyerShell extends StatefulWidget {
@@ -17,232 +23,523 @@ class BuyerShell extends StatefulWidget {
 }
 
 class _BuyerShellState extends State<BuyerShell> {
-  static const Color _brand = Color(0xFFD98D08);
-  static const Color _surface = Color(0xFFFFFDF9);
-  static const Color _background = Color(0xFFF7F5F1);
-  static const Color _border = Color(0xFFE8DFD2);
-  static const Color _text = Color(0xFF211D17);
+  // Internal Buyer pages:
+  // 0 - Home
+  // 1 - Shop / Products
+  // 2 - Cart
+  // 3 - Orders
+  // 4 - Account
+  // 5 - Notifications
+  // 6 - Messages
 
-  // Internal pages:
-  // 0 Home, 1 Shop, 2 Cart, 3 Orders, 4 Account, 5 Notifications, 6 Messages.
   int _currentPage = 0;
-
-  // Bottom navigation: Home, Shop, Orders, Updates, Me.
   int _currentNavIndex = 0;
 
-  void _handlePageAction(int index) {
-    // Legacy top-right profile callbacks now open Messages.
-    final targetPage = index == 4 ? 6 : index;
-    if (targetPage < 0 || targetPage > 6) return;
+  bool _loggingOut = false;
+  bool _checkingAccess = false;
 
-    setState(() {
-      _currentPage = targetPage;
-      switch (targetPage) {
-        case 0:
-          _currentNavIndex = 0;
-          break;
-        case 1:
-          _currentNavIndex = 1;
-          break;
-        case 3:
-          _currentNavIndex = 2;
-          break;
-        case 5:
-          _currentNavIndex = 3;
-          break;
-        case 4:
-          _currentNavIndex = 4;
-          break;
-        case 2:
-        case 6:
-          break;
-      }
-    });
+  static const Color _gold = Color(0xFFD9950B);
+
+  static const FlutterSecureStorage _storage =
+      FlutterSecureStorage();
+
+  // ==========================================
+  // NAVIGATION
+  // ==========================================
+
+  int _bottomIndexForPage(int page) {
+    switch (page) {
+      case 0:
+        return 0;
+      case 1:
+        return 1;
+      case 3:
+        return 2;
+      case 5:
+        return 3;
+      case 4:
+        return 4;
+      default:
+        return _currentNavIndex;
+    }
   }
 
-  void _onBottomNavTap(int navIndex) {
-    const pageForNavIndex = <int>[0, 1, 3, 5, 4];
-    if (navIndex < 0 || navIndex >= pageForNavIndex.length) return;
+  Future<void> _handlePageAction(int index) async {
+    if (index < 0 || index > 6) return;
 
-    setState(() {
-      _currentNavIndex = navIndex;
-      _currentPage = pageForNavIndex[navIndex];
-    });
-  }
-
-  TextTheme _buyerTextTheme(TextTheme theme) {
-    TextStyle? polish(TextStyle? style) {
-      return style?.copyWith(
-        color: _text,
-        fontFamilyFallback: const <String>[
-          'Roboto',
-          'Noto Sans',
-          'Arial',
-          'sans-serif',
-        ],
-      );
+    if (index == 3 || index == 4) {
+      await _openProtectedPage(index);
+      return;
     }
 
-    return theme.copyWith(
-      displayLarge: polish(theme.displayLarge),
-      displayMedium: polish(theme.displayMedium),
-      displaySmall: polish(theme.displaySmall),
-      headlineLarge: polish(theme.headlineLarge),
-      headlineMedium: polish(theme.headlineMedium),
-      headlineSmall: polish(theme.headlineSmall),
-      titleLarge: polish(theme.titleLarge),
-      titleMedium: polish(theme.titleMedium),
-      titleSmall: polish(theme.titleSmall),
-      bodyLarge: polish(theme.bodyLarge),
-      bodyMedium: polish(theme.bodyMedium),
-      bodySmall: polish(theme.bodySmall),
-      labelLarge: polish(theme.labelLarge),
-      labelMedium: polish(theme.labelMedium),
-      labelSmall: polish(theme.labelSmall),
+    if (!mounted) return;
+
+    setState(() {
+      _currentPage = index;
+      _currentNavIndex = _bottomIndexForPage(index);
+    });
+  }
+
+  Future<void> _onBottomNavTap(int navIndex) async {
+    const pages = <int>[0, 1, 3, 5, 4];
+
+    if (navIndex < 0 || navIndex >= pages.length) {
+      return;
+    }
+
+    final page = pages[navIndex];
+
+    await _handlePageAction(page);
+  }
+
+  // ==========================================
+  // AUTHENTICATION CHECK
+  // ==========================================
+
+  Future<void> _openProtectedPage(int page) async {
+    if (_checkingAccess || _loggingOut) return;
+
+    setState(() {
+      _checkingAccess = true;
+    });
+
+    try {
+      final hasToken =
+          await SariLiveData.instance.hasAccessToken();
+
+      if (!mounted) return;
+
+      if (!hasToken) {
+        _showLoginRequired();
+        return;
+      }
+
+      setState(() {
+        _currentPage = page;
+        _currentNavIndex = _bottomIndexForPage(page);
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      _showMessage(
+        'Unable to verify login: $error',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _checkingAccess = false;
+        });
+      }
+    }
+  }
+
+  void _showLoginRequired() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(
+            'Login Required',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: const Text(
+            'Please log in to your SARI Buyer '
+            'account to view your orders or '
+            'account information.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+
+                Navigator.of(context)
+                    .pushNamed('/login');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _gold,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Login'),
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  // ==========================================
+  // LOGOUT
+  // ==========================================
+
+  Future<void> _confirmLogout() async {
+    if (_loggingOut) return;
+
+    final hasToken =
+        await SariLiveData.instance.hasAccessToken();
+
+    if (!mounted) return;
+
+    if (!hasToken) {
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/login',
+        (route) => false,
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(
+            'Log Out',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to log out '
+            'of your SARI account?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF292929),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Log Out'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _logout();
+    }
+  }
+
+  Future<void> _logout() async {
+    if (_loggingOut) return;
+
+    setState(() {
+      _loggingOut = true;
+    });
+
+    try {
+      // Revoke the mobile access token in Laravel.
+      await SariLiveData.instance.logout();
+
+      // Clear the local token and role only after
+      // Laravel confirms successful logout.
+      await SariLiveData.instance.clearLocalAccessToken();
+
+      await _storage.delete(
+        key: 'sari_account_role',
+      );
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/login',
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      _showMessage(
+        'Logout failed: $error',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loggingOut = false;
+        });
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  // ==========================================
+  // BUYER THEME
+  // ==========================================
+
+  ThemeData _buyerTheme(BuildContext context) {
+    final baseTheme = Theme.of(context);
+
+    final poppins = GoogleFonts.poppinsTextTheme(
+      baseTheme.textTheme,
+    ).apply(
+      bodyColor: BuyerTheme.ink,
+      displayColor: BuyerTheme.ink,
+    );
+
+    return baseTheme.copyWith(
+      scaffoldBackgroundColor: BuyerTheme.canvas,
+      canvasColor: BuyerTheme.canvas,
+      colorScheme: baseTheme.colorScheme.copyWith(
+        primary: BuyerTheme.gold,
+        secondary: BuyerTheme.goldDark,
+        surface: BuyerTheme.surface,
+        onSurface: BuyerTheme.ink,
+        error: BuyerTheme.danger,
+      ),
+      textTheme: poppins,
+      primaryTextTheme: poppins,
+
+      appBarTheme: AppBarTheme(
+        backgroundColor: BuyerTheme.surface,
+        foregroundColor: BuyerTheme.inkCool,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        titleTextStyle: GoogleFonts.poppins(
+          color: BuyerTheme.inkCool,
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+        ),
+        iconTheme: const IconThemeData(
+          color: BuyerTheme.body,
+          size: 20,
+        ),
+      ),
+
+      cardTheme: CardThemeData(
+        color: BuyerTheme.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            BuyerTheme.cardRadius,
+          ),
+          side: const BorderSide(
+            color: BuyerTheme.border,
+          ),
+        ),
+      ),
+
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: BuyerTheme.surface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 13,
+          vertical: 12,
+        ),
+        hintStyle: GoogleFonts.poppins(
+          color: BuyerTheme.muted,
+          fontSize: 11,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(
+            BuyerTheme.controlRadius,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(
+            BuyerTheme.controlRadius,
+          ),
+          borderSide: const BorderSide(
+            color: BuyerTheme.border,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(
+            BuyerTheme.controlRadius,
+          ),
+          borderSide: const BorderSide(
+            color: BuyerTheme.gold,
+            width: 1.2,
+          ),
+        ),
+      ),
+
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: BuyerTheme.gold,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          minimumSize: const Size(0, 42),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              BuyerTheme.controlRadius,
+            ),
+          ),
+          textStyle: GoogleFonts.poppins(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: BuyerTheme.goldDark,
+          side: const BorderSide(
+            color: Color(0xFFE2C98F),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              BuyerTheme.controlRadius,
+            ),
+          ),
+        ),
+      ),
+
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: BuyerTheme.goldDark,
+          textStyle: GoogleFonts.poppins(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+
+      dividerTheme: const DividerThemeData(
+        color: BuyerTheme.border,
+        thickness: 1,
+        space: 1,
+      ),
+
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: const Color(0xFF292929),
+        contentTextStyle: GoogleFonts.poppins(
+          color: Colors.white,
+          fontSize: 11,
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // PAGE BUILDING
+  // ==========================================
+
+  Widget _buildPage(int index) {
+    switch (index) {
+      case 0:
+        return BuyerHome(
+          onTabChanged: _handlePageAction,
+        );
+
+      case 1:
+        return BuyerProducts(
+          onTabChanged: _handlePageAction,
+        );
+
+      case 2:
+        return BuyerCart(
+          onTabChanged: _handlePageAction,
+        );
+
+      case 3:
+        return BuyerOrders(
+          onTabChanged: _handlePageAction,
+        );
+
+      case 4:
+        return BuyerAccount(
+          onTabChanged: _handlePageAction,
+        );
+
+      case 5:
+        return const BuyerNotifications();
+
+      case 6:
+        return BuyerMessages(
+          onTabChanged: _handlePageAction,
+        );
+
+      default:
+        return BuyerHome(
+          onTabChanged: _handlePageAction,
+        );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final pages = <Widget>[
-      BuyerHome(onTabChanged: _handlePageAction),
-      BuyerProducts(onTabChanged: _handlePageAction),
-      BuyerCart(onTabChanged: _handlePageAction),
-      BuyerOrders(onTabChanged: _handlePageAction),
-      BuyerAccount(onTabChanged: _handlePageAction),
-      const BuyerNotifications(),
-      BuyerMessages(onTabChanged: _handlePageAction),
-    ];
-
-    final baseTheme = Theme.of(context);
-    final textTheme = _buyerTextTheme(baseTheme.textTheme);
-
     return Theme(
-      data: baseTheme.copyWith(
-        useMaterial3: true,
-        scaffoldBackgroundColor: _background,
-        colorScheme: baseTheme.colorScheme.copyWith(
-          primary: _brand,
-          secondary: const Color(0xFF3C6E91),
-          surface: _surface,
-          onSurface: _text,
-        ),
-        textTheme: textTheme,
-        primaryTextTheme: _buyerTextTheme(baseTheme.primaryTextTheme),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: _surface,
-          foregroundColor: _text,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: false,
-          titleTextStyle: TextStyle(
-            color: _text,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 14,
-          ),
-          labelStyle: const TextStyle(
-            color: Color(0xFF756B60),
-            fontSize: 11,
-          ),
-          hintStyle: const TextStyle(
-            color: Color(0xFFA49A8D),
-            fontSize: 11,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: _border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: _border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: _brand, width: 1.4),
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _brand,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            minimumSize: const Size(0, 44),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(13),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF8D5B09),
-            side: const BorderSide(color: Color(0xFFE0C58D)),
-            minimumSize: const Size(0, 44),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(13),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFFA76C0A),
-            textStyle: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        snackBarTheme: const SnackBarThemeData(
-          backgroundColor: Color(0xFF2B2824),
-          contentTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(14)),
-          ),
-        ),
-        bottomSheetTheme: const BottomSheetThemeData(
-          backgroundColor: _surface,
-          surfaceTintColor: Colors.transparent,
-          showDragHandle: true,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-        ),
-        dividerTheme: const DividerThemeData(
-          color: Color(0xFFEEE7DC),
-          thickness: 1,
-          space: 1,
-        ),
-      ),
+      data: _buyerTheme(context),
       child: Scaffold(
-        backgroundColor: _background,
-        body: IndexedStack(
-          index: _currentPage,
-          children: pages,
-        ),
+        backgroundColor: BuyerTheme.canvas,
+
+        appBar: _currentPage == 4
+            ? AppBar(
+                title: const Text('Account'),
+                actions: [
+                  if (_loggingOut)
+                    const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _gold,
+                        ),
+                      ),
+                    )
+                  else
+                    IconButton(
+                      tooltip: 'Log Out',
+                      onPressed: _confirmLogout,
+                      icon: const Icon(
+                        Icons.logout_rounded,
+                      ),
+                    ),
+                ],
+              )
+            : null,
+
+        body: _checkingAccess
+            ? const Center(
+                child: CircularProgressIndicator(
+                  color: _gold,
+                ),
+              )
+            : _buildPage(_currentPage),
+
         bottomNavigationBar: BuyerBottomNav(
           currentIndex: _currentNavIndex,
-          onTap: _onBottomNavTap,
+          onTap: (index) {
+            _onBottomNavTap(index);
+          },
         ),
       ),
     );

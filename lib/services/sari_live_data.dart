@@ -21,17 +21,40 @@ class SariLiveData {
 
   final SariApi _api;
 
-  // Public Laravel API: GET /api/v1/health
+  // ==========================================
+  // API CONNECTION
+  // ==========================================
+
+  // GET /api/v1/health
   Future<SariJson> checkConnection() {
     return _api.health();
   }
 
-  // Authenticated API: GET /api/v1/auth/me
+  // ==========================================
+  // BUYER AUTHENTICATION
+  // ==========================================
+
+  // GET /api/v1/auth/me
+  // Retrieves the logged-in account.
   Future<SariJson> currentAccount() {
     return _api.me();
   }
 
-  // Public Laravel API: GET /api/v1/products
+  // POST /api/v1/auth/logout
+  Future<SariJson> logout() {
+    return _api.logout();
+  }
+
+  // POST /api/v1/auth/logout-all
+  Future<SariJson> logoutAll() {
+    return _api.logoutAll();
+  }
+
+  // ==========================================
+  // PRODUCTS - LARAVEL DATABASE
+  // ==========================================
+
+  // GET /api/v1/products
   Future<SariJson> products({
     int page = 1,
     int perPage = 15,
@@ -48,12 +71,16 @@ class SariLiveData {
     );
   }
 
-  // Public Laravel API: GET /api/v1/products/{id}
+  // GET /api/v1/products/{id}
   Future<SariJson> productDetails(int id) {
     return _api.product(id);
   }
 
-  // Buyer-only API: GET /api/v1/buyer/orders
+  // ==========================================
+  // BUYER ORDERS - LARAVEL DATABASE
+  // ==========================================
+
+  // GET /api/v1/buyer/orders
   Future<SariJson> buyerOrders({
     int page = 1,
     int perPage = 15,
@@ -64,27 +91,22 @@ class SariLiveData {
     );
   }
 
-  // Buyer-only API: GET /api/v1/buyer/orders/{id}
+  // GET /api/v1/buyer/orders/{id}
   Future<SariJson> buyerOrderDetails(int id) {
     return _api.buyerOrder(id);
   }
 
-  // Authenticated API: POST /api/v1/auth/logout
-  Future<SariJson> logout() {
-    return _api.logout();
-  }
-
-  // Authenticated API: POST /api/v1/auth/logout-all
-  Future<SariJson> logoutAll() {
-    return _api.logoutAll();
-  }
+  // ==========================================
+  // SECURE AUTHENTICATION TOKEN
+  // ==========================================
 
   Future<bool> hasAccessToken() async {
     final token = await _storage.read(
       key: 'sari_access_token',
     );
 
-    return token != null && token.trim().isNotEmpty;
+    return token != null &&
+        token.trim().isNotEmpty;
   }
 
   Future<void> clearLocalAccessToken() async {
