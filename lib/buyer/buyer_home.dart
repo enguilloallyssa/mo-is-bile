@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../services/sari_live_data.dart';
@@ -16,54 +15,66 @@ class BuyerHome extends StatefulWidget {
   });
 
   @override
-  State<BuyerHome> createState() => _BuyerHomeState();
+  State<BuyerHome> createState() =>
+      _BuyerHomeState();
 }
 
 class _BuyerHomeState extends State<BuyerHome> {
-  static const Color gold = Color(0xFFD9950B);
-  static const Color dark = Color(0xFF292929);
-  static const Color muted = Color(0xFF818A97);
-  static const Color canvas = Color(0xFFF4F5F7);
-  static const Color border = Color(0xFFE6E8EC);
+  static const Color gold =
+      Color(0xFFCC8A0B);
+  static const Color goldDark =
+      Color(0xFFA96D07);
+  static const Color dark =
+      Color(0xFF24201C);
+  static const Color muted =
+      Color(0xFF7F776E);
+  static const Color canvas =
+      Color(0xFFFBFAF8);
+  static const Color border =
+      Color(0xFFE9E3DB);
 
   final List<BuyerProduct> _products = [];
 
   bool _loading = true;
   String? _error;
 
-  final List<Map<String, String>> _categories = const [
-    {
-      'name': 'Fashion',
-      'image': 'assets/images/buyer/cat-fashion.jpg',
-    },
-    {
-      'name': 'Electronics',
-      'image': 'assets/images/buyer/cat-electronics.jpg',
-    },
-    {
-      'name': 'Home',
-      'image': 'assets/images/buyer/cat-home.jpg',
-    },
-    {
-      'name': 'Beauty',
-      'image': 'assets/images/buyer/cat-beauty.jpg',
-    },
-    {
-      'name': 'Accessories',
-      'image': 'assets/images/buyer/cat-accessories.jpg',
-    },
-    {
-      'name': 'Food',
-      'image': 'assets/images/buyer/cat-food.jpg',
-    },
-    {
-      'name': 'Sports',
-      'image': 'assets/images/buyer/cat-sports.jpg',
-    },
-    {
-      'name': 'Lifestyle',
-      'image': 'assets/images/buyer/cat-lifestyle.jpg',
-    },
+  static const _categoryItems = <
+      ({
+        String name,
+        IconData icon,
+      })>[
+    (
+      name: 'Fashion',
+      icon: Icons.checkroom_outlined,
+    ),
+    (
+      name: 'Electronics',
+      icon: Icons.devices_outlined,
+    ),
+    (
+      name: 'Home & Living',
+      icon: Icons.chair_outlined,
+    ),
+    (
+      name: 'Beauty',
+      icon: Icons.spa_outlined,
+    ),
+    (
+      name: 'Accessories',
+      icon: Icons.watch_outlined,
+    ),
+    (
+      name: 'Food & Essentials',
+      icon: Icons.shopping_basket_outlined,
+    ),
+    (
+      name: 'Sports',
+      icon: Icons.sports_basketball_outlined,
+    ),
+    (
+      name: 'Lifestyle',
+      icon: Icons.self_improvement_outlined,
+    ),
   ];
 
   @override
@@ -72,77 +83,119 @@ class _BuyerHomeState extends State<BuyerHome> {
     _loadProducts();
   }
 
-  Map<String, dynamic> _map(dynamic value) {
+  Map<String, dynamic> _map(
+    dynamic value,
+  ) {
     if (value is Map) {
-      return Map<String, dynamic>.from(value);
+      return Map<String, dynamic>.from(
+        value,
+      );
     }
+
     return {};
   }
 
-  String _text(dynamic value, [String fallback = '']) {
-    if (value == null) return fallback;
-    final text = value.toString().trim();
-    return text.isEmpty ? fallback : text;
+  String _text(
+    dynamic value, [
+    String fallback = '',
+  ]) {
+    final text =
+        value?.toString().trim() ?? '';
+
+    return text.isEmpty
+        ? fallback
+        : text;
   }
 
   int _integer(dynamic value) {
-    return int.tryParse(_text(value)) ?? 0;
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse('$value') ?? 0;
   }
 
   double _decimal(dynamic value) {
-    return double.tryParse(_text(value)) ?? 0;
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse('$value') ?? 0;
   }
 
-  BuyerProduct _parseProduct(dynamic raw) {
+  BuyerProduct _parseProduct(
+    dynamic raw,
+  ) {
     final data = _map(raw);
 
-    final price = _decimal(data['price']);
-    final discount = _decimal(data['discount']);
-
     return BuyerProduct(
-      id: _integer(data['id']),
-      name: _text(data['name'], 'Unnamed Product'),
-      category: _text(data['category'], 'Other'),
-      brand: _text(data['brand']),
-      description: _text(data['description']),
-      image: _text(data['image_url']).isEmpty
+      id: _integer(
+        data['id'],
+      ),
+      name: _text(
+        data['name'],
+        'Unnamed Product',
+      ),
+      category: _text(
+        data['category'],
+        'General',
+      ),
+      brand: _text(
+        data['brand'],
+      ),
+      description: _text(
+        data['description'],
+      ),
+      image: _text(
+        data['image_url'],
+      ).isEmpty
           ? null
-          : _text(data['image_url']),
-      price: price,
-      oldPrice: discount > 0 && discount < 100
-          ? price / (1 - discount / 100)
-          : null,
-      stock: _integer(data['stock']),
-      shopName: _text(data['store_name'], 'SARI Store'),
-      sellerAccountId: _integer(data['seller_id']),
+          : _text(
+              data['image_url'],
+            ),
+      price: _decimal(
+        data['price'],
+      ),
+      oldPrice: null,
+      stock: _integer(
+        data['stock'],
+      ),
+      shopName: _text(
+        data['store_name'],
+        'SARI Store',
+      ),
+      sellerAccountId: _integer(
+        data['seller_id'],
+      ),
     );
   }
 
   Future<void> _loadProducts() async {
-    if (mounted) {
-      setState(() {
-        _loading = true;
-        _error = null;
-      });
-    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
     try {
-      final response = await SariLiveData.instance.products(
+      final response =
+          await SariLiveData.instance.products(
         page: 1,
-        perPage: 15,
+        perPage: 8,
       );
 
       final raw = response['data'];
 
       if (raw is! List) {
         throw const FormatException(
-          'Invalid products response from Laravel.',
+          'Invalid product response from SARI.',
         );
       }
 
       final products = raw
           .map(_parseProduct)
-          .where((product) => product.id > 0)
+          .where(
+            (product) => product.id > 0,
+          )
           .toList();
 
       if (!mounted) return;
@@ -164,92 +217,160 @@ class _BuyerHomeState extends State<BuyerHome> {
     }
   }
 
-  Future<void> _openProduct(BuyerProduct product) async {
+  void _openShop() {
+    widget.onTabChanged?.call(1);
+  }
+
+  void _openCart() {
+    widget.onTabChanged?.call(2);
+  }
+
+  void _openNotifications() {
+    widget.onTabChanged?.call(5);
+  }
+
+  void _openAccount() {
+    widget.onTabChanged?.call(4);
+  }
+
+  Future<void> _openProduct(
+    BuyerProduct product,
+  ) async {
     try {
       final response =
-          await SariLiveData.instance.productDetails(
+          await SariLiveData.instance
+              .productDetails(
         product.id,
       );
 
-      final data = _map(response['data']);
-      final fullProduct = _parseProduct(data);
+      final raw = response['data'];
 
-      if (fullProduct.id != product.id) {
+      if (raw is! Map) {
         throw const FormatException(
-          'Invalid product details received.',
+          'Invalid product details.',
         );
       }
+
+      final fullProduct =
+          _parseProduct(raw);
 
       if (!mounted) return;
 
       await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => BuyerProductDetails(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              BuyerProductDetails(
             product: fullProduct,
-            relatedProducts: _products
-                .where((item) => item.id != product.id)
-                .take(6)
-                .toList(),
           ),
         ),
       );
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Unable to load product: $error'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              'Unable to load product: $error',
+            ),
+            behavior:
+                SnackBarBehavior.floating,
+          ),
+        );
     }
   }
 
-  void _openShop() {
-    widget.onTabChanged?.call(1);
-  }
-
-  Widget _sectionHeading(
-    String title,
-    String subtitle, {
-    String action = 'View All',
-  }) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 23, 16, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+  Widget _hero() {
+    return Container(
+      margin:
+          const EdgeInsets.fromLTRB(
+        14,
+        14,
+        14,
+        0,
+      ),
+      padding:
+          const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color:
+            const Color(0xFFFFFAF1),
+        borderRadius:
+            BorderRadius.circular(16),
+        border: Border.all(
+          color:
+              const Color(0xFFEADFCE),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: dark,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: muted,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
+          const Text(
+            'SARI MARKETPLACE',
+            style: TextStyle(
+              color: goldDark,
+              fontSize: 9,
+              fontWeight:
+                  FontWeight.w800,
+              letterSpacing: 1.2,
             ),
           ),
-          TextButton(
-            onPressed: _openShop,
-            child: Text(
-              action,
-              style: const TextStyle(
-                color: gold,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+          const SizedBox(height: 15),
+          const Text(
+            'Variety You Need,',
+            style: TextStyle(
+              color: dark,
+              fontSize: 28,
+              height: 1.08,
+              fontWeight:
+                  FontWeight.w800,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 3),
+          const Text(
+            'Convenience You Deserve.',
+            style: TextStyle(
+              color: goldDark,
+              fontSize: 28,
+              height: 1.08,
+              fontWeight:
+                  FontWeight.w800,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 13),
+          const Text(
+            'A trusted marketplace for curated finds, everyday essentials, and effortless shopping.',
+            style: TextStyle(
+              color: muted,
+              fontSize: 11,
+              height: 1.6,
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _openShop,
+              icon: const Icon(
+                Icons
+                    .shopping_bag_outlined,
+              ),
+              label: const Text(
+                'Shop Now',
+              ),
+              style:
+                  ElevatedButton.styleFrom(
+                backgroundColor: gold,
+                foregroundColor:
+                    Colors.white,
+                elevation: 0,
+                padding:
+                    const EdgeInsets.symmetric(
+                  vertical: 14,
+                ),
               ),
             ),
           ),
@@ -258,167 +379,225 @@ class _BuyerHomeState extends State<BuyerHome> {
     );
   }
 
-  Widget _hero() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(14, 14, 14, 0),
-      constraints: const BoxConstraints(minHeight: 235),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF6E5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFEEDCB7),
-        ),
+  Widget _benefits() {
+    const items = [
+      (
+        Icons.local_shipping_outlined,
+        'Free Shipping',
+        'On eligible orders',
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/buyer/sari-hero-bg.webp',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      (
+        Icons.card_giftcard_outlined,
+        'Earn Rewards',
+        'Shop and earn points',
+      ),
+      (
+        Icons.shield_outlined,
+        'Secure Payments',
+        'Safe and protected',
+      ),
+      (
+        Icons.storefront_outlined,
+        'Verified Sellers',
+        'Quality and trusted',
+      ),
+    ];
+
+    return Container(
+      margin:
+          const EdgeInsets.fromLTRB(
+        14,
+        12,
+        14,
+        0,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.circular(14),
+        border:
+            Border.all(color: border),
+      ),
+      child: Column(
+        children: List.generate(
+          items.length,
+          (index) {
+            final item = items[index];
+
+            return Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                Padding(
+                  padding:
+                      const EdgeInsets.all(
+                    13,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'WELCOME TO SARI',
-                    style: TextStyle(
-                      color: gold,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
-                    ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        alignment:
+                            Alignment.center,
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              const Color(
+                            0xFFFFF3DA,
+                          ),
+                          borderRadius:
+                              BorderRadius.circular(
+                            10,
+                          ),
+                        ),
+                        child: Icon(
+                          item.$1,
+                          color: goldDark,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(
+                        width: 11,
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment
+                                  .start,
+                          children: [
+                            Text(
+                              item.$2,
+                              style:
+                                  const TextStyle(
+                                color: dark,
+                                fontSize: 12,
+                                fontWeight:
+                                    FontWeight
+                                        .w700,
+                              ),
+                            ),
+                            Text(
+                              item.$3,
+                              style:
+                                  const TextStyle(
+                                color: muted,
+                                fontSize: 9,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 15),
-                const Text(
-                  'Elevated\nEveryday.',
-                  style: TextStyle(
-                    color: dark,
-                    fontSize: 30,
-                    height: 1.1,
-                    fontWeight: FontWeight.w900,
+                if (index <
+                    items.length - 1)
+                  const Divider(
+                    height: 1,
+                    color: border,
                   ),
-                ),
-                const SizedBox(height: 12),
-                const SizedBox(
-                  width: 205,
-                  child: Text(
-                    'Discover products from local sellers, '
-                    'all in one marketplace.',
-                    style: TextStyle(
-                      color: Color(0xFF675D4F),
-                      fontSize: 11,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                ElevatedButton.icon(
-                  onPressed: _openShop,
-                  icon: const Icon(
-                    Icons.shopping_bag_outlined,
-                    size: 17,
-                  ),
-                  label: const Text('Shop Now'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: dark,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 19,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                  ),
-                ),
               ],
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _categoriesSection() {
     return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
-        _sectionHeading(
-          'Shop by Category',
-          'Explore what you love',
+        const Padding(
+          padding:
+              EdgeInsets.fromLTRB(
+            14,
+            24,
+            14,
+            12,
+          ),
+          child: Text(
+            'Shop by Category',
+            style: TextStyle(
+              color: dark,
+              fontSize: 19,
+              fontWeight:
+                  FontWeight.w800,
+            ),
+          ),
         ),
         SizedBox(
-          height: 135,
+          height: 112,
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            scrollDirection: Axis.horizontal,
-            itemCount: _categories.length,
-            separatorBuilder: (context, index) =>
-                const SizedBox(width: 10),
-            itemBuilder: (context, index) {
-              final category = _categories[index];
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 14,
+            ),
+            scrollDirection:
+                Axis.horizontal,
+            itemCount:
+                _categoryItems.length,
+            separatorBuilder:
+                (context, index) =>
+                    const SizedBox(
+              width: 9,
+            ),
+            itemBuilder:
+                (context, index) {
+              final category =
+                  _categoryItems[index];
 
               return InkWell(
                 onTap: _openShop,
-                borderRadius: BorderRadius.circular(13),
+                borderRadius:
+                    BorderRadius.circular(
+                  12,
+                ),
                 child: Container(
-                  width: 106,
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
+                  width: 103,
+                  padding:
+                      const EdgeInsets.all(
+                    10,
+                  ),
+                  decoration:
+                      BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(color: border),
+                    borderRadius:
+                        BorderRadius.circular(
+                      12,
+                    ),
+                    border: Border.all(
+                      color: border,
+                    ),
                   ),
                   child: Column(
+                    mainAxisAlignment:
+                        MainAxisAlignment
+                            .center,
                     children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(9),
-                          child: Image.asset(
-                            category['image']!,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (
-                              context,
-                              error,
-                              stackTrace,
-                            ) {
-                              return const Icon(
-                                Icons.category_outlined,
-                                color: gold,
-                                size: 30,
-                              );
-                            },
-                          ),
-                        ),
+                      Icon(
+                        category.icon,
+                        color: goldDark,
+                        size: 28,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(
+                        height: 9,
+                      ),
                       Text(
-                        category['name']!,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        category.name,
+                        maxLines: 2,
+                        textAlign:
+                            TextAlign.center,
+                        overflow:
+                            TextOverflow
+                                .ellipsis,
+                        style:
+                            const TextStyle(
                           color: dark,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 9,
+                          fontWeight:
+                              FontWeight
+                                  .w700,
                         ),
                       ),
                     ],
@@ -432,232 +611,168 @@ class _BuyerHomeState extends State<BuyerHome> {
     );
   }
 
-  Widget _loadingProducts() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 45),
-      child: Center(
-        child: CircularProgressIndicator(color: gold),
-      ),
-    );
-  }
-
-  Widget _emptyProducts() {
-    return _statusPanel(
-      icon: Icons.inventory_2_outlined,
-      title: 'No products available',
-      subtitle: 'No products were returned by the Laravel API.',
-    );
-  }
-
-  Widget _errorProducts() {
-    return _statusPanel(
-      icon: Icons.wifi_off_rounded,
-      title: 'Unable to load products',
-      subtitle: _error ?? 'Please try again.',
-      retry: true,
-    );
-  }
-
-  Widget _statusPanel({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    bool retry = false,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14),
-      padding: const EdgeInsets.all(23),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: border),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 38, color: muted),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              color: dark,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: muted,
-              fontSize: 11,
-            ),
-          ),
-          if (retry) ...[
-            const SizedBox(height: 14),
-            OutlinedButton.icon(
-              onPressed: _loadProducts,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _productSection() {
-    if (_loading) return _loadingProducts();
-    if (_error != null) return _errorProducts();
-    if (_products.isEmpty) return _emptyProducts();
-
+  Widget _recommended() {
     return Column(
       children: [
-        _sectionHeading(
-          'Latest Products',
-          'Recently listed products from SARI sellers',
-        ),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final columns =
-                constraints.maxWidth >= 650 ? 3 : 2;
-
-            final items = _products.take(8).toList();
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: items.length,
-                gridDelegate:
-                    SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  mainAxisExtent: 312,
-                ),
-                itemBuilder: (context, index) {
-                  final product = items[index];
-
-                  return BuyerProductCard(
-                    product: product,
-                    showPromotions: false,
-                    showStock: true,
-                    showQuickAdd: false,
-                    onTap: () => _openProduct(product),
-                  );
-                },
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 18),
-        OutlinedButton.icon(
-          onPressed: _openShop,
-          icon: const Icon(Icons.storefront_outlined),
-          label: const Text('Explore More Products'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: dark,
-            side: const BorderSide(color: border),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 22,
-              vertical: 13,
-            ),
+        Padding(
+          padding:
+              const EdgeInsets.fromLTRB(
+            14,
+            25,
+            14,
+            12,
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _benefits() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(14, 26, 14, 12),
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: border),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Why Shop with SARI?',
-            style: TextStyle(
-              color: dark,
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 18),
-          _benefitItem(
-            Icons.storefront_outlined,
-            'Local Marketplace',
-            'Discover products from SARI sellers.',
-          ),
-          const Divider(color: border, height: 25),
-          _benefitItem(
-            Icons.phone_android_outlined,
-            'Shop Anywhere',
-            'Browse available products from your phone.',
-          ),
-          const Divider(color: border, height: 25),
-          _benefitItem(
-            Icons.receipt_long_outlined,
-            'Order Information',
-            'View your existing purchases through SARI.',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _benefitItem(
-    IconData icon,
-    String title,
-    String subtitle,
-  ) {
-    return Row(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF2DB),
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: Icon(icon, color: gold, size: 23),
-        ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: dark,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+              const Expanded(
+                child: Text(
+                  'Recommended for You',
+                  style: TextStyle(
+                    color: dark,
+                    fontSize: 19,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: muted,
-                  fontSize: 11,
+              TextButton(
+                onPressed: _openShop,
+                child: const Text(
+                  'View All',
                 ),
               ),
             ],
           ),
         ),
+        if (_loading)
+          const Padding(
+            padding:
+                EdgeInsets.symmetric(
+              vertical: 50,
+            ),
+            child: Center(
+              child:
+                  CircularProgressIndicator(
+                color: gold,
+              ),
+            ),
+          )
+        else if (_error != null)
+          _statusCard(
+            Icons.wifi_off_rounded,
+            'Unable to load products',
+            _error!,
+          )
+        else if (_products.isEmpty)
+          _statusCard(
+            Icons.inventory_2_outlined,
+            'No products available',
+            'Approved seller products will appear here.',
+          )
+        else
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 14,
+            ),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics:
+                  const NeverScrollableScrollPhysics(),
+              itemCount:
+                  _products.length,
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                mainAxisExtent: 285,
+              ),
+              itemBuilder:
+                  (context, index) {
+                final product =
+                    _products[index];
+
+                return BuyerProductCard(
+                  product: product,
+                  showPromotions: false,
+                  showStock: true,
+                  showQuickAdd: false,
+                  onTap: () =>
+                      _openProduct(
+                    product,
+                  ),
+                );
+              },
+            ),
+          ),
       ],
     );
   }
 
+  Widget _statusCard(
+    IconData icon,
+    String title,
+    String message,
+  ) {
+    return Container(
+      margin:
+          const EdgeInsets.symmetric(
+        horizontal: 14,
+      ),
+      padding:
+          const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.circular(14),
+        border:
+            Border.all(color: border),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: muted,
+            size: 40,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              color: dark,
+              fontWeight:
+                  FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: muted,
+              fontSize: 10,
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _loadProducts,
+            icon: const Icon(
+              Icons.refresh,
+            ),
+            label: const Text(
+              'Try Again',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       backgroundColor: canvas,
       body: Column(
@@ -665,30 +780,42 @@ class _BuyerHomeState extends State<BuyerHome> {
           BuyerHeader(
             pageTitle: 'Home',
             cartCount: 0,
+            notificationCount: 0,
             onSearchTap: _openShop,
-            onCartTap: () => widget.onTabChanged?.call(2),
-            onProfileTap: () => widget.onTabChanged?.call(6),
+            onCartTap: _openCart,
+            onNotificationTap:
+                _openNotifications,
+            onProfileTap:
+                _openAccount,
           ),
           Expanded(
             child: RefreshIndicator(
               color: gold,
-              onRefresh: _loadProducts,
+              onRefresh:
+                  _loadProducts,
               child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 25),
+                physics:
+                    const AlwaysScrollableScrollPhysics(),
+                padding:
+                    const EdgeInsets.only(
+                  bottom: 30,
+                ),
                 children: [
                   _hero(),
-                  _categoriesSection(),
-                  _productSection(),
                   _benefits(),
-                  const SizedBox(height: 13),
+                  _categoriesSection(),
+                  _recommended(),
+                  const SizedBox(
+                    height: 24,
+                  ),
                   const Center(
                     child: Text(
                       'SARI • Elevated Everyday',
                       style: TextStyle(
                         color: muted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 10,
+                        fontWeight:
+                            FontWeight.w600,
                       ),
                     ),
                   ),

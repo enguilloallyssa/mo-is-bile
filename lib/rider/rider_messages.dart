@@ -1,152 +1,507 @@
-
 import 'package:flutter/material.dart';
 
+import '../services/sari_api.dart';
+import '../services/sari_live_data.dart';
 import 'models/rider_message_model.dart';
 import 'widgets/rider_ui.dart';
 
 class RiderMessages extends StatefulWidget {
   const RiderMessages({
     super.key,
-    required this.initialMessages,
+    this.initialMessages = const [],
   });
 
   final List<RiderMessage> initialMessages;
 
   @override
-  State<RiderMessages> createState() => _RiderMessagesState();
+  State<RiderMessages> createState() =>
+      _RiderMessagesState();
 }
 
-class _RiderMessagesState extends State<RiderMessages> {
-  final TextEditingController _searchController =
-      TextEditingController();
-
+class _RiderMessagesState
+    extends State<RiderMessages> {
   final TextEditingController _messageController =
       TextEditingController();
 
   final ScrollController _scrollController =
       ScrollController();
 
-  bool _showSearch = false;
+  final List<RiderMessage> _messages = [];
 
-  List<RiderMessage> get _messages =>
-      widget.initialMessages;
+  bool _loading = true;
+  bool _sending = false;
+  bool _usingFallback = false;
 
-  List<RiderMessage> get _filteredMessages {
-    final query = _searchController.text.trim().toLowerCase();
+  String? _error;
 
-    if (query.isEmpty) return _messages;
+  @override
+  void initState() {
+    super.initState();
 
-    return _messages.where((message) {
-      return message.body.toLowerCase().contains(query) ||
-          message.senderRole.toLowerCase().contains(query) ||
-          message.createdAt.toLowerCase().contains(query);
-    }).toList();
+    _messages.addAll(
+      widget.initialMessages,
+    );
+
+    _load();
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
     _messageController.dispose();
     _scrollController.dispose();
+
     super.dispose();
   }
 
-  void _showNotice(String message) {
+  Map<String, dynamic> _map(
+    dynamic value,
+  ) {
+    if (value is Map) {
+      return Map<String, dynamic>.from(
+        value,
+      );
+    }
+
+    return {};
+  }
+
+  int _int(
+    dynamic value,
+  ) {
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(
+          '$value',
+        ) ??
+        0;
+  }
+
+  String _text(
+    dynamic value, [
+    String fallback = '',
+  ]) {
+    final result =
+        value?.toString().trim() ?? '';
+
+    return result.isEmpty
+        ? fallback
+        : result;
+  }
+
+  RiderMessage _parseMessage(
+    dynamic raw,
+  ) {
+    final data = _map(
+      raw,
+    );
+
+    return RiderMessage(
+      id: _int(
+        data['id'],
+      ),
+      senderRole: _text(
+        data['sender_role'],
+        'logistics',
+      ),
+      body: _text(
+        data['body'],
+      ),
+      createdAt: _text(
+        data['created_at'],
+      ),
+    );
+  }
+
+  Future<void> _load() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final response =
+          await SariLiveData.instance
+              .riderMessages();
+
+      final data = _map(
+        response['data'],
+      );
+
+      final rawMessages =
+          data['messages'];
+
+      if (rawMessages is! List) {
+        throw const FormatException(
+          'Invalid Rider messages response.',
+        );
+      }
+
+      final loaded = rawMessages
+          .map(
+            _parseMessage,
+          )
+          .where(
+            (message) =>
+                message.body
+                    .trim()
+                    .isNotEmpty,
+          )
+          .toList();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(
+            loaded,
+          );
+
+        _loading = false;
+        _usingFallback = false;
+        _error = null;
+      });
+
+      _scheduleScrollToBottom();
+    } on SariApiException catch (
+      error
+    ) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _loading = false;
+        _error = error.message;
+
+        if (_messages.isNotEmpty) {
+          _usingFallback = true;
+        }
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _loading = false;
+        _error = error.toString();
+
+        if (_messages.isNotEmpty) {
+          _usingFallback = true;
+        }
+      });
+    }
+  }
+
+  Future<void> _send() async {
+    final body =
+        _messageController.text
+            .trim();
+
+    if (body.isEmpty ||
+        _sending) {
+      return;
+    }
+
+    if (body.length > 3000) {
+      _message(
+        'Message cannot exceed 3000 characters.',
+      );
+
+      return;
+    }
+
+    setState(() {
+      _sending = true;
+    });
+
+    try {
+      final response =
+          await SariLiveData.instance
+              .riderSendMessage(
+        body,
+      );
+
+      _messageController.clear();
+
+      final sentData = _map(
+        response['data'],
+      );
+
+      if (sentData.isNotEmpty &&
+          mounted) {
+        final sent =
+            _parseMessage(
+          sentData,
+        );
+
+        setState(() {
+          final alreadyExists =
+              _messages.any(
+            (message) =>
+                message.id ==
+                sent.id,
+          );
+
+          if (!alreadyExists) {
+            _messages.add(
+              sent,
+            );
+          }
+
+          _usingFallback = false;
+        });
+
+        _scheduleScrollToBottom();
+      }
+
+      await _load();
+    } on SariApiException catch (
+      error
+    ) {
+      _message(
+        error.message,
+      );
+    } catch (error) {
+      _message(
+        'Unable to send message: $error',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _sending = false;
+        });
+      }
+    }
+  }
+
+  void _scheduleScrollToBottom() {
+    WidgetsBinding.instance
+        .addPostFrameCallback(
+      (_) {
+        _scrollToBottom();
+      },
+    );
+  }
+
+  void _scrollToBottom() {
+    if (!_scrollController
+        .hasClients) {
+      return;
+    }
+
+    _scrollController.animateTo(
+      _scrollController
+          .position.maxScrollExtent,
+      duration:
+          const Duration(
+        milliseconds: 280,
+      ),
+      curve:
+          Curves.easeOut,
+    );
+  }
+
+  void _message(
+    String message,
+  ) {
+    if (!mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
+          content:
+              Text(message),
+          behavior:
+              SnackBarBehavior.floating,
         ),
       );
   }
 
-  void _toggleSearch() {
-    setState(() {
-      _showSearch = !_showSearch;
+  String _formatTime(
+    String raw,
+  ) {
+    final date =
+        DateTime.tryParse(
+          raw,
+        )?.toLocal();
 
-      if (!_showSearch) {
-        _searchController.clear();
-      }
-    });
+    if (date == null) {
+      return raw;
+    }
+
+    final hour =
+        date.hour == 0
+            ? 12
+            : date.hour > 12
+                ? date.hour - 12
+                : date.hour;
+
+    final minute =
+        date.minute
+            .toString()
+            .padLeft(
+              2,
+              '0',
+            );
+
+    final period =
+        date.hour >= 12
+            ? 'PM'
+            : 'AM';
+
+    return '$hour:$minute $period';
   }
 
-  void _scrollToBottom() {
-    if (!_scrollController.hasClients) return;
+  String _formatDate(
+    String raw,
+  ) {
+    final date =
+        DateTime.tryParse(
+          raw,
+        )?.toLocal();
 
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
+    if (date == null) {
+      return '';
+    }
+
+    final now =
+        DateTime.now();
+
+    final today =
+        DateTime(
+      now.year,
+      now.month,
+      now.day,
     );
+
+    final messageDay =
+        DateTime(
+      date.year,
+      date.month,
+      date.day,
+    );
+
+    final difference =
+        today
+            .difference(
+              messageDay,
+            )
+            .inDays;
+
+    if (difference == 0) {
+      return 'Today';
+    }
+
+    if (difference == 1) {
+      return 'Yesterday';
+    }
+
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    if (date.year ==
+        now.year) {
+      return '${months[date.month - 1]} '
+          '${date.day}';
+    }
+
+    return '${months[date.month - 1]} '
+        '${date.day}, ${date.year}';
   }
 
-  void _prepareQuickReply(String value) {
-    _messageController.text = value;
-    _messageController.selection = TextSelection.collapsed(
-      offset: value.length,
+  bool _showDateDivider(
+    int index,
+  ) {
+    if (index == 0) {
+      return true;
+    }
+
+    final current =
+        _formatDate(
+      _messages[index]
+          .createdAt,
     );
 
-    setState(() {});
-  }
-
-  void _showSendUnavailable() {
-    _showNotice(
-      'Message sending is not yet connected to the '
-      'Laravel Rider API. Your draft has not been sent.',
+    final previous =
+        _formatDate(
+      _messages[index - 1]
+          .createdAt,
     );
+
+    return current !=
+        previous;
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
-      backgroundColor: RiderColors.bg,
+      backgroundColor:
+          RiderColors.bg,
       appBar: AppBar(
-        backgroundColor: RiderColors.surface,
-        foregroundColor: RiderColors.text,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor:
+            RiderColors.surface,
+        foregroundColor:
+            RiderColors.text,
+        surfaceTintColor:
+            Colors.transparent,
         elevation: 0,
-        titleSpacing: 8,
-        title: const RiderHeaderTitle(
-          title: 'Chat / Messaging',
-          subtitle: 'SARI Logistics',
+        titleSpacing: 16,
+        title:
+            const RiderHeaderTitle(
+          title: 'Messages',
+          subtitle:
+              'Logistics Communication',
         ),
         actions: [
           IconButton(
-            tooltip: 'Search messages',
-            onPressed: _toggleSearch,
-            icon: Icon(
-              _showSearch
-                  ? Icons.search_off_rounded
-                  : Icons.search_rounded,
+            tooltip:
+                'Refresh messages',
+            onPressed:
+                _loading
+                    ? null
+                    : _load,
+            icon:
+                const Icon(
+              Icons.refresh_rounded,
             ),
           ),
         ],
       ),
       body: Column(
         children: [
-          if (_showSearch) _searchBar(),
-
           _conversationHeader(),
 
-          _supportNotice(),
+          if (_usingFallback)
+            _fallbackNotice(),
 
           Expanded(
-            child: _filteredMessages.isEmpty
-                ? _emptyMessages()
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(
-                      16, 18, 16, 20,
-                    ),
-                    itemCount: _filteredMessages.length,
-                    itemBuilder: (context, index) {
-                      final message = _filteredMessages[index];
-
-                      return _messageBubble(message);
-                    },
-                  ),
+            child:
+                _messageBody(),
           ),
 
           _composer(),
@@ -155,301 +510,495 @@ class _RiderMessagesState extends State<RiderMessages> {
     );
   }
 
-  Widget _searchBar() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      color: RiderColors.surface,
-      child: TextField(
-        controller: _searchController,
-        autofocus: true,
-        onChanged: (_) => setState(() {}),
-        style: TextStyle(
-          color: RiderColors.text,
-          fontSize: 13,
-        ),
-        decoration: InputDecoration(
-          hintText: 'Search messages...',
-          hintStyle: TextStyle(
-            color: RiderColors.muted,
-            fontSize: 12,
-          ),
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            color: RiderColors.muted,
-          ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  tooltip: 'Clear search',
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() {});
-                  },
-                  icon: const Icon(Icons.close_rounded),
-                )
-              : null,
-          filled: true,
-          fillColor: RiderColors.field,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: RiderColors.border,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: RiderColors.blue,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _conversationHeader() {
-    final latest = _messages.isNotEmpty
-        ? _messages.last
-        : null;
-
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: RiderColors.surface,
+      width:
+          double.infinity,
+      padding:
+          const EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        14,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
         border: Border(
-          bottom: BorderSide(
-            color: RiderColors.border,
+          bottom:
+              BorderSide(
+            color:
+                RiderColors.border,
           ),
         ),
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: RiderColors.blueSoft,
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(
-                color: RiderColors.border,
+            width: 46,
+            height: 46,
+            alignment:
+                Alignment.center,
+            decoration:
+                BoxDecoration(
+              color:
+                  RiderColors.blueSoft,
+              borderRadius:
+                  BorderRadius.circular(
+                14,
               ),
             ),
             child: Icon(
-              Icons.support_agent_rounded,
-              color: RiderColors.blue,
-              size: 27,
+              Icons
+                  .local_shipping_outlined,
+              color:
+                  RiderColors.blue,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 12),
+
+          const SizedBox(
+            width: 11,
+          ),
+
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   'SARI Logistics',
-                  style: TextStyle(
-                    color: RiderColors.text,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
+                  style:
+                      TextStyle(
+                    color:
+                        RiderColors.text,
+                    fontSize: 14,
+                    fontWeight:
+                        FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 4),
+
+                const SizedBox(
+                  height: 3,
+                ),
+
+                Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration:
+                          BoxDecoration(
+                        color:
+                            RiderColors.green,
+                        shape:
+                            BoxShape.circle,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      width: 5,
+                    ),
+
+                    Expanded(
+                      child: Text(
+                        'Operations & rider support',
+                        style:
+                            TextStyle(
+                          color:
+                              RiderColors.muted,
+                          fontSize: 9.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          Container(
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 9,
+              vertical: 6,
+            ),
+            decoration:
+                BoxDecoration(
+              color:
+                  RiderColors.greenSoft,
+              borderRadius:
+                  BorderRadius.circular(
+                20,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons
+                      .verified_outlined,
+                  color:
+                      RiderColors.green,
+                  size: 13,
+                ),
+
+                const SizedBox(
+                  width: 4,
+                ),
+
                 Text(
-                  'Dispatch and delivery support',
-                  style: TextStyle(
-                    color: RiderColors.muted,
-                    fontSize: 11,
+                  'Official',
+                  style:
+                      TextStyle(
+                    color:
+                        RiderColors.green,
+                    fontSize: 8,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
-                if (latest != null) ...[
-                  const SizedBox(height: 4),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _messageBody() {
+    if (_loading &&
+        _messages.isEmpty) {
+      return Center(
+        child:
+            CircularProgressIndicator(
+          color:
+              RiderColors.gold,
+        ),
+      );
+    }
+
+    if (_error != null &&
+        _messages.isEmpty) {
+      return _errorState();
+    }
+
+    if (_messages.isEmpty) {
+      return RefreshIndicator(
+        color:
+            RiderColors.gold,
+        onRefresh:
+            _load,
+        child: ListView(
+          physics:
+              const AlwaysScrollableScrollPhysics(),
+          padding:
+              const EdgeInsets.all(
+            24,
+          ),
+          children: [
+            const SizedBox(
+              height: 70,
+            ),
+
+            Icon(
+              Icons
+                  .forum_outlined,
+              size: 52,
+              color:
+                  RiderColors.muted,
+            ),
+
+            const SizedBox(
+              height: 13,
+            ),
+
+            Text(
+              'No messages yet',
+              textAlign:
+                  TextAlign.center,
+              style:
+                  TextStyle(
+                color:
+                    RiderColors.text,
+                fontSize: 16,
+                fontWeight:
+                    FontWeight.w900,
+              ),
+            ),
+
+            const SizedBox(
+              height: 6,
+            ),
+
+            Text(
+              'Use this conversation to communicate with your assigned SARI Logistics provider.',
+              textAlign:
+                  TextAlign.center,
+              style:
+                  TextStyle(
+                color:
+                    RiderColors.muted,
+                fontSize: 10.5,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color:
+          RiderColors.gold,
+      onRefresh:
+          _load,
+      child: ListView.builder(
+        controller:
+            _scrollController,
+        physics:
+            const AlwaysScrollableScrollPhysics(),
+        padding:
+            const EdgeInsets.fromLTRB(
+          15,
+          18,
+          15,
+          20,
+        ),
+        itemCount:
+            _messages.length,
+        itemBuilder: (
+          context,
+          index,
+        ) {
+          final message =
+              _messages[index];
+
+          return Column(
+            children: [
+              if (_showDateDivider(
+                index,
+              ))
+                _dateDivider(
+                  _formatDate(
+                    message
+                        .createdAt,
+                  ),
+                ),
+
+              _messageBubble(
+                message,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _dateDivider(
+    String label,
+  ) {
+    if (label.isEmpty) {
+      return const SizedBox(
+        height: 5,
+      );
+    }
+
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(
+        vertical: 13,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(
+              color:
+                  RiderColors.border,
+            ),
+          ),
+
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 10,
+            ),
+            child: Text(
+              label,
+              style:
+                  TextStyle(
+                color:
+                    RiderColors.muted,
+                fontSize: 8,
+                fontWeight:
+                    FontWeight.w700,
+              ),
+            ),
+          ),
+
+          Expanded(
+            child: Divider(
+              color:
+                  RiderColors.border,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _messageBubble(
+    RiderMessage message,
+  ) {
+    final rider =
+        message.isRider;
+
+    return Align(
+      alignment:
+          rider
+              ? Alignment.centerRight
+              : Alignment.centerLeft,
+      child: Container(
+        constraints:
+            BoxConstraints(
+          maxWidth:
+              MediaQuery.sizeOf(
+                    context,
+                  ).width *
+                  .78,
+        ),
+        margin:
+            const EdgeInsets.only(
+          bottom: 9,
+        ),
+        padding:
+            const EdgeInsets.fromLTRB(
+          13,
+          11,
+          13,
+          9,
+        ),
+        decoration:
+            BoxDecoration(
+          color: rider
+              ? RiderColors.blue
+              : RiderColors.surface,
+          borderRadius:
+              BorderRadius.only(
+            topLeft:
+                const Radius.circular(
+              16,
+            ),
+            topRight:
+                const Radius.circular(
+              16,
+            ),
+            bottomLeft:
+                Radius.circular(
+              rider ? 16 : 4,
+            ),
+            bottomRight:
+                Radius.circular(
+              rider ? 4 : 16,
+            ),
+          ),
+          border: rider
+              ? null
+              : Border.all(
+                  color:
+                      RiderColors.border,
+                ),
+        ),
+        child: Column(
+          crossAxisAlignment:
+              rider
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+          children: [
+            if (!rider) ...[
+              Row(
+                mainAxisSize:
+                    MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons
+                        .support_agent_rounded,
+                    color:
+                        RiderColors.blue,
+                    size: 14,
+                  ),
+
+                  const SizedBox(
+                    width: 5,
+                  ),
+
                   Text(
-                    latest.isRider
-                        ? 'You: ${latest.body}'
-                        : latest.body,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: RiderColors.muted,
-                      fontSize: 10,
+                    'SARI Logistics',
+                    style:
+                        TextStyle(
+                      color:
+                          RiderColors.blue,
+                      fontSize: 8,
+                      fontWeight:
+                          FontWeight.w800,
                     ),
                   ),
                 ],
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Go to latest message',
-            onPressed: _scrollToBottom,
-            icon: Icon(
-              Icons.vertical_align_bottom_rounded,
-              color: RiderColors.blue,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _supportNotice() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(15, 13, 15, 0),
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: RiderColors.blueSoft,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: RiderColors.blue.withValues(alpha: .20),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline_rounded,
-            color: RiderColors.blue,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Your Logistics coordination channel. '
-              'Use this for pickup instructions, '
-              'parcel issues, and delivery support. '
-              'Messages are currently displayed from '
-              'locally loaded records.',
-              style: TextStyle(
-                color: RiderColors.text,
-                fontSize: 11,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _messageBubble(RiderMessage message) {
-    final isRider = message.isRider;
-
-    return Align(
-      alignment: isRider
-          ? Alignment.centerRight
-          : Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * .82,
-        ),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 13),
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-          decoration: BoxDecoration(
-            color: isRider
-                ? RiderColors.blue
-                : RiderColors.surface,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(17),
-              topRight: const Radius.circular(17),
-              bottomLeft: Radius.circular(
-                isRider ? 17 : 5,
-              ),
-              bottomRight: Radius.circular(
-                isRider ? 5 : 17,
-              ),
-            ),
-            border: isRider
-                ? null
-                : Border.all(color: RiderColors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: isRider
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
-            children: [
-              if (!isRider) ...[
-                Text(
-                  'SARI Logistics',
-                  style: TextStyle(
-                    color: RiderColors.blue,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-              ],
-
-              Text(
-                message.body,
-                style: TextStyle(
-                  color: isRider
-                      ? Colors.white
-                      : RiderColors.text,
-                  fontSize: 12,
-                  height: 1.5,
-                ),
               ),
 
-              const SizedBox(height: 7),
-
-              Text(
-                message.createdAt,
-                style: TextStyle(
-                  color: isRider
-                      ? Colors.white70
-                      : RiderColors.muted,
-                  fontSize: 10,
-                ),
+              const SizedBox(
+                height: 6,
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _emptyMessages() {
-    final searching =
-        _searchController.text.trim().isNotEmpty;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              searching
-                  ? Icons.search_off_rounded
-                  : Icons.chat_bubble_outline_rounded,
-              size: 46,
-              color: RiderColors.muted,
-            ),
-            const SizedBox(height: 15),
             Text(
-              searching
-                  ? 'No Matching Messages'
-                  : 'No Messages Yet',
-              style: TextStyle(
-                color: RiderColors.text,
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
+              message.body,
+              style:
+                  TextStyle(
+                color: rider
+                    ? Colors.white
+                    : RiderColors.text,
+                fontSize: 11,
+                height: 1.45,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              searching
-                  ? 'Try another keyword to find '
-                      'a message in this conversation.'
-                  : 'Messages from SARI Logistics '
-                      'will appear here when loaded.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: RiderColors.muted,
-                fontSize: 12,
-                height: 1.5,
-              ),
+
+            const SizedBox(
+              height: 6,
+            ),
+
+            Row(
+              mainAxisSize:
+                  MainAxisSize.min,
+              children: [
+                Text(
+                  _formatTime(
+                    message
+                        .createdAt,
+                  ),
+                  style:
+                      TextStyle(
+                    color: rider
+                        ? Colors.white70
+                        : RiderColors.muted,
+                    fontSize: 7.5,
+                  ),
+                ),
+
+                if (rider) ...[
+                  const SizedBox(
+                    width: 4,
+                  ),
+                  const Icon(
+                    Icons
+                        .done_all_rounded,
+                    color:
+                        Colors.white70,
+                    size: 12,
+                  ),
+                ],
+              ],
             ),
           ],
         ),
@@ -461,124 +1010,151 @@ class _RiderMessagesState extends State<RiderMessages> {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 13),
-        decoration: BoxDecoration(
-          color: RiderColors.surface,
+        padding:
+            const EdgeInsets.fromLTRB(
+          12,
+          10,
+          12,
+          11,
+        ),
+        decoration:
+            BoxDecoration(
+          color:
+              RiderColors.surface,
           border: Border(
-            top: BorderSide(
-              color: RiderColors.border,
+            top:
+                BorderSide(
+              color:
+                  RiderColors.border,
             ),
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Row(
+          crossAxisAlignment:
+              CrossAxisAlignment.end,
           children: [
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _quickReply('On my way'),
-                  _quickReply('Arrived at location'),
-                  _quickReply('Need dispatch support'),
-                ],
+            Expanded(
+              child: TextField(
+                controller:
+                    _messageController,
+                minLines: 1,
+                maxLines: 5,
+                maxLength: 3000,
+                enabled:
+                    !_sending,
+                textCapitalization:
+                    TextCapitalization.sentences,
+                keyboardType:
+                    TextInputType.multiline,
+                onSubmitted:
+                    (_) {
+                  if (!_sending) {
+                    _send();
+                  }
+                },
+                decoration:
+                    InputDecoration(
+                  hintText:
+                      'Message Logistics...',
+                  counterText: '',
+                  filled: true,
+                  fillColor:
+                      RiderColors.field,
+                  prefixIcon:
+                      Icon(
+                    Icons
+                        .chat_bubble_outline_rounded,
+                    color:
+                        RiderColors.muted,
+                    size: 19,
+                  ),
+                  border:
+                      OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(
+                      16,
+                    ),
+                    borderSide:
+                        BorderSide(
+                      color:
+                          RiderColors.border,
+                    ),
+                  ),
+                  enabledBorder:
+                      OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(
+                      16,
+                    ),
+                    borderSide:
+                        BorderSide(
+                      color:
+                          RiderColors.border,
+                    ),
+                  ),
+                  focusedBorder:
+                      OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(
+                      16,
+                    ),
+                    borderSide:
+                        BorderSide(
+                      color:
+                          RiderColors.blue,
+                    ),
+                  ),
+                ),
               ),
             ),
 
-            const SizedBox(height: 10),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    onChanged: (_) => setState(() {}),
-                    minLines: 1,
-                    maxLines: 4,
-                    maxLength: 3000,
-                    style: TextStyle(
-                      color: RiderColors.text,
-                      fontSize: 13,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Message Logistics...',
-                      hintStyle: TextStyle(
-                        color: RiderColors.muted,
-                        fontSize: 12,
-                      ),
-                      counterText: '',
-                      filled: true,
-                      fillColor: RiderColors.field,
-                      contentPadding:
-                          const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 13,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide(
-                          color: RiderColors.border,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide(
-                          color: RiderColors.blue,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 9),
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: IconButton.filled(
-                    tooltip: 'Messaging API not connected',
-                    onPressed:
-                        _messageController.text.trim().isEmpty
-                            ? null
-                            : _showSendUnavailable,
-                    style: IconButton.styleFrom(
-                      backgroundColor: RiderColors.blue,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor:
-                          RiderColors.surfaceSoft,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.send_rounded,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(
+              width: 8,
             ),
 
-            const SizedBox(height: 8),
-
-            Row(
-              children: [
-                Icon(
-                  Icons.lock_outline_rounded,
-                  size: 13,
-                  color: RiderColors.muted,
-                ),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    'Preview only. Messages cannot be sent '
-                    'until the Laravel messaging API is connected.',
-                    style: TextStyle(
-                      color: RiderColors.muted,
-                      fontSize: 10,
-                      height: 1.3,
+            SizedBox(
+              width: 48,
+              height: 48,
+              child:
+                  FilledButton(
+                onPressed:
+                    _sending
+                        ? null
+                        : _send,
+                style:
+                    FilledButton.styleFrom(
+                  backgroundColor:
+                      RiderColors.blue,
+                  foregroundColor:
+                      Colors.white,
+                  padding:
+                      EdgeInsets.zero,
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(
+                      15,
                     ),
                   ),
                 ),
-              ],
+                child:
+                    _sending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child:
+                                CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color:
+                                  Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons
+                                .send_rounded,
+                            size: 20,
+                          ),
+              ),
             ),
           ],
         ),
@@ -586,23 +1162,160 @@ class _RiderMessagesState extends State<RiderMessages> {
     );
   }
 
-  Widget _quickReply(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ActionChip(
-        label: Text(
-          text,
-          style: TextStyle(
-            color: RiderColors.text,
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
+  Widget _fallbackNotice() {
+    return Container(
+      width:
+          double.infinity,
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 9,
+      ),
+      color:
+          RiderColors.goldSoft,
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons
+                .cloud_off_outlined,
+            color:
+                RiderColors.goldDark,
+            size: 16,
           ),
+
+          const SizedBox(
+            width: 7,
+          ),
+
+          Expanded(
+            child: Text(
+              'Unable to refresh the conversation. Showing the messages already loaded on this device.',
+              style:
+                  TextStyle(
+                color:
+                    RiderColors.text,
+                fontSize: 8.5,
+                height: 1.4,
+              ),
+            ),
+          ),
+
+          InkWell(
+            onTap: _load,
+            child: Padding(
+              padding:
+                  const EdgeInsets.only(
+                left: 8,
+              ),
+              child: Text(
+                'Retry',
+                style:
+                    TextStyle(
+                  color:
+                      RiderColors.goldDark,
+                  fontSize: 8.5,
+                  fontWeight:
+                      FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _errorState() {
+    return Center(
+      child:
+          SingleChildScrollView(
+        padding:
+            const EdgeInsets.all(
+          27,
         ),
-        backgroundColor: RiderColors.surfaceSoft,
-        side: BorderSide(
-          color: RiderColors.border,
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            Container(
+              width: 62,
+              height: 62,
+              alignment:
+                  Alignment.center,
+              decoration:
+                  BoxDecoration(
+                color:
+                    RiderColors.redSoft,
+                borderRadius:
+                    BorderRadius.circular(
+                  18,
+                ),
+              ),
+              child: Icon(
+                Icons
+                    .cloud_off_outlined,
+                color:
+                    RiderColors.red,
+                size: 31,
+              ),
+            ),
+
+            const SizedBox(
+              height: 15,
+            ),
+
+            Text(
+              'Unable to load messages',
+              textAlign:
+                  TextAlign.center,
+              style:
+                  TextStyle(
+                color:
+                    RiderColors.text,
+                fontSize: 15,
+                fontWeight:
+                    FontWeight.w900,
+              ),
+            ),
+
+            const SizedBox(
+              height: 7,
+            ),
+
+            Text(
+              _error ??
+                  'Please check your connection.',
+              textAlign:
+                  TextAlign.center,
+              style:
+                  TextStyle(
+                color:
+                    RiderColors.muted,
+                fontSize: 10,
+                height: 1.45,
+              ),
+            ),
+
+            const SizedBox(
+              height: 15,
+            ),
+
+            FilledButton.icon(
+              onPressed:
+                  _load,
+              icon:
+                  const Icon(
+                Icons.refresh_rounded,
+              ),
+              label:
+                  const Text(
+                'Try Again',
+              ),
+            ),
+          ],
         ),
-        onPressed: () => _prepareQuickReply(text),
       ),
     );
   }

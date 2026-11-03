@@ -1,17 +1,17 @@
-
 import 'package:flutter/material.dart';
 
 import 'widgets/rider_ui.dart';
 
-/// Last-mile data is separate from direct-delivery records.
-/// Populate this model from the Laravel Rider API when available.
 class RiderLastMileBatch {
   final int id;
   final String assignmentCode;
   final String status;
+
   final String facilityName;
   final String facilityAddress;
+
   final String deliveryArea;
+
   final List<RiderLastMileParcel> parcels;
 
   const RiderLastMileBatch({
@@ -24,21 +24,49 @@ class RiderLastMileBatch {
     required this.parcels,
   });
 
-  bool get isActive =>
-      status == 'assigned' || status == 'out_for_delivery';
+  bool get isActive {
+    return const {
+      'assigned',
+      'out_for_delivery',
+      'in_transit',
+    }.contains(status);
+  }
 
-  bool get isCompleted => status == 'completed';
+  bool get isCompleted {
+    return status == 'completed';
+  }
 
-  String get statusLabel => _lastMileLabel(status);
+  int get deliveredCount {
+    return parcels
+        .where(
+          (parcel) =>
+              parcel.isDelivered,
+        )
+        .length;
+  }
+
+  int get pendingCount {
+    return parcels.length -
+        deliveredCount;
+  }
+
+  String get statusLabel {
+    return _lastMileLabel(
+      status,
+    );
+  }
 }
 
 class RiderLastMileParcel {
   final int id;
+
   final String orderNumber;
   final String parcelCode;
+
   final String buyerName;
   final String buyerAddress;
   final String? buyerPhone;
+
   final String status;
 
   const RiderLastMileParcel({
@@ -51,25 +79,66 @@ class RiderLastMileParcel {
     required this.status,
   });
 
-  bool get isDelivered =>
-      status == 'delivered' || status == 'completed';
+  bool get isDelivered {
+    return status == 'delivered' ||
+        status == 'completed';
+  }
 
-  String get statusLabel => _lastMileLabel(status);
+  bool get isActive {
+    return !isDelivered;
+  }
+
+  String get statusLabel {
+    return _lastMileLabel(
+      status,
+    );
+  }
 }
 
-String _lastMileLabel(String value) {
-  return value
-      .replaceAll('_', ' ')
+String _lastMileLabel(
+  String value,
+) {
+  final cleaned = value
+      .trim()
+      .replaceAll(
+        '_',
+        ' ',
+      );
+
+  if (cleaned.isEmpty) {
+    return 'Unknown';
+  }
+
+  return cleaned
       .split(' ')
-      .where((part) => part.isNotEmpty)
+      .where(
+        (part) =>
+            part.isNotEmpty,
+      )
       .map(
         (part) =>
-            '${part[0].toUpperCase()}${part.substring(1)}',
+            '${part[0].toUpperCase()}'
+            '${part.substring(1).toLowerCase()}',
       )
       .join(' ');
 }
 
-class RiderLastMile extends StatefulWidget {
+class RiderLastMile
+    extends StatefulWidget {
+  final List<RiderLastMileBatch>
+      batches;
+
+  final ValueChanged<
+      RiderLastMileParcel>?
+      onScanParcel;
+
+  final ValueChanged<
+      RiderLastMileParcel>?
+      onOpenParcel;
+
+  final VoidCallback?
+      onBackToDashboard;
+
   const RiderLastMile({
     super.key,
     this.batches = const [],
@@ -78,278 +147,740 @@ class RiderLastMile extends StatefulWidget {
     this.onBackToDashboard,
   });
 
-  /// Backend-supplied batches, not mock records.
-  final List<RiderLastMileBatch> batches;
-
-  /// Open the dedicated scanner.
-  final ValueChanged<RiderLastMileParcel>? onScanParcel;
-
-  /// Open a selected parcel's delivery/POD workflow.
-  final ValueChanged<RiderLastMileParcel>? onOpenParcel;
-
-  final VoidCallback? onBackToDashboard;
-
   @override
-  State<RiderLastMile> createState() => _RiderLastMileState();
+  State<RiderLastMile>
+      createState() =>
+          _RiderLastMileState();
 }
 
-class _RiderLastMileState extends State<RiderLastMile> {
-  final TextEditingController _search =
+class _RiderLastMileState
+    extends State<RiderLastMile> {
+  final TextEditingController
+      _searchController =
       TextEditingController();
 
   String _filter = 'All';
 
   @override
   void dispose() {
-    _search.dispose();
+    _searchController.dispose();
+
     super.dispose();
   }
 
-  List<RiderLastMileBatch> get _filtered {
-    final query = _search.text.trim().toLowerCase();
+  List<RiderLastMileBatch>
+      get _filteredBatches {
+    final query =
+        _searchController.text
+            .trim()
+            .toLowerCase();
 
-    return widget.batches.where((batch) {
-      if (_filter == 'Active' && !batch.isActive) {
-        return false;
-      }
+    return widget.batches.where(
+      (batch) {
+        if (_filter == 'Active' &&
+            !batch.isActive) {
+          return false;
+        }
 
-      if (_filter == 'Completed' && !batch.isCompleted) {
-        return false;
-      }
+        if (_filter == 'Completed' &&
+            !batch.isCompleted) {
+          return false;
+        }
 
-      if (query.isEmpty) return true;
+        if (query.isEmpty) {
+          return true;
+        }
 
-      final values = <String>[
-        batch.assignmentCode,
-        batch.facilityName,
-        batch.deliveryArea,
-        batch.status,
-        ...batch.parcels.expand(
-          (parcel) => [
-            parcel.orderNumber,
-            parcel.parcelCode,
-            parcel.buyerName,
-            parcel.buyerAddress,
-          ],
-        ),
-      ];
+        final batchValues = [
+          batch.assignmentCode,
+          batch.facilityName,
+          batch.facilityAddress,
+          batch.deliveryArea,
+          batch.statusLabel,
+        ];
 
-      return values.any(
-        (value) => value.toLowerCase().contains(query),
-      );
-    }).toList();
+        if (batchValues.any(
+          (value) => value
+              .toLowerCase()
+              .contains(query),
+        )) {
+          return true;
+        }
+
+        return batch.parcels.any(
+          (parcel) {
+            return [
+              parcel.orderNumber,
+              parcel.parcelCode,
+              parcel.buyerName,
+              parcel.buyerAddress,
+              parcel.buyerPhone ?? '',
+              parcel.statusLabel,
+            ].any(
+              (value) => value
+                  .toLowerCase()
+                  .contains(query),
+            );
+          },
+        );
+      },
+    ).toList();
   }
 
-  Color _statusColor(String status) {
+  Color _statusColor(
+    String status,
+  ) {
     switch (status) {
       case 'completed':
       case 'delivered':
         return RiderColors.green;
+
       case 'out_for_delivery':
+      case 'in_transit':
       case 'arrived_buyer':
         return RiderColors.blue;
+
       default:
         return RiderColors.goldDark;
     }
   }
 
-  Color _statusBackground(String status) {
+  Color _statusBackground(
+    String status,
+  ) {
     switch (status) {
       case 'completed':
       case 'delivered':
         return RiderColors.greenSoft;
+
       case 'out_for_delivery':
+      case 'in_transit':
       case 'arrived_buyer':
         return RiderColors.blueSoft;
+
       default:
         return RiderColors.goldSoft;
     }
   }
 
-  void _notice(String message) {
+  void _notice(
+    String message,
+  ) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
+          content:
+              Text(message),
+          behavior:
+              SnackBarBehavior.floating,
         ),
       );
   }
 
+  void _scanParcel(
+    RiderLastMileParcel parcel,
+  ) {
+    if (widget.onScanParcel ==
+        null) {
+      _notice(
+        'Parcel scanner is not connected from this screen yet.',
+      );
+
+      return;
+    }
+
+    widget.onScanParcel!(
+      parcel,
+    );
+  }
+
+  void _openParcel(
+    RiderLastMileParcel parcel,
+  ) {
+    if (widget.onOpenParcel ==
+        null) {
+      _showParcelDetails(
+        parcel,
+      );
+
+      return;
+    }
+
+    widget.onOpenParcel!(
+      parcel,
+    );
+  }
+
+  void _showParcelDetails(
+    RiderLastMileParcel parcel,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor:
+          RiderColors.surface,
+      builder: (
+        sheetContext,
+      ) {
+        return SafeArea(
+          child:
+              SingleChildScrollView(
+            padding:
+                const EdgeInsets.fromLTRB(
+              18,
+              5,
+              18,
+              26,
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment
+                      .start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      alignment:
+                          Alignment.center,
+                      decoration:
+                          BoxDecoration(
+                        color: parcel
+                                .isDelivered
+                            ? RiderColors
+                                .greenSoft
+                            : RiderColors
+                                .blueSoft,
+                        borderRadius:
+                            BorderRadius.circular(
+                          13,
+                        ),
+                      ),
+                      child: Icon(
+                        parcel.isDelivered
+                            ? Icons
+                                .task_alt_rounded
+                            : Icons
+                                .inventory_2_outlined,
+                        color: parcel
+                                .isDelivered
+                            ? RiderColors
+                                .green
+                            : RiderColors
+                                .blue,
+                        size: 23,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      width: 11,
+                    ),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
+                        children: [
+                          Text(
+                            parcel
+                                .orderNumber,
+                            style:
+                                TextStyle(
+                              color:
+                                  RiderColors
+                                      .text,
+                              fontSize:
+                                  18,
+                              fontWeight:
+                                  FontWeight
+                                      .w900,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 3,
+                          ),
+                          Text(
+                            parcel
+                                .statusLabel,
+                            style:
+                                TextStyle(
+                              color:
+                                  _statusColor(
+                                parcel
+                                    .status,
+                              ),
+                              fontSize:
+                                  10,
+                              fontWeight:
+                                  FontWeight
+                                      .w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(
+                  height: 22,
+                ),
+
+                _detailRow(
+                  icon: Icons
+                      .qr_code_2_rounded,
+                  label:
+                      'PARCEL CODE',
+                  value: parcel
+                          .parcelCode
+                          .trim()
+                          .isNotEmpty
+                      ? parcel
+                          .parcelCode
+                      : 'Not available',
+                ),
+
+                const SizedBox(
+                  height: 15,
+                ),
+
+                _detailRow(
+                  icon: Icons
+                      .person_outline_rounded,
+                  label:
+                      'BUYER',
+                  value: parcel
+                          .buyerName
+                          .trim()
+                          .isNotEmpty
+                      ? parcel
+                          .buyerName
+                      : 'Buyer',
+                ),
+
+                const SizedBox(
+                  height: 15,
+                ),
+
+                _detailRow(
+                  icon: Icons
+                      .location_on_outlined,
+                  label:
+                      'DELIVERY ADDRESS',
+                  value: parcel
+                          .buyerAddress
+                          .trim()
+                          .isNotEmpty
+                      ? parcel
+                          .buyerAddress
+                      : 'Delivery address unavailable',
+                ),
+
+                if (parcel.buyerPhone
+                        ?.trim()
+                        .isNotEmpty ==
+                    true) ...[
+                  const SizedBox(
+                    height: 15,
+                  ),
+
+                  _detailRow(
+                    icon: Icons
+                        .phone_outlined,
+                    label:
+                        'CONTACT',
+                    value:
+                        parcel.buyerPhone!,
+                  ),
+                ],
+
+                const SizedBox(
+                  height: 20,
+                ),
+
+                _infoBox(
+                  parcel.isDelivered
+                      ? 'This parcel is already recorded as delivered in the loaded last-mile batch.'
+                      : 'Verify the parcel code before completing the Buyer handoff.',
+                ),
+
+                if (!parcel
+                    .isDelivered) ...[
+                  const SizedBox(
+                    height: 18,
+                  ),
+
+                  SizedBox(
+                    width:
+                        double.infinity,
+                    child:
+                        FilledButton.icon(
+                      onPressed: () {
+                        Navigator.of(
+                          sheetContext,
+                        ).pop();
+
+                        _scanParcel(
+                          parcel,
+                        );
+                      },
+                      icon:
+                          const Icon(
+                        Icons
+                            .qr_code_scanner_rounded,
+                      ),
+                      label:
+                          const Text(
+                        'Scan Parcel QR',
+                      ),
+                      style:
+                          FilledButton.styleFrom(
+                        backgroundColor:
+                            RiderColors
+                                .blue,
+                        foregroundColor:
+                            Colors.white,
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 9,
+                  ),
+
+                  SizedBox(
+                    width:
+                        double.infinity,
+                    child:
+                        OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(
+                          sheetContext,
+                        ).pop();
+
+                        _openParcel(
+                          parcel,
+                        );
+                      },
+                      icon:
+                          const Icon(
+                        Icons
+                            .local_shipping_outlined,
+                      ),
+                      label:
+                          const Text(
+                        'Open Delivery',
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
-    final active =
-        widget.batches.where((b) => b.isActive).toList();
+  Widget build(
+    BuildContext context,
+  ) {
+    final activeBatches =
+        widget.batches
+            .where(
+              (batch) =>
+                  batch.isActive,
+            )
+            .toList();
 
-    final completed =
-        widget.batches.where((b) => b.isCompleted).length;
+    final completedBatches =
+        widget.batches
+            .where(
+              (batch) =>
+                  batch.isCompleted,
+            )
+            .length;
 
-    final activeParcels = active.fold<int>(
+    final totalParcels =
+        activeBatches.fold<int>(
       0,
-      (sum, batch) => sum + batch.parcels.length,
+      (
+        total,
+        batch,
+      ) =>
+          total +
+          batch.parcels.length,
     );
 
+    final deliveredParcels =
+        widget.batches.fold<int>(
+      0,
+      (
+        total,
+        batch,
+      ) =>
+          total +
+          batch.deliveredCount,
+    );
+
+    final filtered =
+        _filteredBatches;
+
     return Scaffold(
-      backgroundColor: RiderColors.bg,
+      backgroundColor:
+          RiderColors.bg,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: RiderColors.surface,
-        foregroundColor: RiderColors.text,
-        surfaceTintColor: Colors.transparent,
+        automaticallyImplyLeading:
+            false,
+        backgroundColor:
+            RiderColors.surface,
+        foregroundColor:
+            RiderColors.text,
+        surfaceTintColor:
+            Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Last-Mile Deliveries',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
+        titleSpacing: 16,
+        title:
+            const RiderHeaderTitle(
+          title:
+              'Last-Mile Deliveries',
+          subtitle:
+              'Hub to Buyer Delivery',
         ),
         actions: [
           IconButton(
-            tooltip: 'Dashboard',
-            onPressed: widget.onBackToDashboard ??
-                () => Navigator.maybePop(context),
-            icon: const Icon(Icons.home_outlined),
+            tooltip:
+                'Dashboard',
+            onPressed: widget
+                    .onBackToDashboard ??
+                () {
+                  Navigator.maybePop(
+                    context,
+                  );
+                },
+            icon:
+                const Icon(
+              Icons.home_outlined,
+            ),
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 36),
-        children: [
-          _hero(),
-          const SizedBox(height: 18),
-
-          Row(
-            children: [
-              Expanded(
-                child: _stat(
-                  'Active Batches',
-                  '${active.length}',
-                  Icons.inventory_2_outlined,
-                  RiderColors.goldDark,
-                ),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: _stat(
-                  'Active Parcels',
-                  '$activeParcels',
-                  Icons.local_shipping_outlined,
-                  RiderColors.blue,
-                ),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: _stat(
-                  'Completed',
-                  '$completed',
-                  Icons.task_alt_rounded,
-                  RiderColors.green,
-                ),
-              ),
-            ],
+      body: RefreshIndicator(
+        color:
+            RiderColors.gold,
+        onRefresh: () async {
+          // Current page receives batch data
+          // from the parent/shell.
+          setState(() {});
+        },
+        child: ListView(
+          physics:
+              const AlwaysScrollableScrollPhysics(),
+          padding:
+              const EdgeInsets.fromLTRB(
+            16,
+            18,
+            16,
+            36,
           ),
+          children: [
+            _hero(),
 
-          const SizedBox(height: 22),
-          _workflowGuide(),
-          const SizedBox(height: 26),
-
-          _heading(
-            'Assigned Last-Mile Batches',
-            'Parcels grouped by their destination hub '
-                'and assigned delivery area.',
-          ),
-          const SizedBox(height: 14),
-
-          _searchField(),
-          const SizedBox(height: 12),
-          _filters(),
-          const SizedBox(height: 16),
-
-          if (_filtered.isEmpty)
-            _emptyState()
-          else
-            ..._filtered.map(
-              (batch) => Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: _batchCard(batch),
-              ),
+            const SizedBox(
+              height: 18,
             ),
 
-          const SizedBox(height: 16),
-          _integrationNotice(),
-        ],
+            _summary(
+              activeBatches:
+                  activeBatches.length,
+              activeParcels:
+                  totalParcels,
+              deliveredParcels:
+                  deliveredParcels,
+              completedBatches:
+                  completedBatches,
+            ),
+
+            const SizedBox(
+              height: 23,
+            ),
+
+            _workflowGuide(),
+
+            const SizedBox(
+              height: 25,
+            ),
+
+            _sectionHeading(),
+
+            const SizedBox(
+              height: 14,
+            ),
+
+            _searchField(),
+
+            const SizedBox(
+              height: 11,
+            ),
+
+            _filters(),
+
+            const SizedBox(
+              height: 16,
+            ),
+
+            if (filtered.isEmpty)
+              _emptyState()
+            else
+              ...filtered.map(
+                (batch) =>
+                    Padding(
+                  padding:
+                      const EdgeInsets.only(
+                    bottom: 15,
+                  ),
+                  child:
+                      _batchCard(
+                    batch,
+                  ),
+                ),
+              ),
+
+            const SizedBox(
+              height: 8,
+            ),
+
+            _integrationNotice(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _hero() {
     return Container(
-      padding: const EdgeInsets.all(21),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: RiderColors.heroGradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      padding:
+          const EdgeInsets.all(
+        21,
+      ),
+      decoration:
+          BoxDecoration(
+        gradient:
+            LinearGradient(
+          begin:
+              Alignment.topLeft,
+          end:
+              Alignment.bottomRight,
+          colors:
+              RiderColors
+                  .heroGradient,
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius:
+            BorderRadius.circular(
+          22,
+        ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
               Icon(
                 Icons.route_rounded,
-                color: Colors.white70,
+                color:
+                    Colors.white70,
                 size: 18,
               ),
-              SizedBox(width: 8),
+              SizedBox(
+                width: 8,
+              ),
               Text(
                 'LAST-MILE OPERATIONS',
-                style: TextStyle(
-                  color: Colors.white70,
+                style:
+                    TextStyle(
+                  color:
+                      Colors.white70,
                   fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
+                  fontWeight:
+                      FontWeight.w800,
+                  letterSpacing:
+                      1.2,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 13),
+
+          const SizedBox(
+            height: 13,
+          ),
+
           const Text(
             'Last-Mile Deliveries',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 25,
-              fontWeight: FontWeight.w900,
+            style:
+                TextStyle(
+              color:
+                  Colors.white,
+              fontSize: 26,
+              fontWeight:
+                  FontWeight.w900,
+              letterSpacing: -.4,
             ),
           ),
-          const SizedBox(height: 8),
+
+          const SizedBox(
+            height: 8,
+          ),
+
           const Text(
-            'Collect hub-assigned parcels and deliver '
-            'within your assigned barangay.',
-            style: TextStyle(
-              color: Colors.white70,
+            'Collect parcels from the destination hub and deliver within your assigned area.',
+            style:
+                TextStyle(
+              color:
+                  Colors.white70,
               fontSize: 12,
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 18),
+
+          const SizedBox(
+            height: 18,
+          ),
+
           OutlinedButton.icon(
-            onPressed: () => _notice(
-              'Choose a parcel below to open its scanner.',
-            ),
-            icon: const Icon(
-              Icons.qr_code_scanner_rounded,
+            onPressed: () {
+              _notice(
+                'Select a parcel below to scan its assigned QR or barcode.',
+              );
+            },
+            icon:
+                const Icon(
+              Icons
+                  .qr_code_scanner_rounded,
               size: 18,
             ),
-            label: const Text('Scan Hub Parcel QR'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(
-                color: Colors.white54,
+            label:
+                const Text(
+              'Scan Assigned Parcel',
+            ),
+            style:
+                OutlinedButton.styleFrom(
+              foregroundColor:
+                  Colors.white,
+              side:
+                  const BorderSide(
+                color:
+                    Colors.white54,
               ),
             ),
           ),
@@ -358,40 +889,172 @@ class _RiderLastMileState extends State<RiderLastMile> {
     );
   }
 
-  Widget _stat(
-    String label,
-    String value,
-    IconData icon,
-    Color accent,
-  ) {
+  Widget _summary({
+    required int activeBatches,
+    required int activeParcels,
+    required int deliveredParcels,
+    required int completedBatches,
+  }) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _statCard(
+                label:
+                    'Active Batches',
+                value:
+                    '$activeBatches',
+                icon: Icons
+                    .inventory_2_outlined,
+                accent:
+                    RiderColors.goldDark,
+                soft:
+                    RiderColors.goldSoft,
+              ),
+            ),
+            const SizedBox(
+              width: 10,
+            ),
+            Expanded(
+              child: _statCard(
+                label:
+                    'Active Parcels',
+                value:
+                    '$activeParcels',
+                icon: Icons
+                    .local_shipping_outlined,
+                accent:
+                    RiderColors.blue,
+                soft:
+                    RiderColors.blueSoft,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(
+          height: 10,
+        ),
+
+        Row(
+          children: [
+            Expanded(
+              child: _statCard(
+                label:
+                    'Delivered',
+                value:
+                    '$deliveredParcels',
+                icon: Icons
+                    .task_alt_rounded,
+                accent:
+                    RiderColors.green,
+                soft:
+                    RiderColors.greenSoft,
+              ),
+            ),
+            const SizedBox(
+              width: 10,
+            ),
+            Expanded(
+              child: _statCard(
+                label:
+                    'Completed Batches',
+                value:
+                    '$completedBatches',
+                icon: Icons
+                    .done_all_rounded,
+                accent:
+                    RiderColors.green,
+                soft:
+                    RiderColors.greenSoft,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _statCard({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color accent,
+    required Color soft,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: RiderColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: RiderColors.border),
+      padding:
+          const EdgeInsets.all(
+        14,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+        borderRadius:
+            BorderRadius.circular(
+          17,
+        ),
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
+        ),
       ),
       child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: accent, size: 22),
-          const SizedBox(height: 11),
-          Text(
-            value,
-            style: TextStyle(
-              color: RiderColors.text,
-              fontSize: 23,
-              fontWeight: FontWeight.w900,
+          Container(
+            width: 36,
+            height: 36,
+            alignment:
+                Alignment.center,
+            decoration:
+                BoxDecoration(
+              color: soft,
+              borderRadius:
+                  BorderRadius.circular(
+                11,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: accent,
+              size: 20,
             ),
           ),
-          const SizedBox(height: 5),
+
+          const SizedBox(
+            height: 11,
+          ),
+
+          Text(
+            value,
+            style:
+                TextStyle(
+              color:
+                  RiderColors.text,
+              fontSize: 23,
+              fontWeight:
+                  FontWeight.w900,
+            ),
+          ),
+
+          const SizedBox(
+            height: 3,
+          ),
+
           Text(
             label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            style: TextStyle(
-              color: RiderColors.muted,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
+            style:
+                TextStyle(
+              color:
+                  RiderColors.muted,
+              fontSize: 9,
+              fontWeight:
+                  FontWeight.w600,
             ),
           ),
         ],
@@ -400,111 +1063,210 @@ class _RiderLastMileState extends State<RiderLastMile> {
   }
 
   Widget _workflowGuide() {
-    final steps = <(IconData, String, String)>[
+    final steps = <
+        (
+          IconData,
+          String,
+          String,
+        )>[
       (
         Icons.hub_outlined,
         'Destination Hub',
-        'Collect parcels',
+        'Collect assigned parcels',
       ),
       (
         Icons.route_outlined,
-        'Local Delivery',
-        'Reach the buyer',
+        'Local Route',
+        'Travel to the Buyer',
       ),
       (
-        Icons.verified_outlined,
+        Icons
+            .qr_code_scanner_rounded,
         'Buyer Handoff',
-        'Scan and capture POD',
+        'Verify the parcel',
       ),
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: RiderColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: RiderColors.border),
+      padding:
+          const EdgeInsets.all(
+        16,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+        borderRadius:
+            BorderRadius.circular(
+          18,
+        ),
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
+        ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Text(
             'Delivery Workflow',
-            style: TextStyle(
-              color: RiderColors.text,
+            style:
+                TextStyle(
+              color:
+                  RiderColors.text,
               fontSize: 15,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 17),
-          Row(
-            children: List.generate(steps.length, (index) {
-              final step = steps[index];
 
-              return Expanded(
-                child: Column(
-                  children: [
-                    Container(
-                      height: 42,
-                      width: 42,
-                      decoration: BoxDecoration(
-                        color: RiderColors.blueSoft,
-                        borderRadius: BorderRadius.circular(13),
+          const SizedBox(
+            height: 17,
+          ),
+
+          Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: List.generate(
+              steps.length,
+              (index) {
+                final step =
+                    steps[index];
+
+                return Expanded(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 43,
+                        height: 43,
+                        alignment:
+                            Alignment.center,
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              RiderColors
+                                  .blueSoft,
+                          borderRadius:
+                              BorderRadius.circular(
+                            13,
+                          ),
+                        ),
+                        child: Icon(
+                          step.$1,
+                          color:
+                              RiderColors
+                                  .blue,
+                          size: 21,
+                        ),
                       ),
-                      child: Icon(
-                        step.$1,
-                        color: RiderColors.blue,
-                        size: 21,
+
+                      const SizedBox(
+                        height: 8,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      step.$2,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: RiderColors.text,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
+
+                      Text(
+                        step.$2,
+                        textAlign:
+                            TextAlign.center,
+                        style:
+                            TextStyle(
+                          color:
+                              RiderColors
+                                  .text,
+                          fontSize: 9,
+                          fontWeight:
+                              FontWeight.w800,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      step.$3,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: RiderColors.muted,
-                        fontSize: 9,
+
+                      const SizedBox(
+                        height: 4,
                       ),
-                    ),
-                  ],
-                ),
-              );
-            }),
+
+                      Text(
+                        step.$3,
+                        textAlign:
+                            TextAlign.center,
+                        style:
+                            TextStyle(
+                          color:
+                              RiderColors
+                                  .muted,
+                          fontSize: 7.5,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _heading(String title, String subtitle) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _sectionHeading() {
+    return Row(
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            color: RiderColors.text,
-            fontSize: 17,
-            fontWeight: FontWeight.w900,
+        Container(
+          width: 43,
+          height: 43,
+          alignment:
+              Alignment.center,
+          decoration:
+              BoxDecoration(
+            color:
+                RiderColors.blueSoft,
+            borderRadius:
+                BorderRadius.circular(
+              12,
+            ),
+          ),
+          child: Icon(
+            Icons
+                .delivery_dining_outlined,
+            color:
+                RiderColors.blue,
           ),
         ),
-        const SizedBox(height: 5),
-        Text(
-          subtitle,
-          style: TextStyle(
-            color: RiderColors.muted,
-            fontSize: 11,
-            height: 1.5,
+
+        const SizedBox(
+          width: 11,
+        ),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Assigned Last-Mile Batches',
+                style:
+                    TextStyle(
+                  color:
+                      RiderColors.text,
+                  fontSize: 16,
+                  fontWeight:
+                      FontWeight.w900,
+                ),
+              ),
+              const SizedBox(
+                height: 3,
+              ),
+              Text(
+                'Parcels grouped by hub and delivery area.',
+                style:
+                    TextStyle(
+                  color:
+                      RiderColors.muted,
+                  fontSize: 10,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -513,189 +1275,259 @@ class _RiderLastMileState extends State<RiderLastMile> {
 
   Widget _searchField() {
     return TextField(
-      controller: _search,
-      onChanged: (_) => setState(() {}),
-      style: TextStyle(color: RiderColors.text),
-      decoration: InputDecoration(
-        hintText: 'Search batch, barangay, parcel, buyer...',
-        hintStyle: TextStyle(
-          color: RiderColors.muted,
-          fontSize: 12,
+      controller:
+          _searchController,
+      onChanged: (_) {
+        setState(() {});
+      },
+      decoration:
+          InputDecoration(
+        hintText:
+            'Search batch, parcel, buyer...',
+        prefixIcon:
+            const Icon(
+          Icons.search_rounded,
         ),
-        prefixIcon: const Icon(Icons.search_rounded),
-        suffixIcon: _search.text.isNotEmpty
-            ? IconButton(
-                onPressed: () {
-                  _search.clear();
-                  setState(() {});
-                },
-                icon: const Icon(Icons.close_rounded),
-              )
-            : null,
-        filled: true,
-        fillColor: RiderColors.field,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        suffixIcon:
+            _searchController
+                    .text
+                    .isEmpty
+                ? null
+                : IconButton(
+                    onPressed: () {
+                      _searchController
+                          .clear();
+
+                      setState(
+                        () {},
+                      );
+                    },
+                    icon:
+                        const Icon(
+                      Icons.close_rounded,
+                    ),
+                  ),
       ),
     );
   }
 
   Widget _filters() {
-    const filters = ['All', 'Active', 'Completed'];
+    final values = [
+      'All',
+      'Active',
+      'Completed',
+    ];
 
     return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+      scrollDirection:
+          Axis.horizontal,
       child: Row(
-        children: filters.map((filter) {
-          final selected = filter == _filter;
+        children: values.map(
+          (value) {
+            final selected =
+                _filter == value;
 
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(filter),
-              selected: selected,
-              onSelected: (_) {
-                setState(() => _filter = filter);
-              },
-              showCheckmark: false,
-              selectedColor: RiderColors.blueSoft,
-              backgroundColor: RiderColors.surface,
-              side: BorderSide(
-                color: selected
-                    ? RiderColors.blue
-                    : RiderColors.border,
+            return Padding(
+              padding:
+                  const EdgeInsets.only(
+                right: 7,
               ),
-              labelStyle: TextStyle(
-                color: selected
-                    ? RiderColors.blue
-                    : RiderColors.muted,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+              child: ChoiceChip(
+                label:
+                    Text(value),
+                selected:
+                    selected,
+                showCheckmark:
+                    false,
+                onSelected: (_) {
+                  setState(() {
+                    _filter =
+                        value;
+                  });
+                },
+                backgroundColor:
+                    RiderColors.surface,
+                selectedColor:
+                    RiderColors.blueSoft,
+                side:
+                    BorderSide(
+                  color: selected
+                      ? RiderColors.blue
+                      : RiderColors
+                          .border,
+                ),
+                labelStyle:
+                    TextStyle(
+                  color: selected
+                      ? RiderColors.blue
+                      : RiderColors
+                          .muted,
+                  fontSize: 10,
+                  fontWeight:
+                      FontWeight.w700,
+                ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          },
+        ).toList(),
       ),
     );
   }
 
-  Widget _batchCard(RiderLastMileBatch batch) {
+  Widget _batchCard(
+    RiderLastMileBatch batch,
+  ) {
+    final color =
+        _statusColor(
+      batch.status,
+    );
+
+    final background =
+        _statusBackground(
+      batch.status,
+    );
+
     return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: RiderColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: RiderColors.border),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+        borderRadius:
+            BorderRadius.circular(
+          20,
+        ),
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
+        ),
       ),
+      clipBehavior:
+          Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(17),
+            padding:
+                const EdgeInsets.all(
+              16,
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment
+                      .start,
               children: [
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        batch.assignmentCode,
-                        style: TextStyle(
-                          color: RiderColors.blue,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                        ),
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
+                        children: [
+                          Text(
+                            batch
+                                .assignmentCode,
+                            style:
+                                TextStyle(
+                              color:
+                                  RiderColors
+                                      .text,
+                              fontSize:
+                                  16,
+                              fontWeight:
+                                  FontWeight
+                                      .w900,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 4,
+                          ),
+                          Text(
+                            batch
+                                .deliveryArea,
+                            style:
+                                TextStyle(
+                              color:
+                                  RiderColors
+                                      .muted,
+                              fontSize:
+                                  10,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+
                     _badge(
                       batch.statusLabel,
-                      _statusColor(batch.status),
-                      _statusBackground(batch.status),
+                      color,
+                      background,
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 12),
-
-                Text(
-                  '${batch.facilityName} → ${batch.deliveryArea}',
-                  style: TextStyle(
-                    color: RiderColors.text,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
+                const SizedBox(
+                  height: 16,
                 ),
-
-                const SizedBox(height: 5),
-
-                Text(
-                  '${batch.parcels.length} '
-                  '${batch.parcels.length == 1 ? 'parcel' : 'parcels'} '
-                  'in this batch',
-                  style: TextStyle(
-                    color: RiderColors.muted,
-                    fontSize: 11,
-                  ),
-                ),
-
-                const SizedBox(height: 18),
 
                 _detail(
-                  Icons.hub_outlined,
-                  'DESTINATION HUB',
-                  batch.facilityName,
-                  batch.facilityAddress,
+                  icon:
+                      Icons.hub_outlined,
+                  label:
+                      'DESTINATION HUB',
+                  value: batch
+                          .facilityName
+                          .trim()
+                          .isNotEmpty
+                      ? batch
+                          .facilityName
+                      : 'Assigned Hub',
+                  subtitle: batch
+                          .facilityAddress
+                          .trim()
+                          .isNotEmpty
+                      ? batch
+                          .facilityAddress
+                      : 'Hub address unavailable',
                 ),
 
-                const SizedBox(height: 15),
-
-                _detail(
-                  Icons.location_on_outlined,
-                  'DELIVERY AREA',
-                  batch.deliveryArea,
-                  'Assigned barangay for this batch',
+                const SizedBox(
+                  height: 14,
                 ),
-
-                if (batch.status == 'assigned') ...[
-                  const SizedBox(height: 17),
-                  _info(
-                    'Start the route only after physically '
-                    'receiving the parcels from the destination hub.',
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: null,
-                      icon: const Icon(Icons.route_outlined),
-                      label: const Text('Start Last-Mile Route'),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  _smallNote(
-                    'Route activation requires confirmation from Laravel.',
-                  ),
-                ],
-
-                const SizedBox(height: 22),
 
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        'Batch Parcels',
-                        style: TextStyle(
-                          color: RiderColors.text,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                        ),
+                      child: _miniMetric(
+                        label:
+                            'Parcels',
+                        value:
+                            '${batch.parcels.length}',
                       ),
                     ),
-                    _badge(
-                      '${batch.parcels.length} parcels',
-                      RiderColors.blue,
-                      RiderColors.blueSoft,
+                    const SizedBox(
+                      width: 8,
+                    ),
+                    Expanded(
+                      child: _miniMetric(
+                        label:
+                            'Delivered',
+                        value:
+                            '${batch.deliveredCount}',
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 8,
+                    ),
+                    Expanded(
+                      child: _miniMetric(
+                        label:
+                            'Pending',
+                        value:
+                            '${batch.pendingCount}',
+                      ),
                     ),
                   ],
                 ),
@@ -703,18 +1535,36 @@ class _RiderLastMileState extends State<RiderLastMile> {
             ),
           ),
 
-          if (batch.parcels.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: _smallNote(
-                'No parcels are attached to this batch.',
+          if (batch.parcels
+              .isNotEmpty)
+            Container(
+              width:
+                  double.infinity,
+              padding:
+                  const EdgeInsets.fromLTRB(
+                13,
+                12,
+                13,
+                13,
               ),
-            )
-          else
-            ...batch.parcels.map(
-              (parcel) => _parcelCard(
-                parcel,
-                batch.status,
+              color:
+                  RiderColors.surfaceSoft,
+              child: Column(
+                children:
+                    batch.parcels.map(
+                  (parcel) {
+                    return Padding(
+                      padding:
+                          const EdgeInsets.only(
+                        bottom: 8,
+                      ),
+                      child:
+                          _parcelCard(
+                        parcel,
+                      ),
+                    );
+                  },
+                ).toList(),
               ),
             ),
         ],
@@ -724,125 +1574,224 @@ class _RiderLastMileState extends State<RiderLastMile> {
 
   Widget _parcelCard(
     RiderLastMileParcel parcel,
-    String batchStatus,
   ) {
-    final canScan = batchStatus == 'out_for_delivery' &&
-        !parcel.isDelivered;
+    final color =
+        _statusColor(
+      parcel.status,
+    );
+
+    final background =
+        _statusBackground(
+      parcel.status,
+    );
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: RiderColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: RiderColors.border),
+      padding:
+          const EdgeInsets.all(
+        12,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+        borderRadius:
+            BorderRadius.circular(
+          14,
+        ),
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
+        ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  parcel.orderNumber,
-                  style: TextStyle(
-                    color: RiderColors.text,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
+              Container(
+                width: 37,
+                height: 37,
+                alignment:
+                    Alignment.center,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      background,
+                  borderRadius:
+                      BorderRadius.circular(
+                    10,
                   ),
                 ),
+                child: Icon(
+                  parcel.isDelivered
+                      ? Icons
+                          .check_circle_outline_rounded
+                      : Icons
+                          .inventory_2_outlined,
+                  color: color,
+                  size: 19,
+                ),
               ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
+                  children: [
+                    Text(
+                      parcel
+                          .orderNumber,
+                      style:
+                          TextStyle(
+                        color:
+                            RiderColors
+                                .text,
+                        fontSize: 11,
+                        fontWeight:
+                            FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 2,
+                    ),
+                    Text(
+                      parcel
+                          .buyerName,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style:
+                          TextStyle(
+                        color:
+                            RiderColors
+                                .muted,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               _badge(
                 parcel.statusLabel,
-                _statusColor(parcel.status),
-                _statusBackground(parcel.status),
+                color,
+                background,
               ),
             ],
           ),
 
-          const SizedBox(height: 12),
-
-          _detail(
-            Icons.person_outline_rounded,
-            'BUYER',
-            parcel.buyerName,
-            parcel.buyerAddress,
+          const SizedBox(
+            height: 10,
           ),
 
-          const SizedBox(height: 10),
-
-          Text(
-            'Parcel code: ${parcel.parcelCode}',
-            style: TextStyle(
-              color: RiderColors.muted,
-              fontSize: 11,
-            ),
-          ),
-
-          if (parcel.buyerPhone != null &&
-              parcel.buyerPhone!.isNotEmpty) ...[
-            const SizedBox(height: 7),
-            Text(
-              'Contact: ${parcel.buyerPhone}',
-              style: TextStyle(
-                color: RiderColors.muted,
-                fontSize: 11,
+          Row(
+            children: [
+              Icon(
+                Icons
+                    .location_on_outlined,
+                color:
+                    RiderColors.muted,
+                size: 16,
               ),
-            ),
-          ],
-
-          if (canScan) ...[
-            const SizedBox(height: 16),
-
-            if (parcel.status == 'out_for_delivery')
-              _info(
-                'Next step: reach the buyer location. '
-                'Arrival must be confirmed by the server.',
+              const SizedBox(
+                width: 5,
               ),
-
-            const SizedBox(height: 11),
-
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: widget.onScanParcel == null
-                    ? null
-                    : () => widget.onScanParcel!(parcel),
-                icon: const Icon(
-                  Icons.qr_code_scanner_rounded,
-                ),
-                label: const Text('Scan Parcel'),
-              ),
-            ),
-
-            if (parcel.status == 'arrived_buyer') ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: widget.onOpenParcel == null
-                      ? null
-                      : () => widget.onOpenParcel!(parcel),
-                  icon: const Icon(Icons.camera_alt_outlined),
-                  label: const Text('Open Proof of Delivery'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: RiderColors.blue,
-                    foregroundColor: Colors.white,
+              Expanded(
+                child: Text(
+                  parcel.buyerAddress
+                          .trim()
+                          .isNotEmpty
+                      ? parcel
+                          .buyerAddress
+                      : 'Delivery address unavailable',
+                  maxLines: 2,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style:
+                      TextStyle(
+                    color:
+                        RiderColors.muted,
+                    fontSize: 8.5,
+                    height: 1.35,
                   ),
                 ),
               ),
             ],
+          ),
 
-            if (widget.onScanParcel == null)
-              _smallNote(
-                'Scanner navigation is not yet connected.',
-              ),
-          ],
+          if (!parcel
+              .isDelivered) ...[
+            const SizedBox(
+              height: 11,
+            ),
 
-          if (parcel.isDelivered) ...[
-            const SizedBox(height: 12),
-            _info(
-              'Delivery recorded in the supplied batch data.',
+            Row(
+              children: [
+                Expanded(
+                  child:
+                      OutlinedButton.icon(
+                    onPressed: () =>
+                        _scanParcel(
+                      parcel,
+                    ),
+                    icon:
+                        const Icon(
+                      Icons
+                          .qr_code_scanner_rounded,
+                      size: 16,
+                    ),
+                    label:
+                        const Text(
+                      'Scan',
+                    ),
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 7,
+                ),
+
+                Expanded(
+                  child:
+                      FilledButton.icon(
+                    onPressed: () =>
+                        _openParcel(
+                      parcel,
+                    ),
+                    icon:
+                        const Icon(
+                      Icons
+                          .arrow_forward_rounded,
+                      size: 16,
+                    ),
+                    label:
+                        const Text(
+                      'Delivery',
+                    ),
+                    style:
+                        FilledButton.styleFrom(
+                      backgroundColor:
+                          RiderColors.blue,
+                      foregroundColor:
+                          Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            const SizedBox(
+              height: 10,
+            ),
+            _infoBox(
+              'Delivery recorded for this parcel.',
             ),
           ],
         ],
@@ -850,48 +1799,68 @@ class _RiderLastMileState extends State<RiderLastMile> {
     );
   }
 
-  Widget _detail(
-    IconData icon,
-    String label,
-    String value,
-    String subtitle,
-  ) {
+  Widget _detail({
+    required IconData icon,
+    required String label,
+    required String value,
+    required String subtitle,
+  }) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Icon(
           icon,
-          color: RiderColors.blue,
+          color:
+              RiderColors.blue,
           size: 21,
         ),
-        const SizedBox(width: 11),
+
+        const SizedBox(
+          width: 10,
+        ),
+
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  color: RiderColors.muted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
+                style:
+                    TextStyle(
+                  color:
+                      RiderColors.muted,
+                  fontSize: 8,
+                  fontWeight:
+                      FontWeight.w900,
+                  letterSpacing: .7,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(
+                height: 4,
+              ),
               Text(
                 value,
-                style: TextStyle(
-                  color: RiderColors.text,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                style:
+                    TextStyle(
+                  color:
+                      RiderColors.text,
+                  fontSize: 11,
+                  fontWeight:
+                      FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(
+                height: 3,
+              ),
               Text(
                 subtitle,
-                style: TextStyle(
-                  color: RiderColors.muted,
-                  fontSize: 11,
+                style:
+                    TextStyle(
+                  color:
+                      RiderColors.muted,
+                  fontSize: 9,
                   height: 1.4,
                 ),
               ),
@@ -902,54 +1871,193 @@ class _RiderLastMileState extends State<RiderLastMile> {
     );
   }
 
+  Widget _detailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          color:
+              RiderColors.blue,
+          size: 20,
+        ),
+
+        const SizedBox(
+          width: 10,
+        ),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style:
+                    TextStyle(
+                  color:
+                      RiderColors.muted,
+                  fontSize: 8,
+                  fontWeight:
+                      FontWeight.w800,
+                  letterSpacing: .7,
+                ),
+              ),
+              const SizedBox(
+                height: 4,
+              ),
+              Text(
+                value,
+                style:
+                    TextStyle(
+                  color:
+                      RiderColors.text,
+                  fontSize: 11,
+                  fontWeight:
+                      FontWeight.w600,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _miniMetric({
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 10,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surfaceSoft,
+        borderRadius:
+            BorderRadius.circular(
+          10,
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style:
+                TextStyle(
+              color:
+                  RiderColors.text,
+              fontSize: 14,
+              fontWeight:
+                  FontWeight.w900,
+            ),
+          ),
+          const SizedBox(
+            height: 2,
+          ),
+          Text(
+            label,
+            textAlign:
+                TextAlign.center,
+            style:
+                TextStyle(
+              color:
+                  RiderColors.muted,
+              fontSize: 7.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _badge(
     String label,
     Color foreground,
     Color background,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 5,
       ),
-      decoration: BoxDecoration(
+      decoration:
+          BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius:
+            BorderRadius.circular(
+          20,
+        ),
       ),
       child: Text(
         label,
-        style: TextStyle(
+        maxLines: 1,
+        overflow:
+            TextOverflow.ellipsis,
+        style:
+            TextStyle(
           color: foreground,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
+          fontSize: 7.5,
+          fontWeight:
+              FontWeight.w800,
         ),
       ),
     );
   }
 
-  Widget _info(String message) {
+  Widget _infoBox(
+    String message,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: RiderColors.blueSoft,
-        borderRadius: BorderRadius.circular(12),
+      width:
+          double.infinity,
+      padding:
+          const EdgeInsets.all(
+        11,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.blueSoft,
+        borderRadius:
+            BorderRadius.circular(
+          11,
+        ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Icon(
-            Icons.info_outline,
-            color: RiderColors.blue,
-            size: 18,
+            Icons
+                .info_outline_rounded,
+            color:
+                RiderColors.blue,
+            size: 17,
           ),
-          const SizedBox(width: 9),
+          const SizedBox(
+            width: 7,
+          ),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(
-                color: RiderColors.text,
-                fontSize: 11,
-                height: 1.5,
+              style:
+                  TextStyle(
+                color:
+                    RiderColors.text,
+                fontSize: 9,
+                height: 1.4,
               ),
             ),
           ),
@@ -958,55 +2066,66 @@ class _RiderLastMileState extends State<RiderLastMile> {
     );
   }
 
-  Widget _smallNote(String message) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 7),
-      child: Text(
-        message,
-        style: TextStyle(
-          color: RiderColors.muted,
-          fontSize: 10,
-          height: 1.4,
-        ),
-      ),
-    );
-  }
-
   Widget _emptyState() {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 22,
         vertical: 40,
       ),
-      decoration: BoxDecoration(
-        color: RiderColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: RiderColors.border),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+        borderRadius:
+            BorderRadius.circular(
+          20,
+        ),
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
+        ),
       ),
       child: Column(
         children: [
           Icon(
-            Icons.inventory_2_outlined,
+            Icons
+                .inventory_2_outlined,
             size: 44,
-            color: RiderColors.muted,
+            color:
+                RiderColors.muted,
           ),
-          const SizedBox(height: 12),
+
+          const SizedBox(
+            height: 12,
+          ),
+
           Text(
             'No Last-Mile Batches',
-            style: TextStyle(
-              color: RiderColors.text,
+            style:
+                TextStyle(
+              color:
+                  RiderColors.text,
               fontSize: 15,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 7),
+
+          const SizedBox(
+            height: 7,
+          ),
+
           Text(
-            'Hub-assigned barangay delivery batches '
-            'will appear here when loaded.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: RiderColors.muted,
-              fontSize: 12,
+            'Hub-assigned delivery batches will appear here when they are loaded for this Rider.',
+            textAlign:
+                TextAlign.center,
+            style:
+                TextStyle(
+              color:
+                  RiderColors.muted,
+              fontSize: 11,
               height: 1.5,
             ),
           ),
@@ -1016,12 +2135,50 @@ class _RiderLastMileState extends State<RiderLastMile> {
   }
 
   Widget _integrationNotice() {
-    return _info(
-      'This is the mobile Last-Mile UI. Batches must '
-      'come from the authenticated Laravel Rider API. '
-      'Route start, buyer arrival, QR verification, '
-      'proof upload, and final delivery confirmation '
-      'are not yet connected to Laravel.',
+    return Container(
+      padding:
+          const EdgeInsets.all(
+        12,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.goldSoft,
+        borderRadius:
+            BorderRadius.circular(
+          12,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons
+                .info_outline_rounded,
+            color:
+                RiderColors.goldDark,
+            size: 18,
+          ),
+
+          const SizedBox(
+            width: 8,
+          ),
+
+          Expanded(
+            child: Text(
+              'This screen currently uses last-mile batch data supplied by the Rider shell. QR scanning is local until an authenticated Laravel mobile last-mile endpoint is exposed.',
+              style:
+                  TextStyle(
+                color:
+                    RiderColors.text,
+                fontSize: 9.5,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

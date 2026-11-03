@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../services/sari_live_data.dart';
 import 'models/buyer_order_model.dart';
-import 'buyer_order_details.dart';
 
-class BuyerShipping extends StatelessWidget {
+class BuyerShipping extends StatefulWidget {
   final List<BuyerOrder>? shipments;
 
   const BuyerShipping({
@@ -12,411 +12,643 @@ class BuyerShipping extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final data = shipments ?? _demoShipments;
+  State<BuyerShipping> createState() =>
+      _BuyerShippingState();
+}
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F5F1),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFDF9),
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          'Shipping',
-          style: TextStyle(
-            color: Color(0xFF302A24),
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'DELIVERY CENTER',
-              style: TextStyle(
-                color: Color(0xFFB47B1E),
-                fontSize: 7.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Shipping',
-              style: TextStyle(
-                color: Color(0xFF201B17),
-                fontSize: 27,
-                height: 1.05,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 5),
-            const Text(
-              'Track parcels using the same order status used by Seller, Logistics, and Courier.',
-              style: TextStyle(
-                color: Color(0xFF8D8377),
-                fontSize: 8.4,
-                height: 1.45,
-              ),
-            ),
-            const SizedBox(height: 14),
-            if (data.isEmpty)
-              _emptyState(context)
-            else
-              ...data.map((order) => _shipmentCard(context, order)),
-          ],
-        ),
-      ),
-    );
+class _BuyerShippingState
+    extends State<BuyerShipping> {
+  static const Color gold =
+      Color(0xFFD9950B);
+  static const Color dark =
+      Color(0xFF24201C);
+  static const Color muted =
+      Color(0xFF7F776E);
+  static const Color bg =
+      Color(0xFFF4F5F7);
+  static const Color border =
+      Color(0xFFE6E8EC);
+
+  final List<Map<String, dynamic>>
+      _shipments = [];
+
+  bool _loading = true;
+
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _load();
   }
 
-  Widget _shipmentCard(BuildContext context, BuyerOrder order) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEBE3D8)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A342A1C),
-            blurRadius: 26,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 7,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          order.orderNumber,
-                          style: const TextStyle(
-                            color: Color(0xFF2E2923),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
+  Map<String, dynamic> _map(
+    dynamic value,
+  ) {
+    if (value is Map) {
+      return Map<String, dynamic>.from(
+        value,
+      );
+    }
+
+    return {};
+  }
+
+  String _text(
+    dynamic value, [
+    String fallback = '',
+  ]) {
+    final text =
+        value?.toString().trim() ?? '';
+
+    return text.isEmpty
+        ? fallback
+        : text;
+  }
+
+  int _integer(
+    dynamic value,
+  ) {
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse('$value') ?? 0;
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final response =
+          await SariLiveData.instance
+              .buyerShipping();
+
+      final raw =
+          response['data'];
+
+      final shipments = raw is List
+          ? raw.map(_map).toList()
+          : <Map<String, dynamic>>[];
+
+      if (!mounted) return;
+
+      setState(() {
+        _shipments
+          ..clear()
+          ..addAll(shipments);
+
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+        _error =
+            error.toString();
+      });
+    }
+  }
+
+  Future<void> _openTracking(
+    Map<String, dynamic> shipment,
+  ) async {
+    final id =
+        _integer(
+      shipment['id'],
+    );
+
+    if (id <= 0) {
+      return;
+    }
+
+    try {
+      final response =
+          await SariLiveData.instance
+              .buyerTracking(id);
+
+      final data =
+          _map(
+        response['data'],
+      );
+
+      final rawEvents =
+          data['events'];
+
+      final events =
+          rawEvents is List
+              ? rawEvents
+                  .map(_map)
+                  .toList()
+              : <Map<String, dynamic>>[];
+
+      if (!mounted) return;
+
+      await showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        isScrollControlled: true,
+        builder: (context) {
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: .75,
+            maxChildSize: .95,
+            builder:
+                (context, controller) {
+              return ListView(
+                controller:
+                    controller,
+                padding:
+                    const EdgeInsets.fromLTRB(
+                  18,
+                  4,
+                  18,
+                  30,
+                ),
+                children: [
+                  Text(
+                    _text(
+                      data['order_number'],
+                      'Order Tracking',
+                    ),
+                    style:
+                        const TextStyle(
+                      color: dark,
+                      fontSize: 19,
+                      fontWeight:
+                          FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 5,
+                  ),
+                  Text(
+                    _text(
+                      data['status_label'],
+                    ),
+                    style:
+                        const TextStyle(
+                      color: gold,
+                      fontWeight:
+                          FontWeight.w700,
+                    ),
+                  ),
+                  if (_text(
+                    data[
+                        'courier_name'],
+                  ).isNotEmpty) ...[
+                    const SizedBox(
+                      height: 7,
+                    ),
+                    Text(
+                      'Courier: '
+                      '${_text(data['courier_name'])}',
+                    ),
+                  ],
+                  const SizedBox(
+                    height: 18,
+                  ),
+                  const Text(
+                    'Tracking Events',
+                    style: TextStyle(
+                      color: dark,
+                      fontSize: 15,
+                      fontWeight:
+                          FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 10,
+                  ),
+                  if (events.isEmpty)
+                    const Text(
+                      'No tracking events yet.',
+                      style: TextStyle(
+                        color: muted,
+                      ),
+                    )
+                  else
+                    ...events.map(
+                      (event) =>
+                          ListTile(
+                        contentPadding:
+                            EdgeInsets.zero,
+                        leading:
+                            const CircleAvatar(
+                          radius: 16,
+                          backgroundColor:
+                              Color(
+                            0xFFFFE9BE,
+                          ),
+                          child: Icon(
+                            Icons
+                                .check_rounded,
+                            color: gold,
+                            size: 17,
                           ),
                         ),
-                        _statusPill(order.statusLabel),
-                      ],
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      '${order.sellerName} · ${order.productNames.length} item${order.productNames.length == 1 ? '' : 's'} · ${_peso(order.totalAmount ?? 0)}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF81776C),
-                        fontSize: 7.6,
-                        height: 1.4,
-                        fontFamily: 'Roboto',
+                        title: Text(
+                          _text(
+                            event['title'],
+                            _text(
+                              event[
+                                  'status'],
+                              'Order Update',
+                            ),
+                          ),
+                          style:
+                              const TextStyle(
+                            fontSize: 12,
+                            fontWeight:
+                                FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: Text(
+                          [
+                            _text(
+                              event[
+                                  'message'],
+                            ),
+                            _text(
+                              event[
+                                  'created_at'],
+                            ),
+                          ]
+                              .where(
+                                (value) =>
+                                    value
+                                        .isNotEmpty,
+                              )
+                              .join('\n'),
+                          style:
+                              const TextStyle(
+                            fontSize: 10,
+                          ),
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.local_shipping_outlined,
-                color: Color(0xFFB67813),
-                size: 23,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Shipment progress',
-                  style: TextStyle(
-                    color: Color(0xFF91877C),
-                    fontSize: 7.2,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Text(
-                '${order.progress}%',
-                style: const TextStyle(
-                  color: Color(0xFF91877C),
-                  fontSize: 7.2,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: order.progress / 100,
-              minHeight: 7,
-              backgroundColor: const Color(0xFFEEE8DF),
-              valueColor: const AlwaysStoppedAnimation(Color(0xFFD99A18)),
-            ),
-          ),
-          const SizedBox(height: 13),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final horizontal = constraints.maxWidth >= 480;
-              final courier = _infoBox(
-                label: 'Courier',
-                value: order.courierName.trim().isEmpty
-                    ? 'Waiting for assignment'
-                    : order.courierName,
-              );
-              final address = _infoBox(
-                label: 'Delivery address',
-                value: order.deliveryAddress.trim().isEmpty
-                    ? 'Delivery address unavailable'
-                    : order.deliveryAddress,
-              );
-
-              if (!horizontal) {
-                return Column(
-                  children: [
-                    courier,
-                    const SizedBox(height: 8),
-                    address,
-                  ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: courier),
-                  const SizedBox(width: 8),
-                  Expanded(flex: 2, child: address),
                 ],
               );
             },
+          );
+        },
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content:
+                Text('$error'),
+            behavior:
+                SnackBarBehavior.floating,
           ),
-          const SizedBox(height: 13),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 40,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.push<void>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BuyerOrderDetails(order: order),
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD9930A),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                    ),
-                    child: const Text(
-                      'Track order',
-                      style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SizedBox(
-                  height: 40,
-                  child: OutlinedButton(
-                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${order.sellerName} shop will open from the product/shop flow.')),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF665C50),
-                      side: const BorderSide(color: Color(0xFFDFD4C5)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                    ),
-                    child: const Text(
-                      'View seller',
-                      style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+        );
+    }
   }
 
-  Widget _infoBox({required String label, required String value}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAF8F4),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              color: Color(0xFFA1988C),
-              fontSize: 6.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: .5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF5F574F),
-              fontSize: 8,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
+  Color _statusColor(
+    String status,
+  ) {
+    if (status == 'delivered') {
+      return const Color(
+        0xFF4F8065,
+      );
+    }
+
+    if (status == 'cancelled') {
+      return const Color(
+        0xFFB25555,
+      );
+    }
+
+    return gold;
   }
 
-  Widget _statusPill(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF2D6),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: const TextStyle(
-          color: Color(0xFFA66F0F),
-          fontSize: 6.5,
-          fontWeight: FontWeight.w800,
-          letterSpacing: .4,
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: AppBar(
+        title: const Text(
+          'Shipping',
         ),
+        backgroundColor:
+            Colors.white,
+        foregroundColor: dark,
+        surfaceTintColor:
+            Colors.white,
+      ),
+      body: RefreshIndicator(
+        color: gold,
+        onRefresh: _load,
+        child: _loading
+            ? ListView(
+                children: const [
+                  SizedBox(
+                    height: 170,
+                  ),
+                  Center(
+                    child:
+                        CircularProgressIndicator(
+                      color: gold,
+                    ),
+                  ),
+                ],
+              )
+            : _error != null
+                ? ListView(
+                    padding:
+                        const EdgeInsets.all(
+                      24,
+                    ),
+                    children: [
+                      const SizedBox(
+                        height: 70,
+                      ),
+                      const Icon(
+                        Icons
+                            .wifi_off_rounded,
+                        size: 48,
+                        color: muted,
+                      ),
+                      const SizedBox(
+                        height: 12,
+                      ),
+                      Text(
+                        _error!,
+                        textAlign:
+                            TextAlign.center,
+                        style:
+                            const TextStyle(
+                          color: muted,
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 14,
+                      ),
+                      FilledButton(
+                        onPressed:
+                            _load,
+                        child:
+                            const Text(
+                          'Try Again',
+                        ),
+                      ),
+                    ],
+                  )
+                : _shipments.isEmpty
+                    ? ListView(
+                        padding:
+                            const EdgeInsets.all(
+                          40,
+                        ),
+                        children:
+                            const [
+                          SizedBox(
+                            height:
+                                60,
+                          ),
+                          Icon(
+                            Icons
+                                .local_shipping_outlined,
+                            size:
+                                60,
+                            color:
+                                muted,
+                          ),
+                          SizedBox(
+                            height:
+                                12,
+                          ),
+                          Text(
+                            'No active shipments',
+                            textAlign:
+                                TextAlign.center,
+                            style:
+                                TextStyle(
+                              color:
+                                  dark,
+                              fontWeight:
+                                  FontWeight
+                                      .w800,
+                            ),
+                          ),
+                        ],
+                      )
+                    : ListView.separated(
+                        padding:
+                            const EdgeInsets.all(
+                          14,
+                        ),
+                        itemCount:
+                            _shipments.length,
+                        separatorBuilder:
+                            (context, index) =>
+                                const SizedBox(
+                          height: 10,
+                        ),
+                        itemBuilder:
+                            (
+                          context,
+                          index,
+                        ) {
+                          final shipment =
+                              _shipments[
+                                  index];
+
+                          final status =
+                              _text(
+                            shipment[
+                                'status'],
+                          );
+
+                          final color =
+                              _statusColor(
+                            status,
+                          );
+
+                          return Container(
+                            padding:
+                                const EdgeInsets.all(
+                              15,
+                            ),
+                            decoration:
+                                BoxDecoration(
+                              color:
+                                  Colors.white,
+                              borderRadius:
+                                  BorderRadius.circular(
+                                14,
+                              ),
+                              border:
+                                  Border.all(
+                                color:
+                                    border,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment
+                                      .start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child:
+                                          Text(
+                                        _text(
+                                          shipment[
+                                              'store_name'],
+                                          'SARI Seller',
+                                        ),
+                                        style:
+                                            const TextStyle(
+                                          color:
+                                              dark,
+                                          fontWeight:
+                                              FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                        horizontal:
+                                            8,
+                                        vertical:
+                                            5,
+                                      ),
+                                      decoration:
+                                          BoxDecoration(
+                                        color: color
+                                            .withValues(
+                                          alpha:
+                                              .10,
+                                        ),
+                                        borderRadius:
+                                            BorderRadius.circular(
+                                          20,
+                                        ),
+                                      ),
+                                      child:
+                                          Text(
+                                        _text(
+                                          shipment[
+                                              'status_label'],
+                                          status,
+                                        ),
+                                        style:
+                                            TextStyle(
+                                          color:
+                                              color,
+                                          fontSize:
+                                              9,
+                                          fontWeight:
+                                              FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(
+                                  height:
+                                      10,
+                                ),
+                                Text(
+                                  _text(
+                                    shipment[
+                                        'order_number'],
+                                  ),
+                                  style:
+                                      const TextStyle(
+                                    color:
+                                        dark,
+                                    fontSize:
+                                        16,
+                                    fontWeight:
+                                        FontWeight.w900,
+                                  ),
+                                ),
+                                if (_text(
+                                  shipment[
+                                      'parcel_status'],
+                                ).isNotEmpty) ...[
+                                  const SizedBox(
+                                    height:
+                                        5,
+                                  ),
+                                  Text(
+                                    'Parcel: '
+                                    '${_text(shipment['parcel_status'])}',
+                                    style:
+                                        const TextStyle(
+                                      color:
+                                          muted,
+                                      fontSize:
+                                          10,
+                                    ),
+                                  ),
+                                ],
+                                if (_text(
+                                  shipment[
+                                      'courier_name'],
+                                ).isNotEmpty) ...[
+                                  const SizedBox(
+                                    height:
+                                        5,
+                                  ),
+                                  Text(
+                                    'Courier: '
+                                    '${_text(shipment['courier_name'])}',
+                                    style:
+                                        const TextStyle(
+                                      color:
+                                          muted,
+                                      fontSize:
+                                          10,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(
+                                  height:
+                                      12,
+                                ),
+                                SizedBox(
+                                  width:
+                                      double.infinity,
+                                  child:
+                                      OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _openTracking(
+                                      shipment,
+                                    ),
+                                    icon:
+                                        const Icon(
+                                      Icons
+                                          .route_outlined,
+                                    ),
+                                    label:
+                                        const Text(
+                                      'Track Order',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
       ),
     );
   }
-
-  Widget _emptyState(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 48),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFDDD2C4)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF4DC),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.local_shipping_outlined,
-              color: Color(0xFFB67813),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'No shipments yet',
-            style: TextStyle(
-              color: Color(0xFF38312A),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Orders appear here once they reach the shipping workflow.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF8C8378), fontSize: 8),
-          ),
-          const SizedBox(height: 13),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD9930A),
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            child: const Text('Shop products', style: TextStyle(fontSize: 8)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _peso(double value) => '₱${value.toStringAsFixed(2)}';
-
-  static const List<BuyerOrder> _demoShipments = [
-    BuyerOrder(
-      id: 1,
-      orderNumber: 'SARI-2026-0001',
-      status: 'in_transit',
-      paymentMethod: 'COD',
-      totalAmount: 1308,
-      subtotal: 1228,
-      deliveryFee: 80,
-      createdAt: 'Oct 15, 2026 • 10:30 AM',
-      expectedDelivery: 'Oct 16, 2026',
-      latestUpdateTime: 'Today • 11:20 AM',
-      latestUpdateMessage: 'Your parcel is on the way.',
-      courierName: 'Juan Dela Cruz',
-      courierEmail: 'juan@sari.test',
-      courierRating: 4.9,
-      courierDeliveries: 120,
-      deliveryAddress: '123 Rizal St., Brgy. San Isidro, Lucena City, Quezon',
-      sellerName: 'SARI Tech Corner',
-      sellerAccountId: 101,
-      productNames: ['Everyday Wireless Earbuds', 'Compact Wireless Mouse'],
-    ),
-    BuyerOrder(
-      id: 2,
-      orderNumber: 'SARI-2026-0002',
-      status: 'ready_for_pickup',
-      paymentMethod: 'COD',
-      totalAmount: 699,
-      subtotal: 619,
-      deliveryFee: 80,
-      createdAt: 'Oct 15, 2026 • 09:15 AM',
-      expectedDelivery: 'Oct 17, 2026',
-      latestUpdateTime: 'Today • 10:05 AM',
-      latestUpdateMessage: 'The seller packed your order.',
-      courierName: 'Waiting for assignment',
-      courierRating: 0,
-      courierDeliveries: 0,
-      deliveryAddress: '123 Rizal St., Brgy. San Isidro, Lucena City, Quezon',
-      sellerName: 'Glow & Go',
-      sellerAccountId: 202,
-      productNames: ['Daily Skin Essentials Set'],
-    ),
-  ];
 }

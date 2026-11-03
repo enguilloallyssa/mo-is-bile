@@ -1,18 +1,28 @@
+import '../../services/sari_live_data.dart';
+
 class RiderApiService {
-  const RiderApiService();
+  const RiderApiService._();
 
-  // Placeholder for the later Laravel API integration.
-  // The current Rider module uses local demo state only.
-  Future<void> refreshAssignments() async {}
+  static SariLiveData get _live =>
+      SariLiveData.instance;
 
-  Future<void> updateDeliveryStatus({
-    required int orderId,
-    required String status,
-  }) async {}
+  static Future<Map<String, dynamic>>
+      dashboard() =>
+          _live.riderDashboard();
 
-  Future<void> sendLogisticsMessage(String body) async {}
+  static Future<Map<String, dynamic>>
+      assignments() =>
+          _live.riderAssignments();
 
-  Future<void> updateAvailability(String status) async {}
+  static Future<Map<String, dynamic>>
+      pickups() =>
+          _live.riderPickups();
 
-  Future<void> requestPayout(double amount) async {}
+  static Future<Map<String, dynamic>>
+      deliveries() =>
+          _live.riderDeliveries();
+
+  static Future<Map<String, dynamic>>
+      assignment(int orderId) =>
+          _live.riderAssignment(orderId);
 }

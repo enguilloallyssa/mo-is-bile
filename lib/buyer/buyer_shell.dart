@@ -1,6 +1,4 @@
-
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/sari_live_data.dart';
@@ -8,7 +6,6 @@ import '../services/sari_live_data.dart';
 import 'buyer_account.dart';
 import 'buyer_cart.dart';
 import 'buyer_home.dart';
-import 'buyer_messages.dart';
 import 'buyer_notifications.dart';
 import 'buyer_orders.dart';
 import 'buyer_products.dart';
@@ -16,88 +13,103 @@ import 'buyer_theme.dart';
 import 'widgets/buyer_bottom_nav.dart';
 
 class BuyerShell extends StatefulWidget {
-  const BuyerShell({super.key});
+  const BuyerShell({
+    super.key,
+  });
 
   @override
-  State<BuyerShell> createState() => _BuyerShellState();
+  State<BuyerShell> createState() =>
+      _BuyerShellState();
 }
 
-class _BuyerShellState extends State<BuyerShell> {
-  // Internal Buyer pages:
-  // 0 - Home
-  // 1 - Shop / Products
-  // 2 - Cart
-  // 3 - Orders
-  // 4 - Account
-  // 5 - Notifications
-  // 6 - Messages
+class _BuyerShellState
+    extends State<BuyerShell> {
+  // ------------------------------------------
+  // BUYER MOBILE PAGE MAP
+  // ------------------------------------------
+  //
+  // 0 = Home
+  // 1 = Shop Products
+  // 2 = Shopping Cart
+  // 3 = My Orders
+  // 4 = Account
+  // 5 = Notifications
+  //
+  // Other Laravel Buyer pages will be added
+  // after their mobile content/flow is aligned.
+  // ------------------------------------------
 
   int _currentPage = 0;
   int _currentNavIndex = 0;
 
-  bool _loggingOut = false;
   bool _checkingAccess = false;
 
-  static const Color _gold = Color(0xFFD9950B);
+  static const Color _gold =
+      Color(0xFFD9950B);
 
-  static const FlutterSecureStorage _storage =
-      FlutterSecureStorage();
-
-  // ==========================================
-  // NAVIGATION
-  // ==========================================
-
-  int _bottomIndexForPage(int page) {
+  int _navIndexForPage(
+    int page,
+  ) {
     switch (page) {
       case 0:
         return 0;
+
       case 1:
         return 1;
+
       case 3:
         return 2;
+
       case 5:
         return 3;
+
       case 4:
         return 4;
+
       default:
         return _currentNavIndex;
     }
   }
 
-  Future<void> _handlePageAction(int index) async {
-    if (index < 0 || index > 6) return;
+  bool _requiresLogin(
+    int page,
+  ) {
+    return page == 2 ||
+        page == 3 ||
+        page == 4 ||
+        page == 5;
+  }
 
-    if (index == 3 || index == 4) {
-      await _openProtectedPage(index);
+  Future<void> _openPage(
+    int page,
+  ) async {
+    if (page < 0 || page > 5) {
+      return;
+    }
+
+    if (_requiresLogin(page)) {
+      await _openProtectedPage(
+        page,
+      );
+
       return;
     }
 
     if (!mounted) return;
 
     setState(() {
-      _currentPage = index;
-      _currentNavIndex = _bottomIndexForPage(index);
+      _currentPage = page;
+      _currentNavIndex =
+          _navIndexForPage(page);
     });
   }
 
-  Future<void> _onBottomNavTap(int navIndex) async {
-    const pages = <int>[0, 1, 3, 5, 4];
-
-    if (navIndex < 0 || navIndex >= pages.length) {
+  Future<void> _openProtectedPage(
+    int page,
+  ) async {
+    if (_checkingAccess) {
       return;
     }
-
-    final page = pages[navIndex];
-
-    await _handlePageAction(page);
-  }
-
-  // ==========================================
-  // AUTHENTICATION CHECK
-  // ==========================================
-
-  Future<void> _openProtectedPage(int page) async {
-    if (_checkingAccess || _loggingOut) return;
 
     setState(() {
       _checkingAccess = true;
@@ -105,7 +117,8 @@ class _BuyerShellState extends State<BuyerShell> {
 
     try {
       final hasToken =
-          await SariLiveData.instance.hasAccessToken();
+          await SariLiveData.instance
+              .hasAccessToken();
 
       if (!mounted) return;
 
@@ -116,13 +129,14 @@ class _BuyerShellState extends State<BuyerShell> {
 
       setState(() {
         _currentPage = page;
-        _currentNavIndex = _bottomIndexForPage(page);
+        _currentNavIndex =
+            _navIndexForPage(page);
       });
     } catch (error) {
       if (!mounted) return;
 
       _showMessage(
-        'Unable to verify login: $error',
+        'Unable to verify your session: $error',
       );
     } finally {
       if (mounted) {
@@ -133,6 +147,27 @@ class _BuyerShellState extends State<BuyerShell> {
     }
   }
 
+  Future<void> _onBottomNavTap(
+    int index,
+  ) async {
+    const pages = <int>[
+      0,
+      1,
+      3,
+      5,
+      4,
+    ];
+
+    if (index < 0 ||
+        index >= pages.length) {
+      return;
+    }
+
+    await _openPage(
+      pages[index],
+    );
+  }
+
   void _showLoginRequired() {
     showDialog<void>(
       context: context,
@@ -141,33 +176,43 @@ class _BuyerShellState extends State<BuyerShell> {
           title: const Text(
             'Login Required',
             style: TextStyle(
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
           content: const Text(
-            'Please log in to your SARI Buyer '
-            'account to view your orders or '
-            'account information.',
+            'Please log in to your SARI Buyer account to access this page.',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(dialogContext).pop();
+                Navigator.of(
+                  dialogContext,
+                ).pop();
               },
-              child: const Text('Cancel'),
+              child:
+                  const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.of(dialogContext).pop();
+                Navigator.of(
+                  dialogContext,
+                ).pop();
 
                 Navigator.of(context)
-                    .pushNamed('/login');
+                    .pushNamed(
+                  '/login',
+                );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _gold,
-                foregroundColor: Colors.white,
+              style:
+                  ElevatedButton.styleFrom(
+                backgroundColor:
+                    _gold,
+                foregroundColor:
+                    Colors.white,
               ),
-              child: const Text('Login'),
+              child:
+                  const Text('Login'),
             ),
           ],
         );
@@ -175,108 +220,9 @@ class _BuyerShellState extends State<BuyerShell> {
     );
   }
 
-  // ==========================================
-  // LOGOUT
-  // ==========================================
-
-  Future<void> _confirmLogout() async {
-    if (_loggingOut) return;
-
-    final hasToken =
-        await SariLiveData.instance.hasAccessToken();
-
-    if (!mounted) return;
-
-    if (!hasToken) {
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        '/login',
-        (route) => false,
-      );
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text(
-            'Log Out',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          content: const Text(
-            'Are you sure you want to log out '
-            'of your SARI account?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF292929),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Log Out'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed == true) {
-      await _logout();
-    }
-  }
-
-  Future<void> _logout() async {
-    if (_loggingOut) return;
-
-    setState(() {
-      _loggingOut = true;
-    });
-
-    try {
-      // Revoke the mobile access token in Laravel.
-      await SariLiveData.instance.logout();
-
-      // Clear the local token and role only after
-      // Laravel confirms successful logout.
-      await SariLiveData.instance.clearLocalAccessToken();
-
-      await _storage.delete(
-        key: 'sari_account_role',
-      );
-
-      if (!mounted) return;
-
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        '/login',
-        (route) => false,
-      );
-    } catch (error) {
-      if (!mounted) return;
-
-      _showMessage(
-        'Logout failed: $error',
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _loggingOut = false;
-        });
-      }
-    }
-  }
-
-  void _showMessage(String message) {
+  void _showMessage(
+    String message,
+  ) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
@@ -284,210 +230,214 @@ class _BuyerShellState extends State<BuyerShell> {
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          behavior: SnackBarBehavior.floating,
+          behavior:
+              SnackBarBehavior.floating,
         ),
       );
   }
 
-  // ==========================================
-  // BUYER THEME
-  // ==========================================
+  ThemeData _buyerTheme(
+    BuildContext context,
+  ) {
+    final base =
+        Theme.of(context);
 
-  ThemeData _buyerTheme(BuildContext context) {
-    final baseTheme = Theme.of(context);
-
-    final poppins = GoogleFonts.poppinsTextTheme(
-      baseTheme.textTheme,
+    final textTheme =
+        GoogleFonts.poppinsTextTheme(
+      base.textTheme,
     ).apply(
       bodyColor: BuyerTheme.ink,
       displayColor: BuyerTheme.ink,
     );
 
-    return baseTheme.copyWith(
-      scaffoldBackgroundColor: BuyerTheme.canvas,
-      canvasColor: BuyerTheme.canvas,
-      colorScheme: baseTheme.colorScheme.copyWith(
+    return base.copyWith(
+      scaffoldBackgroundColor:
+          BuyerTheme.canvas,
+      canvasColor:
+          BuyerTheme.canvas,
+      textTheme: textTheme,
+      primaryTextTheme: textTheme,
+
+      colorScheme:
+          base.colorScheme.copyWith(
         primary: BuyerTheme.gold,
-        secondary: BuyerTheme.goldDark,
-        surface: BuyerTheme.surface,
-        onSurface: BuyerTheme.ink,
-        error: BuyerTheme.danger,
+        secondary:
+            BuyerTheme.goldDark,
+        surface:
+            BuyerTheme.surface,
+        onSurface:
+            BuyerTheme.ink,
+        error:
+            BuyerTheme.danger,
       ),
-      textTheme: poppins,
-      primaryTextTheme: poppins,
 
       appBarTheme: AppBarTheme(
-        backgroundColor: BuyerTheme.surface,
-        foregroundColor: BuyerTheme.inkCool,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor:
+            BuyerTheme.surface,
+        foregroundColor:
+            BuyerTheme.inkCool,
+        surfaceTintColor:
+            Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: false,
-        titleTextStyle: GoogleFonts.poppins(
+        titleTextStyle:
+            GoogleFonts.poppins(
           color: BuyerTheme.inkCool,
           fontSize: 17,
-          fontWeight: FontWeight.w700,
-        ),
-        iconTheme: const IconThemeData(
-          color: BuyerTheme.body,
-          size: 20,
+          fontWeight:
+              FontWeight.w700,
         ),
       ),
 
-      cardTheme: CardThemeData(
-        color: BuyerTheme.surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(
-            BuyerTheme.cardRadius,
-          ),
-          side: const BorderSide(
-            color: BuyerTheme.border,
-          ),
-        ),
-      ),
-
-      inputDecorationTheme: InputDecorationTheme(
+      inputDecorationTheme:
+          InputDecorationTheme(
         filled: true,
-        fillColor: BuyerTheme.surface,
-        contentPadding: const EdgeInsets.symmetric(
+        fillColor:
+            BuyerTheme.surface,
+        contentPadding:
+            const EdgeInsets.symmetric(
           horizontal: 13,
           vertical: 12,
         ),
-        hintStyle: GoogleFonts.poppins(
-          color: BuyerTheme.muted,
-          fontSize: 11,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
+        border:
+            OutlineInputBorder(
+          borderRadius:
+              BorderRadius.circular(
             BuyerTheme.controlRadius,
           ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
+        enabledBorder:
+            OutlineInputBorder(
+          borderRadius:
+              BorderRadius.circular(
             BuyerTheme.controlRadius,
           ),
-          borderSide: const BorderSide(
-            color: BuyerTheme.border,
+          borderSide:
+              const BorderSide(
+            color:
+                BuyerTheme.border,
           ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
+        focusedBorder:
+            OutlineInputBorder(
+          borderRadius:
+              BorderRadius.circular(
             BuyerTheme.controlRadius,
           ),
-          borderSide: const BorderSide(
-            color: BuyerTheme.gold,
+          borderSide:
+              const BorderSide(
+            color:
+                BuyerTheme.gold,
             width: 1.2,
           ),
         ),
       ),
 
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: BuyerTheme.gold,
-          foregroundColor: Colors.white,
+      elevatedButtonTheme:
+          ElevatedButtonThemeData(
+        style:
+            ElevatedButton.styleFrom(
+          backgroundColor:
+              BuyerTheme.gold,
+          foregroundColor:
+              Colors.white,
           elevation: 0,
-          minimumSize: const Size(0, 42),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(
               BuyerTheme.controlRadius,
             ),
           ),
-          textStyle: GoogleFonts.poppins(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+          textStyle:
+              GoogleFonts.poppins(
+            fontWeight:
+                FontWeight.w700,
           ),
         ),
       ),
 
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: BuyerTheme.goldDark,
-          side: const BorderSide(
-            color: Color(0xFFE2C98F),
+      outlinedButtonTheme:
+          OutlinedButtonThemeData(
+        style:
+            OutlinedButton.styleFrom(
+          foregroundColor:
+              BuyerTheme.goldDark,
+          side:
+              const BorderSide(
+            color:
+                BuyerTheme.border,
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(
               BuyerTheme.controlRadius,
             ),
           ),
         ),
       ),
 
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: BuyerTheme.goldDark,
-          textStyle: GoogleFonts.poppins(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
+      snackBarTheme:
+          SnackBarThemeData(
+        backgroundColor:
+            const Color(
+          0xFF292929,
         ),
-      ),
-
-      dividerTheme: const DividerThemeData(
-        color: BuyerTheme.border,
-        thickness: 1,
-        space: 1,
-      ),
-
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: const Color(0xFF292929),
-        contentTextStyle: GoogleFonts.poppins(
+        contentTextStyle:
+            GoogleFonts.poppins(
           color: Colors.white,
           fontSize: 11,
         ),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        behavior:
+            SnackBarBehavior.floating,
       ),
     );
   }
 
-  // ==========================================
-  // PAGE BUILDING
-  // ==========================================
-
-  Widget _buildPage(int index) {
-    switch (index) {
+  Widget _buildPage(
+    int page,
+  ) {
+    switch (page) {
       case 0:
         return BuyerHome(
-          onTabChanged: _handlePageAction,
+          onTabChanged:
+              _openPage,
         );
 
       case 1:
         return BuyerProducts(
-          onTabChanged: _handlePageAction,
+          onTabChanged:
+              _openPage,
         );
 
       case 2:
         return BuyerCart(
-          onTabChanged: _handlePageAction,
+          onTabChanged:
+              _openPage,
         );
 
       case 3:
         return BuyerOrders(
-          onTabChanged: _handlePageAction,
+          onTabChanged:
+              _openPage,
         );
 
       case 4:
         return BuyerAccount(
-          onTabChanged: _handlePageAction,
+          onTabChanged:
+              _openPage,
         );
 
       case 5:
-        return const BuyerNotifications();
-
-      case 6:
-        return BuyerMessages(
-          onTabChanged: _handlePageAction,
-        );
+  return BuyerNotifications(
+    onTabChanged: _openPage,
+  );
 
       default:
         return BuyerHome(
-          onTabChanged: _handlePageAction,
+          onTabChanged:
+              _openPage,
         );
     }
   }
@@ -495,51 +445,27 @@ class _BuyerShellState extends State<BuyerShell> {
   @override
   Widget build(BuildContext context) {
     return Theme(
-      data: _buyerTheme(context),
+      data:
+          _buyerTheme(context),
       child: Scaffold(
-        backgroundColor: BuyerTheme.canvas,
-
-        appBar: _currentPage == 4
-            ? AppBar(
-                title: const Text('Account'),
-                actions: [
-                  if (_loggingOut)
-                    const Padding(
-                      padding: EdgeInsets.all(14),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _gold,
-                        ),
-                      ),
-                    )
-                  else
-                    IconButton(
-                      tooltip: 'Log Out',
-                      onPressed: _confirmLogout,
-                      icon: const Icon(
-                        Icons.logout_rounded,
-                      ),
-                    ),
-                ],
-              )
-            : null,
-
+        backgroundColor:
+            BuyerTheme.canvas,
         body: _checkingAccess
             ? const Center(
-                child: CircularProgressIndicator(
+                child:
+                    CircularProgressIndicator(
                   color: _gold,
                 ),
               )
-            : _buildPage(_currentPage),
-
-        bottomNavigationBar: BuyerBottomNav(
-          currentIndex: _currentNavIndex,
-          onTap: (index) {
-            _onBottomNavTap(index);
-          },
+            : _buildPage(
+                _currentPage,
+              ),
+        bottomNavigationBar:
+            BuyerBottomNav(
+          currentIndex:
+              _currentNavIndex,
+          onTap:
+              _onBottomNavTap,
         ),
       ),
     );

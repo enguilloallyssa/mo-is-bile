@@ -1,6 +1,6 @@
-
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -8,11 +8,7 @@ typedef SariJson = Map<String, dynamic>;
 typedef SariTokenProvider = Future<String?> Function();
 
 class SariApiException implements Exception {
-  const SariApiException(
-    this.message, {
-    this.statusCode,
-    this.errors,
-  });
+  const SariApiException(this.message, {this.statusCode, this.errors});
 
   final String message;
   final int? statusCode;
@@ -23,12 +19,9 @@ class SariApiException implements Exception {
   bool get isValidationError => statusCode == 422;
 
   @override
-  String toString() {
-    if (statusCode == null) {
-      return 'SariApiException: $message';
-    }
-    return 'SariApiException ($statusCode): $message';
-  }
+  String toString() => statusCode == null
+      ? message
+      : 'SariApiException ($statusCode): $message';
 }
 
 class SariApi {
@@ -39,82 +32,27 @@ class SariApi {
     this.timeout = const Duration(seconds: 30),
   })  : baseUrl = baseUrl.replaceFirst(RegExp(r'/+$'), ''),
         _client = client ?? http.Client(),
-        _ownsClient = client == null {
-    final parsed = Uri.tryParse(this.baseUrl);
-
-    if (parsed == null ||
-        parsed.scheme != 'https' ||
-        parsed.host.isEmpty) {
-      throw ArgumentError.value(
-        baseUrl,
-        'baseUrl',
-        'Use a full HTTPS Laravel API base URL.',
-      );
-    }
-  }
+        _ownsClient = client == null;
 
   final String baseUrl;
   final SariTokenProvider? tokenProvider;
   final Duration timeout;
-
   final http.Client _client;
   final bool _ownsClient;
 
   void dispose() {
-    if (_ownsClient) {
-      _client.close();
-    }
+    if (_ownsClient) _client.close();
   }
 
-  Future<SariJson> request(
-    String method,
-    String path, {
-    Map<String, String>? query,
-    SariJson? jsonBody,
-    bool authenticated = true,
+  Future<Map<String, String>> _headers({
+    required bool authenticated,
   }) async {
-    final action = method.toUpperCase();
-
-    if (!{
-      'GET',
-      'POST',
-      'PUT',
-      'PATCH',
-      'DELETE',
-    }.contains(action)) {
-      throw ArgumentError.value(
-        method,
-        'method',
-        'Unsupported HTTP method',
-      );
-    }
-
-    final cleanPath = path.replaceFirst(RegExp(r'^/+'), '');
-
-    if (cleanPath.isEmpty ||
-        cleanPath.startsWith('http:') ||
-        cleanPath.startsWith('https:') ||
-        cleanPath.contains('..') ||
-        cleanPath.contains('?') ||
-        cleanPath.contains('#')) {
-      throw ArgumentError.value(
-        path,
-        'path',
-        'Use a relative endpoint path',
-      );
-    }
-
-    final uri = Uri.parse('$baseUrl/$cleanPath').replace(
-      queryParameters: query?.isNotEmpty == true ? query : null,
-    );
-
     final headers = <String, String>{
       'Accept': 'application/json',
     };
 
     if (authenticated) {
-      final token =
-          (await tokenProvider?.call())?.trim() ?? '';
+      final token = (await tokenProvider?.call())?.trim() ?? '';
 
       if (token.isEmpty) {
         throw const SariApiException(
@@ -126,78 +64,60 @@ class SariApi {
       headers['Authorization'] = 'Bearer $token';
     }
 
-    final req = http.Request(action, uri);
+    return headers;
+  }
 
-    req.headers.addAll(headers);
+  Uri _uri(
+    String path, [
+    Map<String, String>? query,
+  ]) {
+    final cleanPath = path.replaceFirst(RegExp(r'^/+'), '');
 
-    if (jsonBody != null) {
-      req.headers['Content-Type'] = 'application/json';
-      req.body = jsonEncode(jsonBody);
-    }
-
-    late final http.Response response;
-
-    try {
-      final stream =
-          await _client.send(req).timeout(timeout);
-
-      response = await http.Response.fromStream(stream)
-          .timeout(timeout);
-    } on TimeoutException {
-      throw const SariApiException(
-        'The request timed out. Please try again.',
-      );
-    } on http.ClientException {
-      throw const SariApiException(
-        'Unable to connect to SARI. Check your internet connection and API URL.',
+    if (cleanPath.isEmpty || cleanPath.contains('..')) {
+      throw ArgumentError.value(
+        path,
+        'path',
+        'Invalid API path',
       );
     }
 
-    final String decodedText;
+    return Uri.parse('$baseUrl/$cleanPath').replace(
+      queryParameters:
+          query?.isNotEmpty == true ? query : null,
+    );
+  }
+
+  SariJson _decode(http.Response response) {
+    dynamic decoded;
 
     try {
-      decodedText = utf8.decode(response.bodyBytes);
-    } on FormatException {
-      throw SariApiException(
-        'Server response was not valid UTF-8.',
-        statusCode: response.statusCode,
-      );
-    }
-
-    SariJson data;
-
-    try {
-      final decoded = decodedText.trim().isEmpty
+      decoded = response.body.trim().isEmpty
           ? <String, dynamic>{}
-          : jsonDecode(decodedText);
-
-      if (decoded is! Map<String, dynamic>) {
-        throw const FormatException(
-          'JSON response is not an object',
-        );
-      }
-
-      data = decoded;
-    } on FormatException {
+          : jsonDecode(
+              utf8.decode(response.bodyBytes),
+            );
+    } catch (_) {
       throw SariApiException(
-        'Laravel returned a non-JSON response '
-        '(HTTP ${response.statusCode}). '
-        'Check that the API is deployed and the route exists.',
+        'Laravel returned a non-JSON response.',
         statusCode: response.statusCode,
       );
     }
+
+    final data = decoded is Map<String, dynamic>
+        ? decoded
+        : <String, dynamic>{
+            'data': decoded,
+          };
 
     if (response.statusCode < 200 ||
         response.statusCode >= 300) {
-      final errors = data['errors'];
+      final rawErrors = data['errors'];
 
       throw SariApiException(
-        data['message'] is String
-            ? data['message'] as String
-            : 'Request failed (HTTP ${response.statusCode}).',
+        data['message']?.toString() ?? 'Request failed.',
         statusCode: response.statusCode,
-        errors: errors is Map<String, dynamic>
-            ? errors
+        errors: rawErrors is Map<String, dynamic>
+            ? rawErrors
             : null,
       );
     }
@@ -205,149 +125,202 @@ class SariApi {
     return data;
   }
 
-  // PUBLIC ENDPOINTS
+  Future<SariJson> request(
+    String method,
+    String path, {
+    Map<String, String>? query,
+    SariJson? jsonBody,
+    bool authenticated = true,
+  }) async {
+    final uri = _uri(path, query);
 
-  // GET /api/v1/health
-  Future<SariJson> health() {
-    return request(
-      'GET',
-      'health',
-      authenticated: false,
+    final headers = await _headers(
+      authenticated: authenticated,
     );
+
+    headers['Content-Type'] = 'application/json';
+
+    final body =
+        jsonBody == null ? null : jsonEncode(jsonBody);
+
+    late http.Response response;
+
+    try {
+      switch (method.toUpperCase()) {
+        case 'GET':
+          response = await _client
+              .get(
+                uri,
+                headers: headers,
+              )
+              .timeout(timeout);
+          break;
+
+        case 'POST':
+          response = await _client
+              .post(
+                uri,
+                headers: headers,
+                body: body,
+              )
+              .timeout(timeout);
+          break;
+
+        case 'PATCH':
+          response = await _client
+              .patch(
+                uri,
+                headers: headers,
+                body: body,
+              )
+              .timeout(timeout);
+          break;
+
+        case 'DELETE':
+          response = await _client
+              .delete(
+                uri,
+                headers: headers,
+                body: body,
+              )
+              .timeout(timeout);
+          break;
+
+        default:
+          throw ArgumentError.value(
+            method,
+            'method',
+            'Unsupported HTTP method',
+          );
+      }
+    } on TimeoutException {
+      throw const SariApiException(
+        'The request timed out. Please try again.',
+      );
+    } on http.ClientException {
+      throw const SariApiException(
+        'Unable to connect to SARI.',
+      );
+    }
+
+    return _decode(response);
   }
 
-  // POST /api/v1/auth/login
+  Future<SariJson> multipart(
+    String method,
+    String path, {
+    Map<String, String>? fields,
+    Map<String, File>? files,
+    bool authenticated = true,
+  }) async {
+    final request = http.MultipartRequest(
+      method.toUpperCase(),
+      _uri(path),
+    );
+
+    request.headers.addAll(
+      await _headers(
+        authenticated: authenticated,
+      ),
+    );
+
+    if (fields != null) {
+      request.fields.addAll(fields);
+    }
+
+    if (files != null) {
+      for (final entry in files.entries) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            entry.key,
+            entry.value.path,
+          ),
+        );
+      }
+    }
+
+    try {
+      final streamed = await _client
+          .send(request)
+          .timeout(timeout);
+
+      final response =
+          await http.Response.fromStream(streamed)
+              .timeout(timeout);
+
+      return _decode(response);
+    } on TimeoutException {
+      throw const SariApiException(
+        'The upload timed out. Please try again.',
+      );
+    } on http.ClientException {
+      throw const SariApiException(
+        'Unable to connect to SARI.',
+      );
+    }
+  }
+
+  Future<SariJson> health() => request(
+        'GET',
+        'health',
+        authenticated: false,
+      );
+
   Future<SariJson> login({
     required String role,
     required String email,
     required String password,
     required String deviceName,
-  }) {
-    if (!{
-      'buyer',
-      'seller',
-      'rider',
-      'logistics',
-    }.contains(role)) {
-      throw ArgumentError.value(
-        role,
-        'role',
-        'Invalid SARI login role',
+  }) =>
+      request(
+        'POST',
+        'auth/login',
+        authenticated: false,
+        jsonBody: {
+          'role': role,
+          'email': email.trim().toLowerCase(),
+          'password': password,
+          'device_name': deviceName,
+        },
       );
-    }
 
-    return request(
-      'POST',
-      'auth/login',
-      authenticated: false,
-      jsonBody: {
-        'role': role,
-        'email': email.trim().toLowerCase(),
-        'password': password,
-        'device_name': deviceName,
-      },
-    );
-  }
+  Future<SariJson> me() =>
+      request('GET', 'auth/me');
 
-  // GET /api/v1/products
+  Future<SariJson> logout() =>
+      request('POST', 'auth/logout');
+
+  Future<SariJson> logoutAll() =>
+      request('POST', 'auth/logout-all');
+
   Future<SariJson> products({
     int page = 1,
     int perPage = 15,
     String? search,
     String? category,
     String sort = 'newest',
-  }) {
-    if (page < 1 || perPage < 1 || perPage > 30) {
-      throw ArgumentError(
-        'page must be >= 1; perPage must be 1–30',
+  }) =>
+      request(
+        'GET',
+        'products',
+        authenticated: false,
+        query: {
+          'page': '$page',
+          'per_page': '$perPage',
+          'sort': sort,
+          if (search != null &&
+              search.trim().isNotEmpty)
+            'q': search.trim(),
+          if (category != null &&
+              category.trim().isNotEmpty)
+            'category': category.trim(),
+        },
       );
-    }
 
-    return request(
-      'GET',
-      'products',
-      authenticated: false,
-      query: {
-        'page': '$page',
-        'per_page': '$perPage',
-        'sort': sort,
-        if (search != null && search.trim().isNotEmpty)
-          'q': search.trim(),
-        if (category != null &&
-            category.trim().isNotEmpty)
-          'category': category.trim(),
-      },
-    );
-  }
-
-  // GET /api/v1/products/{id}
-  Future<SariJson> product(int id) {
-    if (id < 1) {
-      throw ArgumentError.value(
-        id,
-        'id',
-        'Invalid product ID',
+  Future<SariJson> product(int id) =>
+      request(
+        'GET',
+        'products/$id',
+        authenticated: false,
       );
-    }
-
-    return request(
-      'GET',
-      'products/$id',
-      authenticated: false,
-    );
-  }
-
-  // AUTHENTICATED ENDPOINTS
-
-  // GET /api/v1/auth/me
-  Future<SariJson> me() {
-    return request('GET', 'auth/me');
-  }
-
-  // POST /api/v1/auth/logout
-  Future<SariJson> logout() {
-    return request('POST', 'auth/logout');
-  }
-
-  // POST /api/v1/auth/logout-all
-  Future<SariJson> logoutAll() {
-    return request('POST', 'auth/logout-all');
-  }
-
-  // GET /api/v1/buyer/orders
-  Future<SariJson> buyerOrders({
-    int page = 1,
-    int perPage = 15,
-  }) {
-    if (page < 1 || perPage < 1 || perPage > 30) {
-      throw ArgumentError(
-        'page must be >= 1; perPage must be 1–30',
-      );
-    }
-
-    return request(
-      'GET',
-      'buyer/orders',
-      query: {
-        'page': '$page',
-        'per_page': '$perPage',
-      },
-    );
-  }
-
-  // GET /api/v1/buyer/orders/{id}
-  Future<SariJson> buyerOrder(int id) {
-    if (id < 1) {
-      throw ArgumentError.value(
-        id,
-        'id',
-        'Invalid order ID',
-      );
-    }
-
-    return request(
-      'GET',
-      'buyer/orders/$id',
-    );
-  }
 }
