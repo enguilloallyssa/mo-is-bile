@@ -912,6 +912,7 @@ class _RiderEarningsState
       appBar: AppBar(
         automaticallyImplyLeading:
             false,
+        leading: const RiderMenuButton(),
         backgroundColor:
             RiderColors.surface,
         foregroundColor:

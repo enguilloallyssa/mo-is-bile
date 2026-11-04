@@ -986,18 +986,7 @@ class _RiderMessagesState
                   ),
                 ),
 
-                if (rider) ...[
-                  const SizedBox(
-                    width: 4,
-                  ),
-                  const Icon(
-                    Icons
-                        .done_all_rounded,
-                    color:
-                        Colors.white70,
-                    size: 12,
-                  ),
-                ],
+
               ],
             ),
           ],

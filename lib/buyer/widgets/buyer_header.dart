@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../services/sari_live_data.dart';
+import '../buyer_theme.dart';
+import 'buyer_navigation_scope.dart';
 
 class BuyerHeader extends StatefulWidget {
   final String pageTitle;
@@ -246,7 +248,7 @@ class _BuyerHeaderState
     BuildContext context,
   ) {
     return Material(
-      color: Colors.white,
+      color: BuyerTheme.surface,
       elevation: 0,
       child: SafeArea(
         bottom: false,
@@ -289,9 +291,7 @@ class _BuyerHeaderState
                     decoration:
                         BoxDecoration(
                       color:
-                          const Color(
-                        0xFFF8F9FA,
-                      ),
+                          BuyerTheme.canvas,
                       borderRadius:
                           BorderRadius.circular(
                         13,
@@ -407,14 +407,18 @@ class _BuyerHeaderState
                 width: 6,
               ),
 
-              _HeaderButton(
-                icon: Icons
-                    .person_outline_rounded,
-                tooltip:
-                    'Account',
-                onTap:
-                    widget.onProfileTap,
-              ),
+              if (widget.pageTitle == 'Account')
+                _HeaderButton(
+                  icon: Icons.tune_rounded,
+                  tooltip: 'Account settings',
+                  onTap: () => BuyerNavigationScope.maybeOf(context)?.openSettings(),
+                )
+              else
+                _HeaderButton(
+                  icon: Icons.person_outline_rounded,
+                  tooltip: 'Account',
+                  onTap: widget.onProfileTap,
+                ),
             ],
           ),
         ),
@@ -455,7 +459,7 @@ class _HeaderButton
           height: 40,
           decoration:
               BoxDecoration(
-            color: Colors.white,
+            color: BuyerTheme.surface,
             borderRadius:
                 BorderRadius.circular(
               12,

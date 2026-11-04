@@ -1,5 +1,24 @@
 import 'package:flutter/material.dart';
 
+/// Shared entry point for the Rider shell's navigation drawer.
+/// Only the shell registers a callback; nested routes keep their Back button.
+class RiderMenuController {
+  static VoidCallback? open;
+}
+
+class RiderMenuButton extends StatelessWidget {
+  const RiderMenuButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'Open Rider menu',
+      icon: const Icon(Icons.menu_rounded),
+      onPressed: RiderMenuController.open,
+    );
+  }
+}
+
 class RiderThemeController {
   static bool isDark = false;
 
@@ -11,19 +30,19 @@ class RiderThemeController {
 class RiderColors {
   static bool get isDark => RiderThemeController.isDark;
 
-  static Color get bg => isDark ? const Color(0xFF17232B) : const Color(0xFFF0F3F5);
-  static Color get surface => isDark ? const Color(0xFF22313A) : const Color(0xFFF8FAFB);
+  static Color get bg => isDark ? const Color(0xFF17232B) : const Color(0xFFF4F5F7);
+  static Color get surface => isDark ? const Color(0xFF22313A) : const Color(0xFFFFFFFF);
   static Color get surfaceElevated => isDark ? const Color(0xFF2A3A44) : const Color(0xFFFFFFFF);
-  static Color get surfaceSoft => isDark ? const Color(0xFF30414B) : const Color(0xFFE8EDF0);
-  static Color get text => isDark ? const Color(0xFFF4F7F8) : const Color(0xFF1B252D);
+  static Color get surfaceSoft => isDark ? const Color(0xFF30414B) : const Color(0xFFF5F6F9);
+  static Color get text => isDark ? const Color(0xFFF4F7F8) : const Color(0xFF20242D);
   static Color get muted => isDark ? const Color(0xFFAEBBC3) : const Color(0xFF6E7B84);
-  static Color get border => isDark ? const Color(0xFF40525D) : const Color(0xFFD3DBE0);
-  static Color get nav => isDark ? const Color(0xFF1D2A32) : const Color(0xFFF8FAFB);
+  static Color get border => isDark ? const Color(0xFF40525D) : const Color(0xFFE7EAF0);
+  static Color get nav => isDark ? const Color(0xFF1D2A32) : const Color(0xFFFFFFFF);
   static Color get field => isDark ? const Color(0xFF1E2C34) : const Color(0xFFF4F6F7);
   static Color get overlay => isDark ? const Color(0x66101A20) : const Color(0x44FFFFFF);
 
-  static Color get gold => isDark ? const Color(0xFFF0B84A) : const Color(0xFFD9930A);
-  static Color get goldDark => isDark ? const Color(0xFFFFCA68) : const Color(0xFFA96800);
+  static Color get gold => isDark ? const Color(0xFFF0B84A) : const Color(0xFFC6932C);
+  static Color get goldDark => isDark ? const Color(0xFFFFCA68) : const Color(0xFF9B701E);
   static Color get goldSoft => isDark ? const Color(0xFF4A3D28) : const Color(0xFFFFEFD0);
 
   static Color get blue => isDark ? const Color(0xFF7AA8C7) : const Color(0xFF3C6E91);
@@ -40,7 +59,7 @@ class RiderColors {
 
   static List<Color> get heroGradient => isDark
       ? const [Color(0xFF1C2A33), Color(0xFF263843), Color(0xFF314752)]
-      : const [Color(0xFF476F88), Color(0xFF5E8298), Color(0xFF7492A3)];
+      : const [Color(0xFF242B38), Color(0xFF5E4B2A), Color(0xFFC6932C)];
 
   static List<Color> get earningsGradient => isDark
       ? const [Color(0xFF24343D), Color(0xFF2D3F49)]

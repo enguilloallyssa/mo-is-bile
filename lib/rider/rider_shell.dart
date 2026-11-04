@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../services/sari_live_data.dart';
 import 'models/rider_delivery_model.dart';
@@ -14,12 +16,14 @@ import 'rider_history.dart';
 import 'rider_home.dart';
 import 'rider_last_mile.dart';
 import 'rider_messages.dart';
+import 'rider_notifications.dart';
 import 'rider_pickups.dart';
 import 'rider_profile.dart';
 import 'rider_remittances.dart';
 import 'rider_requests.dart';
 import 'rider_scanner.dart';
 import 'widgets/rider_bottom_nav.dart';
+import 'widgets/rider_drawer.dart';
 import 'widgets/rider_ui.dart';
 
 class RiderShell extends StatefulWidget {
@@ -33,14 +37,25 @@ class RiderShell extends StatefulWidget {
 }
 
 class _RiderShellState extends State<RiderShell> {
-  final ImagePicker _imagePicker =
-      ImagePicker();
+  final ImagePicker _imagePicker = ImagePicker();
+  final GlobalKey<ScaffoldState> _shellKey = GlobalKey<ScaffoldState>();
+
+  void _openDrawer() => _shellKey.currentState?.openDrawer();
+
+  @override
+  void dispose() {
+    RiderMenuController.open = null;
+    super.dispose();
+  }
 
   int _currentIndex = 0;
+  final Set<int> _visitedTabs = {0};
 
   bool _darkMode = false;
   bool _loading = true;
   bool _refreshing = false;
+  bool _financeLoading = false;
+  bool _lastMileLoading = false;
 
   String? _error;
 
@@ -78,10 +93,8 @@ class _RiderShellState extends State<RiderShell> {
   void initState() {
     super.initState();
 
-    RiderThemeController.setDark(
-      _darkMode,
-    );
-
+    RiderThemeController.setDark(_darkMode);
+    RiderMenuController.open = _openDrawer;
     _loadAll();
   }
 
@@ -629,283 +642,164 @@ class _RiderShellState extends State<RiderShell> {
     return assignments.first;
   }
 
+  // Only the dashboard is on the critical path after login. Other data
+  // loads when its section needs it, without holding the initial screen.
   Future<void> _loadAll() async {
-    if (_refreshing) {
-      return;
-    }
-
-    final firstLoad =
-        _assignments.isEmpty &&
-        _lastMileBatches.isEmpty &&
-        _dashboardSummary.isEmpty;
-
-    if (mounted) {
-      setState(() {
-        _refreshing = true;
-
-        if (firstLoad) {
-          _loading = true;
-        }
-
-        _error = null;
-      });
-    }
-
+    if (_refreshing || !mounted) return;
+    setState(() { _refreshing = true; _error = null; });
+    Map<String, dynamic> response = {};
+    String? failure;
     try {
-      final results =
-          await Future.wait<
-              Map<String, dynamic>>(
-        [
-          _safeJson(
-            () =>
-                SariLiveData
-                    .instance
-                    .riderDashboard(),
-          ),
-          _safeJson(
-            () =>
-                SariLiveData
-                    .instance
-                    .riderProfile(),
-          ),
-          _safeJson(
-            () =>
-                SariLiveData
-                    .instance
-                    .riderAssignments(),
-          ),
-          _safeJson(
-            () =>
-                SariLiveData
-                    .instance
-                    .riderLastMile(),
-          ),
-          _safeJson(
-            () =>
-                SariLiveData
-                    .instance
-                    .riderEarnings(),
-          ),
-          _safeJson(
-            () =>
-                SariLiveData
-                    .instance
-                    .riderTransactions(
-                  perPage: 50,
-                ),
-          ),
-        ],
-      );
-
-      if (results.every(
-        (
-          result,
-        ) =>
-            result.isEmpty,
-      )) {
-        throw const FormatException(
-          'Unable to load the Rider workspace from SARI.',
-        );
+      response = await SariLiveData.instance.riderDashboard(
+          timeout: const Duration(seconds: 8));
+    } catch (error) {
+      failure = error.toString();
+    }
+    if (!mounted) return;
+    final dashboard = _map(response['data']);
+    setState(() {
+      if (dashboard.isNotEmpty) {
+        _dashboardSummary = _map(dashboard['summary']);
+        _currentDelivery = _resolveCurrentDelivery(_assignments, dashboard);
       }
+      _loading = false;
+      _refreshing = false;
+      _error = dashboard.isEmpty ? (failure ?? 'Rider dashboard is unavailable.') : null;
+    });
+    // Data shown here is always server-backed, never seeded demo data.
+    unawaited(_loadPrimary());
+    if (_visitedTabs.contains(3)) unawaited(_loadFinance());
+  }
 
-      final dashboardData =
-          _map(
-        results[0]['data'],
-      );
-
-      final profileData =
-          _map(
-        results[1]['data'],
-      );
-
-      final assignmentRows =
-          _list(
-        results[2]['data'],
-      );
-
-      final lastMileRows =
-          _list(
-        results[3]['data'],
-      );
-
-      final earningsData =
-          _map(
-        results[4]['data'],
-      );
-
-      final transactionRows =
-          _list(
-        results[5]['data'],
-      );
-
-      final assignments =
-          <RiderDelivery>[];
-
-      for (final raw
-          in assignmentRows) {
-        final summary =
-            _map(raw);
-
-        final id =
-            _int(
-          summary['id'],
-        );
-
-        if (id <= 0) {
-          continue;
-        }
-
-        try {
-          final details =
-              await SariLiveData
-                  .instance
-                  .riderAssignment(
-            id,
-          );
-
-          assignments.add(
-            _delivery(
-              details['data'],
-            ),
-          );
-        } catch (_) {
-          assignments.add(
-            _delivery(
-              summary,
-            ),
-          );
-        }
+  Future<void> _loadPrimary() async {
+    final results = await Future.wait<Map<String, dynamic>>([
+      _safeJson(() => SariLiveData.instance.riderProfile(
+          timeout: const Duration(seconds: 9))),
+      _safeJson(() => SariLiveData.instance.riderAssignments(
+          timeout: const Duration(seconds: 9))),
+    ]);
+    if (!mounted) return;
+    final profile = _map(results[0]['data']);
+    final rows = _list(results[1]['data']);
+    final assignments = rows.map(_delivery).where((item) => item.id > 0).toList();
+    setState(() {
+      if (profile.isNotEmpty) _profile = _profileFrom(profile);
+      if (results[1].isNotEmpty) {
+        _assignments..clear()..addAll(assignments);
       }
+      _currentDelivery = _resolveCurrentDelivery(_assignments, {});
+    });
+    // Detail requests only while the active work pages need map/route details.
+    if (_visitedTabs.contains(1) || _visitedTabs.contains(2)) {
+      unawaited(_hydrateAssignments(assignments));
+    }
+  }
 
-      final lastMileBatches =
-          await _loadLastMileBatches(
-        lastMileRows,
-      );
-
-      final daily =
-          _list(
-        earningsData['daily'],
-      ).map(
-        (
-          raw,
-        ) {
-          final data =
-              _map(raw);
-
-          return RiderDailyEarning(
-            day: _text(
-              data['day'],
-            ),
-            amount: _double(
-              data['amount'],
-            ),
-          );
-        },
-      ).toList();
-
-      final transactions =
-          transactionRows.map(
-        (
-          raw,
-        ) {
-          final data =
-              _map(raw);
-
-          return RiderEarningTransaction(
-            order: _text(
-              data['order_number'],
-              'Order',
-            ),
-            date: _text(
-              data['earned_at'],
-            ),
-            type: _text(
-              data['earning_type'],
-              'earning',
-            ),
-            amount: _double(
-              data['amount'],
-            ),
-            status: _text(
-              data['status'],
-              'recorded',
-            ),
-          );
-        },
-      ).toList();
-
-      if (!mounted) {
-        return;
+  Future<void> _hydrateAssignments(List<RiderDelivery> initial) async {
+    if (initial.isEmpty) return;
+    final details = await Future.wait<RiderDelivery>(initial.take(20).map((item) async {
+      try {
+        final response = await SariLiveData.instance.riderAssignment(item.id);
+        return _delivery(response['data']);
+      } catch (_) { return item; }
+    }));
+    if (!mounted) return;
+    setState(() {
+      for (final detail in details) {
+        final i = _assignments.indexWhere((item) => item.id == detail.id);
+        if (i >= 0) _assignments[i] = detail;
       }
+      final currentId = _currentDelivery?.id;
+      final currentIndex = _assignments.indexWhere((item) => item.id == currentId);
+      if (currentIndex >= 0) _currentDelivery = _assignments[currentIndex];
+    });
+  }
 
+  Future<void> _loadFinance() async {
+    if (_financeLoading || !mounted) return;
+    _financeLoading = true;
+    try {
+      final results = await Future.wait<Map<String, dynamic>>([
+        _safeJson(() => SariLiveData.instance.riderEarnings()),
+        _safeJson(() => SariLiveData.instance.riderTransactions(perPage: 50)),
+      ]);
+      if (!mounted) return;
+      final earnings = _map(results[0]['data']);
+      final transactions = _list(results[1]['data']);
       setState(() {
-        if (profileData.isNotEmpty) {
-          _profile =
-              _profileFrom(
-            profileData,
-          );
-        }
-
-        if (dashboardData.isNotEmpty) {
-          _dashboardSummary =
-              _map(
-            dashboardData['summary'],
-          );
-        }
-
-        if (results[2].isNotEmpty) {
-          _assignments
-            ..clear()
-            ..addAll(
-              assignments,
-            );
-        }
-
-        if (results[3].isNotEmpty) {
-          _lastMileBatches
-            ..clear()
-            ..addAll(
-              lastMileBatches,
-            );
-        }
-
-        if (results[4].isNotEmpty) {
+        if (results[0].isNotEmpty) {
           _dailyEarnings
             ..clear()
-            ..addAll(
-              daily,
-            );
+            ..addAll(_list(earnings['daily']).map((raw) {
+              final data = _map(raw);
+              return RiderDailyEarning(day: _text(data['day']), amount: _double(data['amount']));
+            }));
         }
-
-        if (results[5].isNotEmpty) {
+        if (results[1].isNotEmpty) {
           _transactions
             ..clear()
-            ..addAll(
-              transactions,
-            );
+            ..addAll(transactions.map((raw) {
+              final data = _map(raw);
+              return RiderEarningTransaction(
+                order: _text(data['order_number'], 'Order'),
+                date: _text(data['earned_at']),
+                type: _text(data['earning_type'], 'earning'),
+                amount: _double(data['amount']),
+                status: _text(data['status'], 'recorded'),
+              );
+            }));
         }
-
-        _currentDelivery =
-            _resolveCurrentDelivery(
-          _assignments,
-          dashboardData,
-        );
-
-        _loading = false;
-        _refreshing = false;
-        _error = null;
       });
+    } finally { _financeLoading = false; }
+  }
+
+  Future<void> _loadLastMile() async {
+    if (_lastMileLoading || !mounted) return;
+    _lastMileLoading = true;
+    try {
+      final response = await SariLiveData.instance.riderLastMile();
+      final rows = _list(response['data']);
+      final batches = await _loadLastMileBatches(rows);
+      if (!mounted) return;
+      setState(() { _lastMileBatches..clear()..addAll(batches); });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (mounted) _toast('Last-mile data unavailable: $error');
+    } finally { _lastMileLoading = false; }
+  }
 
-      setState(() {
-        _loading = false;
-        _refreshing = false;
-        _error =
-            error.toString();
-      });
+  void _drawerNavigate(int tab) {
+    _shellKey.currentState?.closeDrawer();
+    _changeTab(tab);
+  }
+
+  void _drawerOpen(VoidCallback action) {
+    _shellKey.currentState?.closeDrawer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) action();
+    });
+  }
+
+  Future<void> _logoutFromDrawer() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('End the SARI Rider session on this phone?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Log out')),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    try {
+      await SariLiveData.instance.logout();
+      const storage = FlutterSecureStorage();
+      await storage.delete(key: 'sari_access_token');
+      await storage.delete(key: 'sari_account_role');
+      if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+    } catch (error) {
+      _toast('Logout failed; session retained: $error');
     }
   }
 
@@ -920,7 +814,10 @@ class _RiderShellState extends State<RiderShell> {
     setState(() {
       _currentIndex =
           index;
+      _visitedTabs.add(index);
     });
+    if (index == 3) unawaited(_loadFinance());
+    if (index == 1 || index == 2) unawaited(_hydrateAssignments(List.of(_assignments)));
   }
 
   void _setDarkMode(
@@ -1346,6 +1243,16 @@ class _RiderShellState extends State<RiderShell> {
   Future<void> _advanceDelivery(
     RiderDelivery delivery,
   ) async {
+    try {
+      final latest = await SariLiveData.instance.riderAssignment(delivery.id);
+      final fresh = _delivery(latest['data']);
+      if (!mounted) return;
+      delivery = fresh;
+    } catch (error) {
+      _toast('Unable to verify current assignment status: $error');
+      return;
+    }
+
     final action =
         _actionFor(
       delivery,
@@ -1426,6 +1333,19 @@ class _RiderShellState extends State<RiderShell> {
   Future<void> _markSuccessful(
     RiderDelivery delivery,
   ) async {
+    try {
+      final latest = await SariLiveData.instance.riderAssignment(delivery.id);
+      delivery = _delivery(latest['data']);
+      if (delivery.status != 'arrived_buyer' ||
+          !delivery.allowedActions.contains('complete')) {
+        _toast('Mark arrival at the Buyer before completing this delivery.');
+        return;
+      }
+    } catch (error) {
+      _toast('Unable to verify current assignment status: $error');
+      return;
+    }
+
     if (delivery
         .isLogisticsPickup) {
       _toast(
@@ -1473,6 +1393,12 @@ class _RiderShellState extends State<RiderShell> {
     _toast(
       '$label is not exposed by the current Laravel Rider API.',
     );
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => RiderNotifications(onOpenMessages: _openMessages),
+    ));
   }
 
   Future<void> _openMessages()
@@ -1998,6 +1924,8 @@ class _RiderShellState extends State<RiderShell> {
 
   Future<void> _openLastMile()
       async {
+    await _loadLastMile();
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (
@@ -2512,6 +2440,24 @@ class _RiderShellState extends State<RiderShell> {
           ];
 
           return Scaffold(
+            key: _shellKey,
+            drawer: RiderDrawer(
+              profile: _profile,
+              activeIndex: _currentIndex,
+              onDashboard: () => _drawerNavigate(0),
+              onAssignments: () => _drawerNavigate(1),
+              onDeliveries: () => _drawerNavigate(2),
+              onEarnings: () => _drawerNavigate(3),
+              onProfile: () => _drawerNavigate(4),
+              onPickups: () => _drawerOpen(_openPickups),
+              onLastMile: () => _drawerOpen(_openLastMile),
+              onScanner: () => _drawerOpen(_openStandaloneScanner),
+              onCod: () => _drawerOpen(_openRemittances),
+              onHistory: () => _drawerOpen(_openHistory),
+              onMessages: () => _drawerOpen(_openMessages),
+              onNotifications: () => _drawerOpen(_openNotifications),
+              onLogout: () => _drawerOpen(_logoutFromDrawer),
+            ),
             backgroundColor:
                 RiderColors.bg,
             body: Stack(
@@ -2519,8 +2465,8 @@ class _RiderShellState extends State<RiderShell> {
                 IndexedStack(
                   index:
                       _currentIndex,
-                  children:
-                      pages,
+                  children: List.generate(pages.length, (index) =>
+                      _visitedTabs.contains(index) ? pages[index] : const SizedBox.shrink()),
                 ),
 
                 if (_refreshing &&
@@ -2540,47 +2486,9 @@ class _RiderShellState extends State<RiderShell> {
                   ),
               ],
             ),
-            bottomNavigationBar:
-                Column(
-              mainAxisSize:
-                  MainAxisSize.min,
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(
-                    16,
-                    2,
-                    16,
-                    4,
-                  ),
-                  child: Align(
-                    alignment:
-                        Alignment
-                            .centerRight,
-                    child:
-                        TextButton.icon(
-                      onPressed:
-                          _openMoreFeatures,
-                      icon:
-                          const Icon(
-                        Icons
-                            .apps_rounded,
-                      ),
-                      label:
-                          const Text(
-                        'More Rider Features',
-                      ),
-                    ),
-                  ),
-                ),
-
-                RiderBottomNav(
-                  currentIndex:
-                      _currentIndex,
-                  onTap:
-                      _changeTab,
-                ),
-              ],
+            bottomNavigationBar: RiderBottomNav(
+              currentIndex: _currentIndex,
+              onTap: _changeTab,
             ),
           );
         },

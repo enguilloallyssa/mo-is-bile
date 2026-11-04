@@ -97,8 +97,12 @@ class SariApi {
               utf8.decode(response.bodyBytes),
             );
     } catch (_) {
+      // Staging outages sometimes return an HTML proxy error rather than JSON.
+      // Keep the HTTP status visible without exposing server response content.
       throw SariApiException(
-        'Laravel returned a non-JSON response.',
+        response.statusCode >= 500
+            ? 'SARI server is temporarily unavailable (HTTP ${response.statusCode}). Please try again when the server is online.'
+            : 'Laravel returned a non-JSON response.',
         statusCode: response.statusCode,
       );
     }
@@ -131,8 +135,10 @@ class SariApi {
     Map<String, String>? query,
     SariJson? jsonBody,
     bool authenticated = true,
+    Duration? requestTimeout,
   }) async {
     final uri = _uri(path, query);
+    final effectiveTimeout = requestTimeout ?? timeout;
 
     final headers = await _headers(
       authenticated: authenticated,
@@ -153,7 +159,7 @@ class SariApi {
                 uri,
                 headers: headers,
               )
-              .timeout(timeout);
+              .timeout(effectiveTimeout);
           break;
 
         case 'POST':
@@ -163,7 +169,7 @@ class SariApi {
                 headers: headers,
                 body: body,
               )
-              .timeout(timeout);
+              .timeout(effectiveTimeout);
           break;
 
         case 'PATCH':
@@ -173,7 +179,7 @@ class SariApi {
                 headers: headers,
                 body: body,
               )
-              .timeout(timeout);
+              .timeout(effectiveTimeout);
           break;
 
         case 'DELETE':
@@ -183,7 +189,7 @@ class SariApi {
                 headers: headers,
                 body: body,
               )
-              .timeout(timeout);
+              .timeout(effectiveTimeout);
           break;
 
         default:
@@ -195,11 +201,19 @@ class SariApi {
       }
     } on TimeoutException {
       throw const SariApiException(
-        'The request timed out. Please try again.',
+        'SARI could not respond in time. Check your connection or try again when the server is online.',
+      );
+    } on SocketException {
+      throw const SariApiException(
+        'Unable to reach the SARI server. Please check your connection or try later.',
+      );
+    } on HandshakeException {
+      throw const SariApiException(
+        'Secure connection to SARI failed. Please try again later.',
       );
     } on http.ClientException {
       throw const SariApiException(
-        'Unable to connect to SARI.',
+        'Unable to connect to SARI. The staging server may be offline.',
       );
     }
 

@@ -7,6 +7,7 @@ import '../config/api_config.dart';
 import '../services/sari_live_data.dart';
 import 'widgets/buyer_address_picker.dart';
 import 'widgets/buyer_header.dart';
+import 'buyer_theme.dart';
 
 class BuyerAccount extends StatefulWidget {
   final ValueChanged<int>? onTabChanged;
@@ -1164,44 +1165,70 @@ final result =
   }
 
   Widget _pageHeading() {
-    return const Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Text(
-          'ACCOUNT MANAGEMENT',
-          style: TextStyle(
-            color: goldDark,
-            fontSize: 8,
-            fontWeight:
-                FontWeight.w800,
-            letterSpacing: 1.1,
-          ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: BuyerTheme.heroGradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        SizedBox(height: 5),
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: 'Buyer ',
-              ),
-              TextSpan(
-                text: 'Profile',
-                style: TextStyle(
-                  color: gold,
-                ),
-              ),
-            ],
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(children: [
+            Icon(Icons.person_rounded, color: BuyerTheme.goldLight, size: 19),
+            SizedBox(width: 8),
+            Text('MY SARI ACCOUNT', style: TextStyle(color: BuyerTheme.goldLight, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
+          ]),
+          const SizedBox(height: 13),
+          const Text('Your space, your style.', style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900, height: 1.2)),
+          const SizedBox(height: 7),
+          const Text('Manage your profile and delivery addresses in one place.', style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.5)),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(color: const Color(0x24FFFFFF), borderRadius: BorderRadius.circular(20)),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.tune_rounded, color: BuyerTheme.goldLight, size: 15),
+              SizedBox(width: 6),
+              Text('More options: top-right settings', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+            ]),
           ),
-          style: TextStyle(
-            color: dark,
-            fontSize: 27,
-            fontWeight:
-                FontWeight.w800,
-            letterSpacing: -1,
-          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _extraServices() {
+    return Row(children: [
+      Expanded(child: _serviceShortcut(Icons.chat_bubble_outline_rounded, 'Messages', () => widget.onTabChanged?.call(6))),
+      const SizedBox(width: 10),
+      Expanded(child: _serviceShortcut(Icons.local_shipping_outlined, 'Shipping', () => widget.onTabChanged?.call(7))),
+    ]);
+  }
+
+  Widget _serviceShortcut(IconData icon, String title, VoidCallback onTap) {
+    return Material(
+      color: BuyerTheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
+          decoration: BoxDecoration(border: Border.all(color: BuyerTheme.border), borderRadius: BorderRadius.circular(16)),
+          child: Row(children: [
+            Icon(icon, color: BuyerTheme.goldDark, size: 20),
+            const SizedBox(width: 8),
+            Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: BuyerTheme.ink))),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 11, color: BuyerTheme.muted),
+          ]),
         ),
-      ],
+      ),
     );
   }
 
@@ -2450,18 +2477,7 @@ final result =
           const EdgeInsets.all(
         16,
       ),
-      decoration:
-          BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(
-          16,
-        ),
-        border:
-            Border.all(
-          color: border,
-        ),
-      ),
+      decoration: BuyerTheme.card(radius: 18),
       child: child,
     );
   }
@@ -2575,10 +2591,9 @@ final result =
                                   16,
                             ),
                             _profileCard(),
-                            const SizedBox(
-                              height:
-                                  12,
-                            ),
+                            const SizedBox(height: 12),
+                            _extraServices(),
+                            const SizedBox(height: 12),
                             _basicInformation(),
                             const SizedBox(
                               height:

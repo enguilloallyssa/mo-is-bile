@@ -179,6 +179,7 @@ class RiderHome extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading:
             false,
+        leading: const RiderMenuButton(),
         backgroundColor:
             RiderColors.surface,
         surfaceTintColor:

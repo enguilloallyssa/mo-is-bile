@@ -431,16 +431,20 @@ Future<SariJson> buyerNotifications({
   }
 
   // Rider dashboard/assignments
-  Future<SariJson> riderDashboard() =>
+  // Only the initial Rider shell requests use a shorter timeout.
+  // All other API calls keep the normal timeout (uploads are unchanged).
+  Future<SariJson> riderDashboard({Duration? timeout}) =>
       _api.request(
         'GET',
         'rider/dashboard',
+        requestTimeout: timeout,
       );
 
-  Future<SariJson> riderAssignments() =>
+  Future<SariJson> riderAssignments({Duration? timeout}) =>
       _api.request(
         'GET',
         'rider/assignments',
+        requestTimeout: timeout,
       );
 
   Future<SariJson> riderPickups() =>
@@ -508,6 +512,7 @@ Future<SariJson> buyerNotifications({
       _api.request(
         'GET',
         'rider/last-mile',
+        requestTimeout: const Duration(seconds: 12),
       );
 
   Future<SariJson> riderLastMileDetails(
@@ -516,6 +521,7 @@ Future<SariJson> buyerNotifications({
       _api.request(
         'GET',
         'rider/last-mile/$assignmentId',
+        requestTimeout: const Duration(seconds: 12),
       );
 
   Future<SariJson> riderStartLastMile(
@@ -589,6 +595,7 @@ Future<SariJson> buyerNotifications({
       _api.request(
         'GET',
         'rider/earnings',
+        requestTimeout: const Duration(seconds: 12),
       );
 
   Future<SariJson> riderTransactions({
@@ -598,6 +605,7 @@ Future<SariJson> buyerNotifications({
       _api.request(
         'GET',
         'rider/earnings/transactions',
+        requestTimeout: const Duration(seconds: 12),
         query: {
           'page': '$page',
           'per_page': '$perPage',
@@ -628,16 +636,22 @@ Future<SariJson> buyerNotifications({
         },
       );
 
+  Future<SariJson> riderRemittanceHubs() =>
+      _api.request('GET', 'rider/remittances/hubs',
+          requestTimeout: const Duration(seconds: 9));
+
   Future<SariJson> riderEligibleRemittances() =>
       _api.request(
         'GET',
         'rider/remittances/eligible',
+        requestTimeout: const Duration(seconds: 12),
       );
 
   Future<SariJson> riderRemittances() =>
       _api.request(
         'GET',
         'rider/remittances',
+        requestTimeout: const Duration(seconds: 12),
       );
 
   Future<SariJson> riderRemittance(
@@ -685,11 +699,27 @@ Future<SariJson> buyerNotifications({
         },
       );
 
+  // Rider notifications (same real courier_notifications feed as Laravel web).
+  Future<SariJson> riderNotifications() =>
+      _api.request('GET', 'rider/notifications',
+          requestTimeout: const Duration(seconds: 12));
+
+  Future<SariJson> riderNotificationSummary() =>
+      _api.request('GET', 'rider/notifications/summary',
+          requestTimeout: const Duration(seconds: 12));
+
+  Future<SariJson> riderReadNotification(int id) =>
+      _api.request('POST', 'rider/notifications/$id/read');
+
+  Future<SariJson> riderReadAllNotifications() =>
+      _api.request('POST', 'rider/notifications/read-all');
+
   // Rider messages/profile
   Future<SariJson> riderMessages() =>
       _api.request(
         'GET',
         'rider/messages',
+        requestTimeout: const Duration(seconds: 12),
       );
 
   Future<SariJson> riderSendMessage(
@@ -703,10 +733,11 @@ Future<SariJson> buyerNotifications({
         },
       );
 
-  Future<SariJson> riderProfile() =>
+  Future<SariJson> riderProfile({Duration? timeout}) =>
       _api.request(
         'GET',
         'rider/profile',
+        requestTimeout: timeout,
       );
 
   Future<SariJson> riderUpdateProfile(

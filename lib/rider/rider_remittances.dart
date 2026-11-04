@@ -4,324 +4,407 @@ import '../services/sari_live_data.dart';
 import 'widgets/rider_ui.dart';
 
 class RiderRemittances extends StatefulWidget {
-  const RiderRemittances({
-    super.key,
-  });
+  const RiderRemittances({super.key});
 
   @override
   State<RiderRemittances> createState() =>
       _RiderRemittancesState();
 }
 
-class _RiderRemittancesState
-    extends State<RiderRemittances> {
+class _RiderRemittancesState extends State<RiderRemittances> {
   final List<Map<String, dynamic>> _eligible = [];
-
   final List<Map<String, dynamic>> _batches = [];
+  final List<Map<String, dynamic>> _hubs = [];
 
   final Set<int> _selected = {};
 
   bool _loading = true;
+  bool _hubsLoading = true;
   bool _submitting = false;
 
   String? _error;
+  String? _hubsError;
 
   @override
   void initState() {
     super.initState();
-
     _load();
+    _loadHubs();
   }
 
-  Map<String, dynamic> _map(
-    dynamic value,
-  ) {
+  Map<String, dynamic> _map(dynamic value) {
     if (value is Map) {
-      return Map<String, dynamic>.from(
-        value,
-      );
+      return Map<String, dynamic>.from(value);
     }
-
     return {};
   }
 
-  int _int(
-    dynamic value,
-  ) {
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse(
-          '$value',
-        ) ??
-        0;
+  int _int(dynamic value) {
+    if (value is num) return value.toInt();
+    return int.tryParse('$value') ?? 0;
   }
 
-  double _double(
-    dynamic value,
-  ) {
-    if (value is num) {
-      return value.toDouble();
-    }
-
-    return double.tryParse(
-          '$value',
-        ) ??
-        0;
+  double _double(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse('$value') ?? 0;
   }
 
-  String _text(
-    dynamic value, [
-    String fallback = '',
-  ]) {
-    final text =
-        value?.toString().trim() ?? '';
-
-    return text.isEmpty
-        ? fallback
-        : text;
+  String _text(dynamic value, [String fallback = '']) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? fallback : text;
   }
+
+  String _money(double value) {
+    return '₱${value.toStringAsFixed(2)}';
+  }
+
+  double get _totalEligibleCash {
+    return _eligible.fold<double>(
+      0,
+      (sum, item) => sum + _double(item['total']),
+    );
+  }
+
+  double get _selectedCash {
+    return _eligible
+        .where((item) => _selected.contains(_int(item['id'])))
+        .fold<double>(
+          0,
+          (sum, item) => sum + _double(item['total']),
+        );
+  }
+
+  // --------------------------------------------------
+  // LOAD DATA
+  // --------------------------------------------------
 
   Future<void> _load() async {
+    if (!mounted) return;
+
     setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
-      final results =
-          await Future.wait([
-        SariLiveData.instance
-            .riderEligibleRemittances(),
-        SariLiveData.instance
-            .riderRemittances(),
+      final results = await Future.wait([
+        SariLiveData.instance.riderEligibleRemittances(),
+        SariLiveData.instance.riderRemittances(),
       ]);
 
-      final eligible =
-          results[0]['data'] is List
-              ? (results[0]['data'] as List)
-                  .map(_map)
-                  .toList()
-              : <Map<String, dynamic>>[];
+      final eligible = results[0]['data'] is List
+          ? (results[0]['data'] as List).map(_map).toList()
+          : <Map<String, dynamic>>[];
 
-      final batches =
-          results[1]['data'] is List
-              ? (results[1]['data'] as List)
-                  .map(_map)
-                  .toList()
-              : <Map<String, dynamic>>[];
+      final batches = results[1]['data'] is List
+          ? (results[1]['data'] as List).map(_map).toList()
+          : <Map<String, dynamic>>[];
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
         _eligible
           ..clear()
-          ..addAll(
-            eligible,
-          );
+          ..addAll(eligible);
 
         _batches
           ..clear()
-          ..addAll(
-            batches,
-          );
+          ..addAll(batches);
+
+        final validIds = _eligible
+            .map((item) => _int(item['id']))
+            .where((id) => id > 0)
+            .toSet();
 
         _selected.removeWhere(
-          (id) => !_eligible.any(
-            (entry) =>
-                _int(
-                  entry['id'],
-                ) ==
-                id,
-          ),
+          (id) => !validIds.contains(id),
         );
 
         _loading = false;
+        _error = null;
       });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
-        _error =
-            error.toString();
-
         _loading = false;
+        _error = error.toString();
       });
     }
   }
 
-  double get _selectedCash {
-    return _eligible
-        .where(
-          (entry) =>
-              _selected.contains(
-            _int(
-              entry['id'],
-            ),
-          ),
-        )
-        .fold<double>(
-          0,
-          (
-            sum,
-            entry,
-          ) =>
-              sum +
-              _double(
-                entry['total'],
-              ),
+  Future<void> _loadHubs() async {
+    if (!mounted) return;
+
+    setState(() {
+      _hubsLoading = true;
+      _hubsError = null;
+    });
+
+    try {
+      final response =
+          await SariLiveData.instance.riderRemittanceHubs();
+
+      final data = response['data'];
+
+      if (data is! List) {
+        throw const FormatException(
+          'Invalid Logistics hub directory.',
         );
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _hubs
+          ..clear()
+          ..addAll(
+            data
+                .map(_map)
+                .where((hub) => _int(hub['id']) > 0),
+          );
+
+        _hubsLoading = false;
+        _hubsError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _hubsLoading = false;
+        _hubsError = error.toString();
+      });
+    }
   }
 
-  double get _totalEligibleCash {
-    return _eligible.fold<double>(
-      0,
-      (
-        sum,
-        entry,
-      ) =>
-          sum +
-          _double(
-            entry['total'],
-          ),
-    );
+  Future<void> _refreshAll() async {
+    await Future.wait([
+      _load(),
+      _loadHubs(),
+    ]);
   }
+
+  // --------------------------------------------------
+  // SELECT / DESELECT COD ORDERS
+  // --------------------------------------------------
+
+  void _toggleOrder(int id, bool selected) {
+    if (id <= 0) return;
+
+    setState(() {
+      if (selected) {
+        _selected.add(id);
+      } else {
+        _selected.remove(id);
+      }
+    });
+  }
+
+  void _selectAll() {
+    final eligibleIds = _eligible
+        .map((item) => _int(item['id']))
+        .where((id) => id > 0)
+        .toSet();
+
+    if (eligibleIds.isEmpty) return;
+
+    final allSelected = eligibleIds.every(
+      (id) => _selected.contains(id),
+    );
+
+    setState(() {
+      if (allSelected) {
+        _selected.removeAll(eligibleIds);
+      } else {
+        _selected.addAll(eligibleIds);
+      }
+    });
+  }
+
+  // --------------------------------------------------
+  // SUBMIT REMITTANCE
+  // --------------------------------------------------
 
   Future<void> _submit() async {
-    if (_selected.isEmpty ||
-        _submitting) {
+    if (_selected.isEmpty || _submitting) return;
+
+    if (_hubsLoading) {
+      _message(
+        'Loading available Logistics hubs. Please try again.',
+      );
       return;
     }
 
-    final noteController =
-        TextEditingController();
+    if (_hubsError != null) {
+      _message(
+        'Unable to load Logistics hubs. Please retry.',
+      );
+      await _loadHubs();
+      return;
+    }
 
-    final confirmed =
-        await showDialog<bool>(
+    if (_hubs.isEmpty) {
+      _message(
+        'No active Logistics hub is available for cash turnover.',
+      );
+      return;
+    }
+
+    final noteController = TextEditingController();
+
+    int? selectedHubId = _hubs.length == 1
+        ? _int(_hubs.first['id'])
+        : null;
+
+    final selected = await showDialog<int>(
       context: context,
-      builder: (
-        dialogContext,
-      ) {
-        return AlertDialog(
-          title:
-              const Text(
-            'Prepare COD Remittance',
-          ),
-          content: Column(
-            mainAxisSize:
-                MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${_selected.length} '
-                '${_selected.length == 1 ? 'order' : 'orders'} selected',
-                style:
-                    const TextStyle(
-                  fontWeight:
-                      FontWeight.w800,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, updateDialog) {
+            return AlertDialog(
+              title: const Text(
+                'Prepare COD Remittance',
+              ),
+              scrollable: true,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_selected.length} parcels selected',
+                    style: TextStyle(
+                      color: RiderColors.muted,
+                      fontSize: 12,
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  Text(
+                    _money(_selectedCash),
+                    style: TextStyle(
+                      color: RiderColors.goldDark,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  DropdownButtonFormField<int>(
+                    key: ValueKey(
+                      'hub-${selectedHubId ?? 0}',
+                    ),
+                    initialValue: selectedHubId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Physical Turnover Hub *',
+                      border: OutlineInputBorder(),
+                      helperText:
+                          'Choose where you will hand over the cash.',
+                    ),
+                    items: _hubs.map((hub) {
+                      return DropdownMenuItem<int>(
+                        value: _int(hub['id']),
+                        child: Text(
+                          _text(
+                            hub['name'],
+                            'Logistics Hub',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      updateDialog(() {
+                        selectedHubId = value;
+                      });
+                    },
+                  ),
+
+                  if (selectedHubId != null) ...[
+                    const SizedBox(height: 10),
+
+                    Text(
+                      _text(
+                        _hubs.firstWhere(
+                          (hub) =>
+                              _int(hub['id']) ==
+                              selectedHubId,
+                        )['address'],
+                      ),
+                      style: TextStyle(
+                        color: RiderColors.muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
+                  TextField(
+                    controller: noteController,
+                    minLines: 2,
+                    maxLines: 4,
+                    maxLength: 1000,
+                    decoration: const InputDecoration(
+                      labelText: 'Rider Note (optional)',
+                      hintText:
+                          'Details about the cash turnover',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    'This prepares a physical cash remittance batch. '
+                    'The selected Logistics hub must still verify '
+                    'the cash before the remittance is completed.',
+                    style: TextStyle(
+                      color: RiderColors.muted,
+                      fontSize: 11,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('Cancel'),
                 ),
-              ),
 
-              const SizedBox(
-                height: 5,
-              ),
-
-              Text(
-                'Cash to remit: '
-                '₱${_selectedCash.toStringAsFixed(2)}',
-                style:
-                    TextStyle(
-                  color:
-                      RiderColors.goldDark,
-                  fontSize: 17,
-                  fontWeight:
-                      FontWeight.w900,
+                FilledButton(
+                  onPressed: selectedHubId == null
+                      ? null
+                      : () {
+                          Navigator.of(dialogContext).pop(
+                            selectedHubId,
+                          );
+                        },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: RiderColors.gold,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text(
+                    'Prepare Batch',
+                  ),
                 ),
-              ),
-
-              const SizedBox(
-                height: 14,
-              ),
-
-              TextField(
-                controller:
-                    noteController,
-                minLines: 2,
-                maxLines: 4,
-                decoration:
-                    const InputDecoration(
-                  labelText:
-                      'Note (optional)',
-                  hintText:
-                      'Add notes about this cash batch.',
-                ),
-              ),
-
-              const SizedBox(
-                height: 10,
-              ),
-
-              Text(
-                'Submitting creates a COD remittance batch. '
-                'Physical cash still needs to be handed over '
-                'and verified by SARI Logistics.',
-                style:
-                    TextStyle(
-                  color:
-                      RiderColors.muted,
-                  fontSize: 9,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.of(
-                dialogContext,
-              ).pop(
-                false,
-              ),
-              child:
-                  const Text(
-                'Cancel',
-              ),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(
-                dialogContext,
-              ).pop(
-                true,
-              ),
-              child:
-                  const Text(
-                'Submit',
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );
 
-    if (confirmed != true ||
-        !mounted) {
-      noteController.dispose();
-
-      return;
-    }
-
-    final note =
-        noteController.text.trim();
-
+    final note = noteController.text.trim();
     noteController.dispose();
+
+    if (selected == null || !mounted) return;
 
     setState(() {
       _submitting = true;
@@ -329,35 +412,29 @@ class _RiderRemittancesState
 
     try {
       final response =
-          await SariLiveData.instance
-              .riderSubmitRemittance(
+          await SariLiveData.instance.riderSubmitRemittance(
         _selected.toList(),
-        note:
-            note.isEmpty
-                ? null
-                : note,
+        facilityId: selected,
+        note: note.isEmpty ? null : note,
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       _message(
-        response['message']
-                ?.toString() ??
-            'Remittance batch prepared.',
+        _text(
+          response['message'],
+          'COD remittance batch prepared.',
+        ),
       );
 
-      _selected.clear();
+      setState(() {
+        _selected.clear();
+      });
 
-      await _load();
+      await _refreshAll();
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
       _message(
-        error.toString(),
+        'Unable to submit COD remittance: $error',
       );
     } finally {
       if (mounted) {
@@ -368,87 +445,33 @@ class _RiderRemittancesState
     }
   }
 
-  void _toggleOrder(
-    int id,
-    bool selected,
-  ) {
-    setState(() {
-      if (selected) {
-        _selected.add(
-          id,
-        );
-      } else {
-        _selected.remove(
-          id,
-        );
-      }
-    });
-  }
+  // --------------------------------------------------
+  // HELPERS
+  // --------------------------------------------------
 
-  void _selectAll() {
-    setState(() {
-      if (_selected.length ==
-          _eligible.length) {
-        _selected.clear();
-
-        return;
-      }
-
-      _selected
-        ..clear()
-        ..addAll(
-          _eligible.map(
-            (entry) =>
-                _int(
-              entry['id'],
-            ),
-          ),
-        );
-    });
-  }
-
-  void _message(
-    String message,
-  ) {
-    if (!mounted) {
-      return;
-    }
+  void _message(String message) {
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content:
-              Text(
-            message,
-          ),
-          behavior:
-              SnackBarBehavior.floating,
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
         ),
       );
   }
 
-  String _statusLabel(
-    String value,
-  ) {
-    final cleaned =
-        value
-            .replaceAll(
-              '_',
-              ' ',
-            )
-            .trim();
+  String _statusLabel(String status) {
+    final cleaned = status
+        .replaceAll('_', ' ')
+        .trim();
 
-    if (cleaned.isEmpty) {
-      return 'Unknown';
-    }
+    if (cleaned.isEmpty) return 'Unknown';
 
     return cleaned
         .split(' ')
-        .where(
-          (part) =>
-              part.isNotEmpty,
-        )
+        .where((part) => part.isNotEmpty)
         .map(
           (part) =>
               '${part[0].toUpperCase()}'
@@ -457,9 +480,7 @@ class _RiderRemittancesState
         .join(' ');
   }
 
-  Color _statusColor(
-    String status,
-  ) {
+  Color _statusColor(String status) {
     switch (status) {
       case 'verified':
       case 'completed':
@@ -470,16 +491,12 @@ class _RiderRemittancesState
       case 'rejected':
         return RiderColors.red;
 
-      case 'pending':
-      case 'submitted':
       default:
         return RiderColors.goldDark;
     }
   }
 
-  Color _statusSoft(
-    String status,
-  ) {
+  Color _statusBackground(String status) {
     switch (status) {
       case 'verified':
       case 'completed':
@@ -490,68 +507,63 @@ class _RiderRemittancesState
       case 'rejected':
         return RiderColors.redSoft;
 
-      case 'pending':
-      case 'submitted':
       default:
         return RiderColors.goldSoft;
     }
   }
 
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: RiderColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: RiderColors.border,
+      ),
+    );
+  }
+
+  // --------------------------------------------------
+  // MAIN SCREEN
+  // --------------------------------------------------
+
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          RiderColors.bg,
+      backgroundColor: RiderColors.bg,
       appBar: AppBar(
-        backgroundColor:
-            RiderColors.surface,
-        foregroundColor:
-            RiderColors.text,
-        surfaceTintColor:
-            Colors.transparent,
+        backgroundColor: RiderColors.surface,
+        foregroundColor: RiderColors.text,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title:
-            const RiderHeaderTitle(
-          title:
-              'COD Cash Remittance',
-          subtitle:
-              'Cash Collection Management',
+        title: const RiderHeaderTitle(
+          title: 'COD Cash Remittance',
+          subtitle: 'Cash Collection Management',
         ),
         actions: [
           IconButton(
-            tooltip:
-                'Refresh',
-            onPressed:
-                _loading
-                    ? null
-                    : _load,
-            icon:
-                const Icon(
-              Icons.refresh_rounded,
-            ),
+            tooltip: 'Refresh',
+            onPressed: _loading ? null : _refreshAll,
+            icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(
-              child:
-                  CircularProgressIndicator(),
+      body: _loading && _eligible.isEmpty && _batches.isEmpty
+          ? Center(
+              child: CircularProgressIndicator(
+                color: RiderColors.gold,
+              ),
             )
-          : _error != null
+          : _error != null &&
+                  _eligible.isEmpty &&
+                  _batches.isEmpty
               ? _errorState()
               : RefreshIndicator(
-                  color:
-                      RiderColors.gold,
-                  onRefresh:
-                      _load,
-                  child:
-                      ListView(
+                  color: RiderColors.gold,
+                  onRefresh: _refreshAll,
+                  child: ListView(
                     physics:
                         const AlwaysScrollableScrollPhysics(),
-                    padding:
-                        const EdgeInsets.fromLTRB(
+                    padding: const EdgeInsets.fromLTRB(
                       16,
                       18,
                       16,
@@ -560,78 +572,54 @@ class _RiderRemittancesState
                     children: [
                       _hero(),
 
-                      const SizedBox(
-                        height: 18,
-                      ),
+                      const SizedBox(height: 18),
 
                       _summary(),
 
-                      const SizedBox(
-                        height: 24,
-                      ),
+                      const SizedBox(height: 24),
 
-                      _section(
+                      _sectionHeader(
                         'Eligible COD Parcels',
-                        'Delivered COD orders whose cash has not yet been included in a remittance batch.',
+                        'Delivered COD orders awaiting physical cash remittance.',
                       ),
 
-                      const SizedBox(
-                        height: 12,
-                      ),
+                      const SizedBox(height: 12),
 
                       _eligibleSection(),
 
-                      if (_selected
-                          .isNotEmpty) ...[
-                        const SizedBox(
-                          height: 14,
-                        ),
-
+                      if (_selected.isNotEmpty) ...[
+                        const SizedBox(height: 14),
                         _selectedSummary(),
                       ],
 
-                      const SizedBox(
-                        height: 26,
-                      ),
+                      const SizedBox(height: 26),
 
-                      _section(
+                      _sectionHeader(
                         'Recent Cash Batches',
-                        'COD remittance batches prepared for physical turnover.',
+                        'Remittance batches prepared for physical turnover.',
                       ),
 
-                      const SizedBox(
-                        height: 12,
-                      ),
+                      const SizedBox(height: 12),
 
                       if (_batches.isEmpty)
-                        _empty(
-                          icon: Icons
-                              .receipt_long_outlined,
-                          title:
-                              'No remittance batches yet',
+                        _emptyState(
+                          icon: Icons.receipt_long_outlined,
+                          title: 'No remittance batches yet',
                           message:
                               'Batches you prepare will appear here.',
                         )
                       else
-                        ..._batches
-                            .take(20)
-                            .map(
-                          (batch) =>
-                              Padding(
-                            padding:
-                                const EdgeInsets.only(
-                              bottom: 10,
+                        ..._batches.take(20).map(
+                              (batch) => Padding(
+                                padding:
+                                    const EdgeInsets.only(
+                                  bottom: 10,
+                                ),
+                                child: _batchCard(batch),
+                              ),
                             ),
-                            child:
-                                _batchCard(
-                              batch,
-                            ),
-                          ),
-                        ),
 
-                      const SizedBox(
-                        height: 17,
-                      ),
+                      const SizedBox(height: 18),
 
                       _notice(),
                     ],
@@ -640,152 +628,108 @@ class _RiderRemittancesState
     );
   }
 
+  // --------------------------------------------------
+  // HERO
+  // --------------------------------------------------
+
   Widget _hero() {
     return Container(
-      padding:
-          const EdgeInsets.all(
-        21,
-      ),
-      decoration:
-          BoxDecoration(
-        gradient:
-            LinearGradient(
-          colors:
-              RiderColors.heroGradient,
-          begin:
-              Alignment.topLeft,
-          end:
-              Alignment.bottomRight,
+      padding: const EdgeInsets.all(21),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: RiderColors.heroGradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        borderRadius:
-            BorderRadius.circular(
-          22,
-        ),
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
               Icon(
-                Icons
-                    .account_balance_wallet_outlined,
-                color:
-                    Colors.white70,
+                Icons.account_balance_wallet_outlined,
+                color: Colors.white70,
                 size: 18,
               ),
-              SizedBox(
-                width: 8,
-              ),
+              SizedBox(width: 8),
               Text(
                 'CASH COLLECTION OPERATIONS',
-                style:
-                    TextStyle(
-                  color:
-                      Colors.white70,
+                style: TextStyle(
+                  color: Colors.white70,
                   fontSize: 10,
-                  fontWeight:
-                      FontWeight.w800,
-                  letterSpacing:
-                      1.2,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
                 ),
               ),
             ],
           ),
 
-          const SizedBox(
-            height: 14,
-          ),
+          const SizedBox(height: 15),
 
           const Text(
             'COD Remittance',
-            style:
-                TextStyle(
-              color:
-                  Colors.white,
+            style: TextStyle(
+              color: Colors.white,
               fontSize: 26,
-              fontWeight:
-                  FontWeight.w900,
+              fontWeight: FontWeight.w900,
             ),
           ),
 
-          const SizedBox(
-            height: 9,
-          ),
+          const SizedBox(height: 9),
 
           const Text(
-            'Prepare collected COD cash for physical handover to SARI Logistics.',
-            style:
-                TextStyle(
-              color:
-                  Colors.white70,
+            'Prepare collected COD cash for physical '
+            'handover to SARI Logistics.',
+            style: TextStyle(
+              color: Colors.white70,
               fontSize: 12,
               height: 1.5,
             ),
           ),
 
-          const SizedBox(
-            height: 19,
-          ),
+          const SizedBox(height: 19),
 
           Row(
             children: [
               const Icon(
-                Icons
-                    .verified_user_outlined,
-                color:
-                    Colors.white,
+                Icons.verified_user_outlined,
+                color: Colors.white,
                 size: 18,
               ),
 
-              const SizedBox(
-                width: 8,
-              ),
+              const SizedBox(width: 8),
 
               const Expanded(
                 child: Text(
                   'Physical cash turnover only',
-                  style:
-                      TextStyle(
-                    color:
-                        Colors.white,
+                  style: TextStyle(
+                    color: Colors.white,
                     fontSize: 12,
-                    fontWeight:
-                        FontWeight.w800,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
 
-              if (_eligible
-                  .isNotEmpty)
+              if (_eligible.isNotEmpty)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 6,
                   ),
-                  decoration:
-                      BoxDecoration(
-                    color:
-                        Colors.white
-                            .withValues(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(
                       alpha: .12,
                     ),
-                    borderRadius:
-                        BorderRadius.circular(
-                      20,
-                    ),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${_eligible.length} eligible',
-                    style:
-                        const TextStyle(
-                      color:
-                          Colors.white,
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontSize: 9,
-                      fontWeight:
-                          FontWeight.w700,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -796,40 +740,32 @@ class _RiderRemittancesState
     );
   }
 
+  // --------------------------------------------------
+  // SUMMARY
+  // --------------------------------------------------
+
   Widget _summary() {
     return Row(
       children: [
         Expanded(
           child: _metric(
-            label:
-                'Eligible COD Cash',
-            value:
-                '₱${_totalEligibleCash.toStringAsFixed(2)}',
-            icon:
-                Icons.payments_outlined,
-            accent:
-                RiderColors.goldDark,
-            soft:
-                RiderColors.goldSoft,
+            label: 'Eligible COD Cash',
+            value: _money(_totalEligibleCash),
+            icon: Icons.payments_outlined,
+            accent: RiderColors.goldDark,
+            soft: RiderColors.goldSoft,
           ),
         ),
 
-        const SizedBox(
-          width: 10,
-        ),
+        const SizedBox(width: 10),
 
         Expanded(
           child: _metric(
-            label:
-                'Cash Batches',
-            value:
-                '${_batches.length}',
-            icon:
-                Icons.inventory_2_outlined,
-            accent:
-                RiderColors.blue,
-            soft:
-                RiderColors.blueSoft,
+            label: 'Cash Batches',
+            value: '${_batches.length}',
+            icon: Icons.inventory_2_outlined,
+            accent: RiderColors.blue,
+            soft: RiderColors.blueSoft,
           ),
         ),
       ],
@@ -844,28 +780,18 @@ class _RiderRemittancesState
     required Color soft,
   }) {
     return Container(
-      padding:
-          const EdgeInsets.all(
-        15,
-      ),
-      decoration:
-          _cardDecoration(),
+      padding: const EdgeInsets.all(15),
+      decoration: _cardDecoration(),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 37,
             height: 37,
-            alignment:
-                Alignment.center,
-            decoration:
-                BoxDecoration(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
               color: soft,
-              borderRadius:
-                  BorderRadius.circular(
-                11,
-              ),
+              borderRadius: BorderRadius.circular(11),
             ),
             child: Icon(
               icon,
@@ -874,41 +800,29 @@ class _RiderRemittancesState
             ),
           ),
 
-          const SizedBox(
-            height: 12,
-          ),
+          const SizedBox(height: 12),
 
           FittedBox(
-            fit:
-                BoxFit.scaleDown,
-            alignment:
-                Alignment.centerLeft,
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style:
-                  TextStyle(
-                color:
-                    RiderColors.text,
+              style: TextStyle(
+                color: RiderColors.text,
                 fontSize: 20,
-                fontWeight:
-                    FontWeight.w900,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
 
-          const SizedBox(
-            height: 4,
-          ),
+          const SizedBox(height: 5),
 
           Text(
             label,
-            style:
-                TextStyle(
-              color:
-                  RiderColors.muted,
+            style: TextStyle(
+              color: RiderColors.muted,
               fontSize: 9,
-              fontWeight:
-                  FontWeight.w700,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -916,36 +830,28 @@ class _RiderRemittancesState
     );
   }
 
-  Widget _section(
+  Widget _sectionHeader(
     String title,
     String subtitle,
   ) {
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style:
-              TextStyle(
-            color:
-                RiderColors.text,
+          style: TextStyle(
+            color: RiderColors.text,
             fontSize: 17,
-            fontWeight:
-                FontWeight.w900,
+            fontWeight: FontWeight.w900,
           ),
         ),
 
-        const SizedBox(
-          height: 4,
-        ),
+        const SizedBox(height: 4),
 
         Text(
           subtitle,
-          style:
-              TextStyle(
-            color:
-                RiderColors.muted,
+          style: TextStyle(
+            color: RiderColors.muted,
             fontSize: 10,
             height: 1.45,
           ),
@@ -954,42 +860,43 @@ class _RiderRemittancesState
     );
   }
 
+  // --------------------------------------------------
+  // ELIGIBLE COD ORDERS
+  // --------------------------------------------------
+
   Widget _eligibleSection() {
     if (_eligible.isEmpty) {
-      return _empty(
-        icon:
-            Icons.payments_outlined,
-        title:
-            'No eligible COD orders',
+      return _emptyState(
+        icon: Icons.payments_outlined,
+        title: 'No eligible COD orders',
         message:
-            'Delivered COD parcels will appear here when cash is ready for remittance.',
+            'Delivered COD parcels will appear here '
+            'when cash is ready for remittance.',
       );
     }
 
-    final allSelected =
-        _selected.length ==
-            _eligible.length;
+    final eligibleIds = _eligible
+        .map((item) => _int(item['id']))
+        .where((id) => id > 0)
+        .toSet();
+
+    final allSelected = eligibleIds.isNotEmpty &&
+        eligibleIds.every(
+          (id) => _selected.contains(id),
+        );
 
     return Column(
       children: [
         Container(
-          padding:
-              const EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: 12,
             vertical: 8,
           ),
-          decoration:
-              BoxDecoration(
-            color:
-                RiderColors.surface,
-            borderRadius:
-                BorderRadius.circular(
-              13,
-            ),
-            border:
-                Border.all(
-              color:
-                  RiderColors.border,
+          decoration: BoxDecoration(
+            color: RiderColors.surface,
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(
+              color: RiderColors.border,
             ),
           ),
           child: Row(
@@ -998,20 +905,16 @@ class _RiderRemittancesState
                 child: Text(
                   '${_eligible.length} eligible '
                   '${_eligible.length == 1 ? 'order' : 'orders'}',
-                  style:
-                      TextStyle(
-                    color:
-                        RiderColors.text,
+                  style: TextStyle(
+                    color: RiderColors.text,
                     fontSize: 10,
-                    fontWeight:
-                        FontWeight.w700,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
 
               TextButton(
-                onPressed:
-                    _selectAll,
+                onPressed: _selectAll,
                 child: Text(
                   allSelected
                       ? 'Clear All'
@@ -1022,155 +925,101 @@ class _RiderRemittancesState
           ),
         ),
 
-        const SizedBox(
-          height: 9,
-        ),
+        const SizedBox(height: 9),
 
-        ..._eligible.map(
-          (entry) {
-            final id =
-                _int(
-              entry['id'],
-            );
+        ..._eligible.map((item) {
+          final id = _int(item['id']);
 
-            final selected =
-                _selected.contains(
-              id,
-            );
+          final selected = _selected.contains(id);
 
-            return Padding(
-              padding:
-                  const EdgeInsets.only(
-                bottom: 9,
-              ),
-              child: Container(
-                decoration:
-                    _cardDecoration(),
-                child:
-                    CheckboxListTile(
-                  value:
-                      selected,
-                  onChanged:
-                      (value) =>
-                          _toggleOrder(
-                    id,
-                    value == true,
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: Container(
+              decoration: _cardDecoration(),
+              child: CheckboxListTile(
+                value: selected,
+                onChanged: id <= 0
+                    ? null
+                    : (value) {
+                        _toggleOrder(
+                          id,
+                          value == true,
+                        );
+                      },
+                controlAffinity:
+                    ListTileControlAffinity.leading,
+                activeColor: RiderColors.gold,
+                title: Text(
+                  _text(
+                    item['order_number'],
+                    'Order #$id',
                   ),
-                  controlAffinity:
-                      ListTileControlAffinity
-                          .leading,
-                  activeColor:
-                      RiderColors.gold,
-                  title:
-                      Text(
-                    _text(
-                      entry[
-                          'order_number'],
-                      'Order #$id',
-                    ),
-                    style:
-                        TextStyle(
-                      color:
-                          RiderColors.text,
-                      fontSize: 11,
-                      fontWeight:
-                          FontWeight.w900,
-                    ),
+                  style: TextStyle(
+                    color: RiderColors.text,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
                   ),
-                  subtitle:
-                      Padding(
-                    padding:
-                        const EdgeInsets.only(
-                      top: 5,
-                    ),
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
-                      children: [
-                        if (_text(
-                          entry[
-                              'buyer_name'],
-                        ).isNotEmpty)
-                          Text(
-                            _text(
-                              entry[
-                                  'buyer_name'],
-                            ),
-                            style:
-                                TextStyle(
-                              color:
-                                  RiderColors
-                                      .muted,
-                              fontSize:
-                                  9,
-                            ),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      if (_text(item['buyer_name']).isNotEmpty)
+                        Text(
+                          _text(item['buyer_name']),
+                          style: TextStyle(
+                            color: RiderColors.muted,
+                            fontSize: 9,
                           ),
+                        ),
 
-                        if (_text(
-                          entry[
-                              'delivered_at'],
-                        ).isNotEmpty) ...[
-                          const SizedBox(
-                            height: 2,
+                      if (_text(item['delivered_at']).isNotEmpty) ...[
+                        const SizedBox(height: 3),
+
+                        Text(
+                          'Delivered: '
+                          '${_text(item['delivered_at'])}',
+                          style: TextStyle(
+                            color: RiderColors.muted,
+                            fontSize: 8,
                           ),
-                          Text(
-                            'Delivered: '
-                            '${_text(entry['delivered_at'])}',
-                            style:
-                                TextStyle(
-                              color:
-                                  RiderColors
-                                      .muted,
-                              fontSize:
-                                  8,
-                            ),
-                          ),
-                        ],
+                        ),
                       ],
-                    ),
+                    ],
                   ),
-                  secondary:
-                      Text(
-                    '₱${_double(entry['total']).toStringAsFixed(2)}',
-                    style:
-                        TextStyle(
-                      color:
-                          RiderColors
-                              .goldDark,
-                      fontSize: 12,
-                      fontWeight:
-                          FontWeight.w900,
-                    ),
+                ),
+                secondary: Text(
+                  _money(
+                    _double(item['total']),
+                  ),
+                  style: TextStyle(
+                    color: RiderColors.goldDark,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        }),
       ],
     );
   }
 
+  // --------------------------------------------------
+  // SELECTED CASH SUMMARY
+  // --------------------------------------------------
+
   Widget _selectedSummary() {
     return Container(
-      padding:
-          const EdgeInsets.all(
-        15,
-      ),
-      decoration:
-          BoxDecoration(
-        color:
-            RiderColors.goldSoft,
-        borderRadius:
-            BorderRadius.circular(
-          16,
-        ),
-        border:
-            Border.all(
-          color:
-              RiderColors.gold
-                  .withValues(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: RiderColors.goldSoft,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: RiderColors.gold.withValues(
             alpha: .30,
           ),
         ),
@@ -1182,58 +1031,40 @@ class _RiderRemittancesState
               Container(
                 width: 39,
                 height: 39,
-                alignment:
-                    Alignment.center,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      RiderColors.surface,
-                  borderRadius:
-                      BorderRadius.circular(
-                    11,
-                  ),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: RiderColors.surface,
+                  borderRadius: BorderRadius.circular(11),
                 ),
                 child: Icon(
-                  Icons
-                      .account_balance_wallet_outlined,
-                  color:
-                      RiderColors.goldDark,
+                  Icons.account_balance_wallet_outlined,
+                  color: RiderColors.goldDark,
                   size: 20,
                 ),
               ),
 
-              const SizedBox(
-                width: 10,
-              ),
+              const SizedBox(width: 10),
 
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       '${_selected.length} selected',
-                      style:
-                          TextStyle(
-                        color:
-                            RiderColors.text,
+                      style: TextStyle(
+                        color: RiderColors.text,
                         fontSize: 11,
-                        fontWeight:
-                            FontWeight.w800,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
 
-                    const SizedBox(
-                      height: 2,
-                    ),
+                    const SizedBox(height: 3),
 
                     Text(
                       'Cash to remit',
-                      style:
-                          TextStyle(
-                        color:
-                            RiderColors.muted,
-                        fontSize: 8.5,
+                      style: TextStyle(
+                        color: RiderColors.muted,
+                        fontSize: 9,
                       ),
                     ),
                   ],
@@ -1241,51 +1072,43 @@ class _RiderRemittancesState
               ),
 
               Text(
-                '₱${_selectedCash.toStringAsFixed(2)}',
-                style:
-                    TextStyle(
-                  color:
-                      RiderColors.goldDark,
+                _money(_selectedCash),
+                style: TextStyle(
+                  color: RiderColors.goldDark,
                   fontSize: 16,
-                  fontWeight:
-                      FontWeight.w900,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
           ),
 
-          const SizedBox(
-            height: 13,
-          ),
+          const SizedBox(height: 14),
 
           SizedBox(
-            width:
-                double.infinity,
-            child:
-                FilledButton.icon(
-              onPressed:
-                  _submitting
-                      ? null
-                      : _submit,
-              icon:
-                  const Icon(
-                Icons
-                    .account_balance_outlined,
-              ),
-              label:
-                  Text(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _submitting ? null : _submit,
+              icon: _submitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.account_balance_outlined,
+                    ),
+              label: Text(
                 _submitting
                     ? 'Submitting...'
                     : 'Prepare Cash Batch',
               ),
-              style:
-                  FilledButton.styleFrom(
-                backgroundColor:
-                    RiderColors.gold,
-                foregroundColor:
-                    Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(
+              style: FilledButton.styleFrom(
+                backgroundColor: RiderColors.gold,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
                   vertical: 13,
                 ),
               ),
@@ -1296,126 +1119,82 @@ class _RiderRemittancesState
     );
   }
 
-  Widget _batchCard(
-    Map<String, dynamic> batch,
-  ) {
-    final id =
-        _int(
-      batch['id'],
-    );
+  // --------------------------------------------------
+  // REMITTANCE BATCH CARD
+  // --------------------------------------------------
 
-    final code =
-        _text(
+  Widget _batchCard(Map<String, dynamic> batch) {
+    final id = _int(batch['id']);
+
+    final code = _text(
       batch['batch_code'],
       'Batch #$id',
     );
 
-    final status =
-        _text(
+    final status = _text(
       batch['status'],
       'pending',
     );
 
-    final total =
-        _double(
-      batch[
-              'total_amount'] ??
-          batch['amount'],
+    final total = _double(
+      batch['total_amount'] ?? batch['amount'],
     );
 
-    final statusColor =
-        _statusColor(
-      status,
-    );
-
-    final statusSoft =
-        _statusSoft(
-      status,
-    );
+    final statusColor = _statusColor(status);
+    final statusBackground = _statusBackground(status);
 
     return Container(
-      padding:
-          const EdgeInsets.all(
-        14,
-      ),
-      decoration:
-          _cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(),
       child: Row(
         children: [
           Container(
             width: 43,
             height: 43,
-            alignment:
-                Alignment.center,
-            decoration:
-                BoxDecoration(
-              color:
-                  statusSoft,
-              borderRadius:
-                  BorderRadius.circular(
-                12,
-              ),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: statusBackground,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              Icons
-                  .receipt_long_outlined,
-              color:
-                  statusColor,
+              Icons.receipt_long_outlined,
+              color: statusColor,
               size: 21,
             ),
           ),
 
-          const SizedBox(
-            width: 11,
-          ),
+          const SizedBox(width: 11),
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   code,
-                  style:
-                      TextStyle(
-                    color:
-                        RiderColors.text,
+                  style: TextStyle(
+                    color: RiderColors.text,
                     fontSize: 11,
-                    fontWeight:
-                        FontWeight.w900,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
 
-                const SizedBox(
-                  height: 6,
-                ),
+                const SizedBox(height: 6),
 
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 4,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
                   ),
-                  decoration:
-                      BoxDecoration(
-                    color:
-                        statusSoft,
-                    borderRadius:
-                        BorderRadius.circular(
-                      20,
-                    ),
+                  decoration: BoxDecoration(
+                    color: statusBackground,
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    _statusLabel(
-                      status,
-                    ),
-                    style:
-                        TextStyle(
-                      color:
-                          statusColor,
-                      fontSize: 7.5,
-                      fontWeight:
-                          FontWeight.w700,
+                    _statusLabel(status),
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -1423,19 +1202,14 @@ class _RiderRemittancesState
             ),
           ),
 
-          const SizedBox(
-            width: 8,
-          ),
+          const SizedBox(width: 8),
 
           Text(
-            '₱${total.toStringAsFixed(2)}',
-            style:
-                TextStyle(
-              color:
-                  RiderColors.text,
+            _money(total),
+            style: TextStyle(
+              color: RiderColors.text,
               fontSize: 12,
-              fontWeight:
-                  FontWeight.w900,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -1443,111 +1217,88 @@ class _RiderRemittancesState
     );
   }
 
-  Widget _empty({
+  // --------------------------------------------------
+  // EMPTY STATE
+  // --------------------------------------------------
+
+  Widget _emptyState({
     required IconData icon,
     required String title,
     required String message,
   }) {
     return Container(
-      width:
-          double.infinity,
-      padding:
-          const EdgeInsets.all(
-        27,
-      ),
-      decoration:
-          _cardDecoration(),
+      width: double.infinity,
+      padding: const EdgeInsets.all(27),
+      decoration: _cardDecoration(),
       child: Column(
         children: [
           Icon(
             icon,
-            color:
-                RiderColors.muted,
+            color: RiderColors.muted,
             size: 40,
           ),
 
-          const SizedBox(
-            height: 10,
-          ),
+          const SizedBox(height: 11),
 
           Text(
             title,
-            textAlign:
-                TextAlign.center,
-            style:
-                TextStyle(
-              color:
-                  RiderColors.text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: RiderColors.text,
               fontSize: 13,
-              fontWeight:
-                  FontWeight.w800,
+              fontWeight: FontWeight.w800,
             ),
           ),
 
-          const SizedBox(
-            height: 5,
-          ),
+          const SizedBox(height: 6),
 
           Text(
             message,
-            textAlign:
-                TextAlign.center,
-            style:
-                TextStyle(
-              color:
-                  RiderColors.muted,
-              fontSize: 9.5,
-              height: 1.45,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: RiderColors.muted,
+              fontSize: 10,
+              height: 1.5,
             ),
           ),
         ],
       ),
     );
   }
+
+  // --------------------------------------------------
+  // IMPORTANT NOTICE
+  // --------------------------------------------------
 
   Widget _notice() {
     return Container(
-      padding:
-          const EdgeInsets.all(
-        12,
-      ),
-      decoration:
-          BoxDecoration(
-        color:
-            RiderColors.goldSoft,
-        borderRadius:
-            BorderRadius.circular(
-          12,
-        ),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: RiderColors.goldSoft,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            Icons
-                .info_outline_rounded,
-            color:
-                RiderColors.goldDark,
+            Icons.info_outline_rounded,
+            color: RiderColors.goldDark,
             size: 18,
           ),
 
-          const SizedBox(
-            width: 8,
-          ),
+          const SizedBox(width: 9),
 
           Expanded(
             child: Text(
-              'Creating a remittance batch does not transfer money digitally. '
-              'The collected COD cash must still be physically handed over '
-              'and verified by SARI Logistics before the related Rider earnings '
-              'can become available for payout.',
-              style:
-                  TextStyle(
-                color:
-                    RiderColors.text,
+              'Preparing a remittance batch does not transfer '
+              'cash digitally. The collected COD cash must be '
+              'physically handed over and verified by SARI Logistics '
+              'before related Rider earnings become available '
+              'for payout.',
+              style: TextStyle(
+                color: RiderColors.text,
                 fontSize: 9.5,
-                height: 1.45,
+                height: 1.5,
               ),
             ),
           ),
@@ -1556,95 +1307,59 @@ class _RiderRemittancesState
     );
   }
 
+  // --------------------------------------------------
+  // ERROR STATE
+  // --------------------------------------------------
+
   Widget _errorState() {
     return Center(
-      child:
-          SingleChildScrollView(
-        padding:
-            const EdgeInsets.all(
-          24,
-        ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisSize:
-              MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons
-                  .cloud_off_outlined,
-              color:
-                  RiderColors.muted,
+              Icons.cloud_off_outlined,
+              color: RiderColors.muted,
               size: 48,
             ),
 
-            const SizedBox(
-              height: 12,
-            ),
+            const SizedBox(height: 12),
 
             Text(
               'Unable to load COD remittances',
-              textAlign:
-                  TextAlign.center,
-              style:
-                  TextStyle(
-                color:
-                    RiderColors.text,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: RiderColors.text,
                 fontSize: 15,
-                fontWeight:
-                    FontWeight.w800,
+                fontWeight: FontWeight.w800,
               ),
             ),
 
-            const SizedBox(
-              height: 7,
-            ),
+            const SizedBox(height: 8),
 
             Text(
-              _error ??
-                  'Unknown error.',
-              textAlign:
-                  TextAlign.center,
-              style:
-                  TextStyle(
-                color:
-                    RiderColors.muted,
+              _error ?? 'Unknown error.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: RiderColors.muted,
                 fontSize: 10,
               ),
             ),
 
-            const SizedBox(
-              height: 15,
-            ),
+            const SizedBox(height: 16),
 
             FilledButton.icon(
-              onPressed:
-                  _load,
-              icon:
-                  const Icon(
-                Icons.refresh_rounded,
-              ),
-              label:
-                  const Text(
-                'Try Again',
+              onPressed: _refreshAll,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try Again'),
+              style: FilledButton.styleFrom(
+                backgroundColor: RiderColors.gold,
+                foregroundColor: Colors.white,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color:
-          RiderColors.surface,
-      borderRadius:
-          BorderRadius.circular(
-        16,
-      ),
-      border:
-          Border.all(
-        color:
-            RiderColors.border,
       ),
     );
   }

@@ -45,6 +45,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     _api = SariApi(
       baseUrl: ApiConfig.apiBaseUrl,
+      // Prevent a long login spinner when the staging host is offline.
+      // This does not bypass authentication or use demo credentials.
+      timeout: const Duration(seconds: 15),
       tokenProvider: () {
         return _secureStorage.read(key: _tokenKey);
       },
