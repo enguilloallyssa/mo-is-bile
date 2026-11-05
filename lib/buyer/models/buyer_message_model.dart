@@ -38,5 +38,6 @@ class BuyerMessage {
     required this.createdAt,
   });
 
-  bool get isBuyer => senderRole.toLowerCase() == 'buyer';
+  bool get isBuyer =>
+      senderRole.toLowerCase() == 'buyer';
 }

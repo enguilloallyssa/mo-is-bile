@@ -8,7 +8,11 @@ typedef SariJson = Map<String, dynamic>;
 typedef SariTokenProvider = Future<String?> Function();
 
 class SariApiException implements Exception {
-  const SariApiException(this.message, {this.statusCode, this.errors});
+  const SariApiException(
+    this.message, {
+    this.statusCode,
+    this.errors,
+  });
 
   final String message;
   final int? statusCode;
@@ -19,9 +23,13 @@ class SariApiException implements Exception {
   bool get isValidationError => statusCode == 422;
 
   @override
-  String toString() => statusCode == null
-      ? message
-      : 'SariApiException ($statusCode): $message';
+  String toString() {
+    if (statusCode == null) {
+      return message;
+    }
+
+    return 'SariApiException ($statusCode): $message';
+  }
 }
 
 class SariApi {
@@ -30,19 +38,29 @@ class SariApi {
     this.tokenProvider,
     http.Client? client,
     this.timeout = const Duration(seconds: 30),
-  })  : baseUrl = baseUrl.replaceFirst(RegExp(r'/+$'), ''),
+  })  : baseUrl = baseUrl.replaceFirst(
+          RegExp(r'/+$'),
+          '',
+        ),
         _client = client ?? http.Client(),
         _ownsClient = client == null;
 
   final String baseUrl;
   final SariTokenProvider? tokenProvider;
   final Duration timeout;
+
   final http.Client _client;
   final bool _ownsClient;
 
   void dispose() {
-    if (_ownsClient) _client.close();
+    if (_ownsClient) {
+      _client.close();
+    }
   }
+
+  // ============================================================
+  // HEADERS
+  // ============================================================
 
   Future<Map<String, String>> _headers({
     required bool authenticated,
@@ -52,7 +70,8 @@ class SariApi {
     };
 
     if (authenticated) {
-      final token = (await tokenProvider?.call())?.trim() ?? '';
+      final token =
+          (await tokenProvider?.call())?.trim() ?? '';
 
       if (token.isEmpty) {
         throw const SariApiException(
@@ -67,11 +86,18 @@ class SariApi {
     return headers;
   }
 
+  // ============================================================
+  // URL BUILDER
+  // ============================================================
+
   Uri _uri(
     String path, [
     Map<String, String>? query,
   ]) {
-    final cleanPath = path.replaceFirst(RegExp(r'^/+'), '');
+    final cleanPath = path.replaceFirst(
+      RegExp(r'^/+'),
+      '',
+    );
 
     if (cleanPath.isEmpty || cleanPath.contains('..')) {
       throw ArgumentError.value(
@@ -81,11 +107,17 @@ class SariApi {
       );
     }
 
-    return Uri.parse('$baseUrl/$cleanPath').replace(
+    return Uri.parse(
+      '$baseUrl/$cleanPath',
+    ).replace(
       queryParameters:
           query?.isNotEmpty == true ? query : null,
     );
   }
+
+  // ============================================================
+  // RESPONSE DECODER
+  // ============================================================
 
   SariJson _decode(http.Response response) {
     dynamic decoded;
@@ -97,11 +129,17 @@ class SariApi {
               utf8.decode(response.bodyBytes),
             );
     } catch (_) {
-      // Staging outages sometimes return an HTML proxy error rather than JSON.
-      // Keep the HTTP status visible without exposing server response content.
+      /*
+       * Staging servers / proxies can occasionally return HTML
+       * instead of JSON, for example HTTP 500 / 502 / 530.
+       *
+       * We do not expose the raw HTML to the mobile UI.
+       */
       throw SariApiException(
         response.statusCode >= 500
-            ? 'SARI server is temporarily unavailable (HTTP ${response.statusCode}). Please try again when the server is online.'
+            ? 'SARI server is temporarily unavailable '
+                '(HTTP ${response.statusCode}). '
+                'Please try again when the server is online.'
             : 'Laravel returned a non-JSON response.',
         statusCode: response.statusCode,
       );
@@ -118,7 +156,8 @@ class SariApi {
       final rawErrors = data['errors'];
 
       throw SariApiException(
-        data['message']?.toString() ?? 'Request failed.',
+        data['message']?.toString() ??
+            'Request failed.',
         statusCode: response.statusCode,
         errors: rawErrors is Map<String, dynamic>
             ? rawErrors
@@ -129,6 +168,10 @@ class SariApi {
     return data;
   }
 
+  // ============================================================
+  // NORMAL JSON REQUEST
+  // ============================================================
+
   Future<SariJson> request(
     String method,
     String path, {
@@ -137,8 +180,13 @@ class SariApi {
     bool authenticated = true,
     Duration? requestTimeout,
   }) async {
-    final uri = _uri(path, query);
-    final effectiveTimeout = requestTimeout ?? timeout;
+    final uri = _uri(
+      path,
+      query,
+    );
+
+    final effectiveTimeout =
+        requestTimeout ?? timeout;
 
     final headers = await _headers(
       authenticated: authenticated,
@@ -146,8 +194,9 @@ class SariApi {
 
     headers['Content-Type'] = 'application/json';
 
-    final body =
-        jsonBody == null ? null : jsonEncode(jsonBody);
+    final body = jsonBody == null
+        ? null
+        : jsonEncode(jsonBody);
 
     late http.Response response;
 
@@ -201,24 +250,33 @@ class SariApi {
       }
     } on TimeoutException {
       throw const SariApiException(
-        'SARI could not respond in time. Check your connection or try again when the server is online.',
+        'SARI could not respond in time. '
+        'Check your connection or try again '
+        'when the server is online.',
       );
     } on SocketException {
       throw const SariApiException(
-        'Unable to reach the SARI server. Please check your connection or try later.',
+        'Unable to reach the SARI server. '
+        'Please check your connection or try later.',
       );
     } on HandshakeException {
       throw const SariApiException(
-        'Secure connection to SARI failed. Please try again later.',
+        'Secure connection to SARI failed. '
+        'Please try again later.',
       );
     } on http.ClientException {
       throw const SariApiException(
-        'Unable to connect to SARI. The staging server may be offline.',
+        'Unable to connect to SARI. '
+        'The staging server may be offline.',
       );
     }
 
     return _decode(response);
   }
+
+  // ============================================================
+  // MULTIPART REQUEST
+  // ============================================================
 
   Future<SariJson> multipart(
     String method,
@@ -254,18 +312,27 @@ class SariApi {
     }
 
     try {
-      final streamed = await _client
+      final streamedResponse = await _client
           .send(request)
           .timeout(timeout);
 
       final response =
-          await http.Response.fromStream(streamed)
-              .timeout(timeout);
+          await http.Response.fromStream(
+        streamedResponse,
+      ).timeout(timeout);
 
       return _decode(response);
     } on TimeoutException {
       throw const SariApiException(
         'The upload timed out. Please try again.',
+      );
+    } on SocketException {
+      throw const SariApiException(
+        'Unable to reach the SARI server.',
+      );
+    } on HandshakeException {
+      throw const SariApiException(
+        'Secure connection to SARI failed.',
       );
     } on http.ClientException {
       throw const SariApiException(
@@ -274,38 +341,65 @@ class SariApi {
     }
   }
 
-  Future<SariJson> health() => request(
-        'GET',
-        'health',
-        authenticated: false,
-      );
+  // ============================================================
+  // HEALTH
+  // ============================================================
+
+  Future<SariJson> health() {
+    return request(
+      'GET',
+      'health',
+      authenticated: false,
+    );
+  }
+
+  // ============================================================
+  // AUTHENTICATION
+  // ============================================================
 
   Future<SariJson> login({
     required String role,
     required String email,
     required String password,
     required String deviceName,
-  }) =>
-      request(
-        'POST',
-        'auth/login',
-        authenticated: false,
-        jsonBody: {
-          'role': role,
-          'email': email.trim().toLowerCase(),
-          'password': password,
-          'device_name': deviceName,
-        },
-      );
+  }) {
+    return request(
+      'POST',
+      'auth/login',
+      authenticated: false,
+      jsonBody: {
+        'role': role,
+        'email': email.trim().toLowerCase(),
+        'password': password,
+        'device_name': deviceName,
+      },
+    );
+  }
 
-  Future<SariJson> me() =>
-      request('GET', 'auth/me');
+  Future<SariJson> me() {
+    return request(
+      'GET',
+      'auth/me',
+    );
+  }
 
-  Future<SariJson> logout() =>
-      request('POST', 'auth/logout');
+  Future<SariJson> logout() {
+    return request(
+      'POST',
+      'auth/logout',
+    );
+  }
 
-  Future<SariJson> logoutAll() =>
-      request('POST', 'auth/logout-all');
+  Future<SariJson> logoutAll() {
+    return request(
+      'POST',
+      'auth/logout-all',
+    );
+  }
+
+  // ============================================================
+  // PRODUCTS
+  // ============================================================
 
   Future<SariJson> products({
     int page = 1,
@@ -313,28 +407,30 @@ class SariApi {
     String? search,
     String? category,
     String sort = 'newest',
-  }) =>
-      request(
-        'GET',
-        'products',
-        authenticated: false,
-        query: {
-          'page': '$page',
-          'per_page': '$perPage',
-          'sort': sort,
-          if (search != null &&
-              search.trim().isNotEmpty)
-            'q': search.trim(),
-          if (category != null &&
-              category.trim().isNotEmpty)
-            'category': category.trim(),
-        },
-      );
+  }) {
+    return request(
+      'GET',
+      'products',
+      authenticated: false,
+      query: {
+        'page': '$page',
+        'per_page': '$perPage',
+        'sort': sort,
+        if (search != null &&
+            search.trim().isNotEmpty)
+          'q': search.trim(),
+        if (category != null &&
+            category.trim().isNotEmpty)
+          'category': category.trim(),
+      },
+    );
+  }
 
-  Future<SariJson> product(int id) =>
-      request(
-        'GET',
-        'products/$id',
-        authenticated: false,
-      );
+  Future<SariJson> product(int id) {
+    return request(
+      'GET',
+      'products/$id',
+      authenticated: false,
+    );
+  }
 }

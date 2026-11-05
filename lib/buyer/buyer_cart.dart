@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/sari_live_data.dart';
 import 'buyer_checkout.dart';
+import 'buyer_theme.dart';
 import 'models/buyer_cart_model.dart';
 import 'widgets/buyer_header.dart';
 
@@ -19,27 +20,10 @@ class BuyerCart extends StatefulWidget {
 }
 
 class _BuyerCartState extends State<BuyerCart> {
-  static const Color gold =
-      Color(0xFFCC8A0B);
+  final List<BuyerCartItem> _items =
+      <BuyerCartItem>[];
 
-  static const Color goldDark =
-      Color(0xFFA96D07);
-
-  static const Color dark =
-      Color(0xFF24201C);
-
-  static const Color muted =
-      Color(0xFF7F776E);
-
-  static const Color canvas =
-      Color(0xFFFBFAF8);
-
-  static const Color border =
-      Color(0xFFE9E3DB);
-
-  final List<BuyerCartItem> _items = [];
-
-  final Set<int> _selectedItemIds =
+  final Set<int> _selected =
       <int>{};
 
   bool _loading = true;
@@ -48,11 +32,10 @@ class _BuyerCartState extends State<BuyerCart> {
   String? _error;
   String? _previewError;
 
-  double _selectedSubtotal = 0;
-  double _originalDeliveryFee = 0;
+  double _subtotal = 0;
+  double _deliveryFee = 0;
   double _shippingDiscount = 0;
-  double _selectedDeliveryFee = 0;
-  double _selectedTotal = 0;
+  double _grandTotal = 0;
 
   int _previewVersion = 0;
 
@@ -66,20 +49,18 @@ class _BuyerCartState extends State<BuyerCart> {
   Map<String, dynamic> _map(
     dynamic value,
   ) {
-    if (value is Map) {
-      return Map<String, dynamic>.from(
-        value,
-      );
-    }
-
-    return {};
+    return value is Map
+        ? Map<String, dynamic>.from(
+            value,
+          )
+        : <String, dynamic>{};
   }
 
   String _text(
     dynamic value, [
     String fallback = '',
   ]) {
-    final text =
+    final String text =
         value?.toString().trim() ?? '';
 
     return text.isEmpty
@@ -88,33 +69,37 @@ class _BuyerCartState extends State<BuyerCart> {
   }
 
   int _integer(dynamic value) {
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse('$value') ?? 0;
+    return value is num
+        ? value.toInt()
+        : int.tryParse('$value') ?? 0;
   }
 
   double _decimal(dynamic value) {
-    if (value is num) {
-      return value.toDouble();
-    }
+    return value is num
+        ? value.toDouble()
+        : double.tryParse('$value') ?? 0;
+  }
 
-    return double.tryParse('$value') ?? 0;
+  String _money(double value) {
+    return '₱${value.toStringAsFixed(2)}';
   }
 
   BuyerCartItem _parseItem(
     dynamic raw,
   ) {
-    final data = _map(raw);
+    final Map<String, dynamic> data =
+        _map(raw);
+
+    final String image =
+        _text(
+      data['image_url'] ??
+          data['image'],
+    );
 
     return BuyerCartItem(
-      id: _integer(
-        data['id'],
-      ),
-      productId: _integer(
-        data['product_id'],
-      ),
+      id: _integer(data['id']),
+      productId:
+          _integer(data['product_id']),
       variantId:
           data['variant_id'] == null
               ? null
@@ -123,54 +108,65 @@ class _BuyerCartState extends State<BuyerCart> {
                 ),
       storeName: _text(
         data['store_name'],
-        'SARI Seller Store',
+        'SARI Seller',
       ),
       productName: _text(
-        data['name'],
+        data['name'] ??
+            data['product_name'],
         'Product',
       ),
       variantLabel: _text(
         data['variant_label'],
-        'Standard',
       ),
       image:
-          _text(
-            data['image_url'],
-          ).isEmpty
-              ? null
-              : _text(
-                  data['image_url'],
-                ),
-      unitPrice: _decimal(
-        data['unit_price'],
-      ),
-      serverLineTotal: _decimal(
-        data['line_total'],
-      ),
-      quantity: _integer(
-        data['quantity'],
-      ),
-      maxStock: _integer(
-        data['max_stock'],
-      ),
+          image.isEmpty ? null : image,
+      unitPrice:
+          _decimal(data['unit_price']),
+      serverLineTotal:
+          _decimal(data['line_total']),
+      quantity:
+          _integer(data['quantity']),
+      maxStock:
+          _integer(data['max_stock']),
       selectable:
-          data['selectable'] == true,
-      availabilityReason: _text(
+          data['selectable'] == true ||
+              data['selectable'] == 1 ||
+              data['selectable'] == '1',
+      availabilityReason:
+          _text(
         data['availability_reason'],
       ),
     );
   }
 
-  Map<String, List<BuyerCartItem>>
-      get _sellerGroups {
-    final groups =
-        <String, List<BuyerCartItem>>{};
+  List<BuyerCartItem>
+      get _selectedItems {
+    return _items
+        .where(
+          (BuyerCartItem item) =>
+              item.selectable &&
+              _selected.contains(
+                item.id,
+              ),
+        )
+        .toList();
+  }
 
-    for (final item in _items) {
+  Map<String, List<BuyerCartItem>>
+      get _groups {
+    final Map<String,
+            List<BuyerCartItem>>
+        groups =
+        <String,
+            List<BuyerCartItem>>{};
+
+    for (final BuyerCartItem item
+        in _items) {
       groups
           .putIfAbsent(
             item.storeName,
-            () => <BuyerCartItem>[],
+            () =>
+                <BuyerCartItem>[],
           )
           .add(item);
     }
@@ -178,46 +174,29 @@ class _BuyerCartState extends State<BuyerCart> {
     return groups;
   }
 
-  List<BuyerCartItem>
-      get _selectedItems {
-    return _items
-        .where(
-          (item) =>
-              _selectedItemIds.contains(
-                item.id,
-              ) &&
-              item.selectable,
-        )
-        .toList();
-  }
+  bool get _allSelected {
+    final Set<int> ids =
+        _items
+            .where(
+              (BuyerCartItem item) =>
+                  item.selectable,
+            )
+            .map(
+              (BuyerCartItem item) =>
+                  item.id,
+            )
+            .toSet();
 
-  bool get _allSelectableSelected {
-    final selectable = _items
-        .where(
-          (item) => item.selectable,
-        )
-        .map(
-          (item) => item.id,
-        )
-        .toSet();
-
-    return selectable.isNotEmpty &&
-        _selectedItemIds.length ==
-            selectable.length &&
-        _selectedItemIds.containsAll(
-          selectable,
-        );
-  }
-
-  bool get _partiallySelected {
-    return _selectedItemIds.isNotEmpty &&
-        !_allSelectableSelected;
+    return ids.isNotEmpty &&
+        _selected.length ==
+            ids.length &&
+        _selected.containsAll(ids);
   }
 
   Future<void> _loadCart({
-    bool showLoader = true,
+    bool loader = true,
   }) async {
-    if (showLoader) {
+    if (loader && mounted) {
       setState(() {
         _loading = true;
         _error = null;
@@ -225,46 +204,43 @@ class _BuyerCartState extends State<BuyerCart> {
     }
 
     try {
-      final response =
+      final Map<String, dynamic> response =
           await SariLiveData.instance
               .buyerCart();
 
-      final data =
+      final Map<String, dynamic> data =
           _map(response['data']);
 
-      final rawItems =
+      final List<dynamic> raw =
           data['items'] is List
               ? data['items'] as List
-              : const [];
+              : const <dynamic>[];
 
-      final items = rawItems
-          .map(_parseItem)
-          .where(
-            (item) => item.id > 0,
-          )
-          .toList();
+      final List<BuyerCartItem> items =
+          raw
+              .map(_parseItem)
+              .where(
+                (BuyerCartItem item) =>
+                    item.id > 0,
+              )
+              .toList();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _items
           ..clear()
           ..addAll(items);
 
-        _selectedItemIds.removeWhere(
-          (id) {
-          BuyerCartItem? found;
-
-        for (final item in _items) {
-          if (item.id == id) {
-        found = item;
-      break;
-    }
-    }
-
-return found == null ||
-    !found.selectable;
-          },
+        _selected.removeWhere(
+          (int id) =>
+              !_items.any(
+            (BuyerCartItem item) =>
+                item.id == id &&
+                item.selectable,
+          ),
         );
 
         _loading = false;
@@ -273,39 +249,42 @@ return found == null ||
 
       await _refreshPreview();
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _loading = false;
-        _error =
-            error.toString();
+        _error = error.toString();
       });
     }
   }
 
   Future<void> _refreshPreview()
       async {
-    final version =
+    final int version =
         ++_previewVersion;
 
-    final ids = _selectedItems
-        .map(
-          (item) => item.id,
-        )
-        .toList();
+    final List<int> ids =
+        _selectedItems
+            .map(
+              (BuyerCartItem item) =>
+                  item.id,
+            )
+            .toList();
 
     if (ids.isEmpty) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
+        _subtotal = 0;
+        _deliveryFee = 0;
+        _shippingDiscount = 0;
+        _grandTotal = 0;
         _previewLoading = false;
         _previewError = null;
-
-        _selectedSubtotal = 0;
-        _originalDeliveryFee = 0;
-        _shippingDiscount = 0;
-        _selectedDeliveryFee = 0;
-        _selectedTotal = 0;
       });
 
       return;
@@ -317,16 +296,16 @@ return found == null ||
     });
 
     try {
-      final response =
+      final Map<String, dynamic> response =
           await SariLiveData.instance
               .buyerCheckoutPreview(
         ids,
       );
 
-      final data =
+      final Map<String, dynamic> data =
           _map(response['data']);
 
-      final shipping =
+      final Map<String, dynamic> shipping =
           _map(data['shipping']);
 
       if (!mounted ||
@@ -335,15 +314,12 @@ return found == null ||
       }
 
       setState(() {
-        _selectedSubtotal =
-            _decimal(
-          data['subtotal'],
-        );
+        _subtotal =
+            _decimal(data['subtotal']);
 
-        _originalDeliveryFee =
+        _deliveryFee =
             _decimal(
-          shipping[
-              'original_delivery_fee'],
+          shipping['delivery_fee'],
         );
 
         _shippingDiscount =
@@ -352,13 +328,7 @@ return found == null ||
               'shipping_discount'],
         );
 
-        _selectedDeliveryFee =
-            _decimal(
-          shipping[
-              'delivery_fee'],
-        );
-
-        _selectedTotal =
+        _grandTotal =
             _decimal(
           data['grand_total'],
         );
@@ -373,13 +343,12 @@ return found == null ||
 
       setState(() {
         _previewLoading = false;
-        _previewError =
-            error.toString();
+        _previewError = error.toString();
       });
     }
   }
 
-  void _toggleItem(
+  void _toggle(
     BuyerCartItem item,
   ) {
     if (!item.selectable) {
@@ -387,13 +356,14 @@ return found == null ||
     }
 
     setState(() {
-      if (_selectedItemIds
-          .contains(item.id)) {
-        _selectedItemIds.remove(
+      if (_selected.contains(
+        item.id,
+      )) {
+        _selected.remove(
           item.id,
         );
       } else {
-        _selectedItemIds.add(
+        _selected.add(
           item.id,
         );
       }
@@ -402,24 +372,23 @@ return found == null ||
     _refreshPreview();
   }
 
-  void _toggleSelectAll() {
-    final selectableIds = _items
-        .where(
-          (item) => item.selectable,
-        )
-        .map(
-          (item) => item.id,
-        )
-        .toSet();
-
+  void _toggleAll() {
     setState(() {
-      if (_allSelectableSelected) {
-        _selectedItemIds.clear();
+      if (_allSelected) {
+        _selected.clear();
       } else {
-        _selectedItemIds
+        _selected
           ..clear()
           ..addAll(
-            selectableIds,
+            _items
+                .where(
+                  (BuyerCartItem item) =>
+                      item.selectable,
+                )
+                .map(
+                  (BuyerCartItem item) =>
+                      item.id,
+                ),
           );
       }
     });
@@ -431,75 +400,78 @@ return found == null ||
     BuyerCartItem item,
     int quantity,
   ) async {
-    if (!item.quantityEditable ||
-        quantity < 1 ||
+    if (quantity < 1 ||
         quantity > item.maxStock) {
       return;
     }
 
     try {
-      final response =
+      final Map<String, dynamic> response =
           await SariLiveData.instance
               .buyerUpdateCart(
         item.id,
         quantity,
       );
 
-      if (!mounted) return;
-
-      _message(
-        response['message']
-                ?.toString() ??
-            'Cart updated.',
+      _show(
+        _text(
+          response['message'],
+          'Cart updated.',
+        ),
       );
 
       await _loadCart(
-        showLoader: false,
+        loader: false,
       );
     } catch (error) {
-      if (!mounted) return;
-
-      _message(
-        error.toString(),
-      );
+      _show(error.toString());
     }
   }
 
-  Future<void> _removeItem(
+  Future<void> _remove(
     BuyerCartItem item,
   ) async {
-    final confirmed =
+    final bool? confirm =
         await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
+      builder: (
+        BuildContext context,
+      ) {
         return AlertDialog(
-          title: const Text(
-            'Remove Item',
+          title:
+              const Text(
+            'Remove item?',
           ),
-          content: const Text(
-            'Remove this item from your cart?',
+          content: Text(
+            'Remove ${item.productName} from your cart?',
           ),
-          actions: [
+          actions: <Widget>[
             TextButton(
-              onPressed: () =>
-                  Navigator.of(
-                    dialogContext,
-                  ).pop(false),
-              child: const Text(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  false,
+                );
+              },
+              child:
+                  const Text(
                 'Cancel',
               ),
             ),
             FilledButton(
-              onPressed: () =>
-                  Navigator.of(
-                    dialogContext,
-                  ).pop(true),
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  true,
+                );
+              },
               style:
                   FilledButton.styleFrom(
                 backgroundColor:
-                    Colors.redAccent,
+                    BuyerTheme.danger,
               ),
-              child: const Text(
+              child:
+                  const Text(
                 'Remove',
               ),
             ),
@@ -508,38 +480,33 @@ return found == null ||
       },
     );
 
-    if (confirmed != true) {
+    if (confirm != true) {
       return;
     }
 
     try {
-      final response =
+      final Map<String, dynamic> response =
           await SariLiveData.instance
               .buyerRemoveCart(
         item.id,
       );
 
-      if (!mounted) return;
-
-      _selectedItemIds.remove(
+      _selected.remove(
         item.id,
       );
 
-      _message(
-        response['message']
-                ?.toString() ??
-            'Item removed from cart.',
+      _show(
+        _text(
+          response['message'],
+          'Item removed.',
+        ),
       );
 
       await _loadCart(
-        showLoader: false,
+        loader: false,
       );
     } catch (error) {
-      if (!mounted) return;
-
-      _message(
-        error.toString(),
-      );
+      _show(error.toString());
     }
   }
 
@@ -550,8 +517,9 @@ return found == null ||
       return;
     }
 
-    final result =
-        await Navigator.of(context).push<bool>(
+    final bool? result =
+        await Navigator.of(context)
+            .push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) =>
             BuyerCheckout(
@@ -565,548 +533,361 @@ return found == null ||
 
     if (result == true &&
         mounted) {
-      _selectedItemIds.clear();
+      _selected.clear();
 
       await _loadCart();
     }
   }
 
-  void _message(
-    String message,
-  ) {
-    if (!mounted) return;
+  void _show(String message) {
+    if (!mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content:
-              Text(message),
+          content: Text(message),
           behavior:
               SnackBarBehavior.floating,
         ),
       );
   }
 
-  String _money(
-    double amount,
-  ) {
-    return '₱${amount.toStringAsFixed(2)}';
-  }
-
-  Widget _pageHeader() {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'SARI MARKETPLACE',
-          style: TextStyle(
-            color: goldDark,
-            fontSize: 8,
-            fontWeight:
-                FontWeight.w800,
-            letterSpacing: 1.1,
-          ),
-        ),
-        const SizedBox(height: 4),
-        const Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: 'Shopping ',
-              ),
-              TextSpan(
-                text: 'Cart',
-                style: TextStyle(
-                  color: gold,
-                ),
-              ),
-            ],
-          ),
-          style: TextStyle(
-            color: dark,
-            fontSize: 28,
-            height: 1.08,
-            fontWeight:
-                FontWeight.w800,
-            letterSpacing: -1,
-          ),
-        ),
-        const SizedBox(height: 13),
-        TextButton.icon(
-          onPressed: () =>
-              widget.onTabChanged
-                  ?.call(1),
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            size: 16,
-          ),
-          label: const Text(
-            'Continue Shopping',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _selectAllToolbar() {
-    final selectableCount =
-        _items
-            .where(
-              (item) =>
-                  item.selectable,
-            )
-            .length;
-
+  Widget _hero() {
     return Container(
+      margin:
+          const EdgeInsets.fromLTRB(
+        14,
+        14,
+        14,
+        0,
+      ),
       padding:
-          const EdgeInsets.all(13),
+          const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(14),
-        border: Border.all(
-          color: border,
+        gradient:
+            const LinearGradient(
+          begin: Alignment.topLeft,
+          end:
+              Alignment.bottomRight,
+          colors:
+              BuyerTheme.heroGradient,
         ),
+        borderRadius:
+            BorderRadius.circular(23),
       ),
       child: Row(
-        children: [
-          Checkbox(
-            value: _allSelectableSelected
-                ? true
-                : _partiallySelected
-                    ? null
-                    : false,
-            tristate: true,
-            activeColor: gold,
-            onChanged: selectableCount == 0
-                ? null
-                : (_) =>
-                    _toggleSelectAll(),
-          ),
-          const SizedBox(width: 3),
+        children: <Widget>[
           Expanded(
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
-              children: [
+              children: <Widget>[
                 const Text(
-                  'Select all products',
+                  'YOUR CART',
                   style: TextStyle(
-                    color: dark,
-                    fontSize: 11,
-                    fontWeight:
-                        FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${_items.length} item${_items.length == 1 ? '' : 's'} in your cart',
-                  style: const TextStyle(
-                    color: muted,
-                    fontSize: 9,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(
-              horizontal: 9,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(
-                0xFFFFFAF1,
-              ),
-              borderRadius:
-                  BorderRadius.circular(
-                20,
-              ),
-              border: Border.all(
-                color: const Color(
-                  0xFFEADFC9,
-                ),
-              ),
-            ),
-            child: Text(
-              '${_selectedItemIds.length} selected',
-              style:
-                  const TextStyle(
-                color: goldDark,
-                fontSize: 8,
-                fontWeight:
-                    FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sellerGroup(
-    String storeName,
-    List<BuyerCartItem> items,
-  ) {
-    return Container(
-      margin:
-          const EdgeInsets.only(
-        bottom: 12,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(16),
-        border: Border.all(
-          color: border,
-        ),
-      ),
-      clipBehavior:
-          Clip.antiAlias,
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
-            decoration:
-                const BoxDecoration(
-              color:
-                  Color(0xFFFCFBF8),
-              border: Border(
-                bottom: BorderSide(
-                  color: border,
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  alignment:
-                      Alignment.center,
-                  decoration:
-                      BoxDecoration(
                     color:
-                        const Color(
-                      0xFFFFF3DA,
-                    ),
-                    borderRadius:
-                        BorderRadius.circular(
-                      10,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons
-                        .storefront_outlined,
-                    color: goldDark,
-                    size: 19,
+                        Color(0xFFFFD98A),
+                    fontSize: 9,
+                    letterSpacing: 1.2,
+                    fontWeight:
+                        FontWeight.w900,
                   ),
                 ),
                 const SizedBox(
-                  width: 10,
+                  height: 7,
                 ),
-                Expanded(
-                  child: Text(
-                    storeName,
-                    style:
-                        const TextStyle(
-                      color: dark,
-                      fontSize: 12,
-                      fontWeight:
-                          FontWeight.w800,
-                    ),
+                const Text(
+                  'Ready when\nyou are.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 23,
+                    height: 1.05,
+                    fontWeight:
+                        FontWeight.w900,
                   ),
                 ),
+                const SizedBox(
+                  height: 8,
+                ),
                 Text(
-                  '${items.length} product${items.length == 1 ? '' : 's'}',
+                  '${_items.length} item${_items.length == 1 ? '' : 's'} currently synced with SARI.',
                   style:
                       const TextStyle(
-                    color: muted,
-                    fontSize: 8,
+                    color:
+                        Colors.white70,
+                    fontSize: 10,
+                    height: 1.4,
                   ),
                 ),
               ],
             ),
           ),
-          ...items.map(
-            (item) =>
-                _cartItem(item),
+          const Icon(
+            Icons
+                .shopping_cart_checkout_rounded,
+            color: Colors.white,
+            size: 45,
           ),
         ],
       ),
     );
   }
 
-  Widget _cartItem(
+  Widget _itemImage(
     BuyerCartItem item,
   ) {
-    final selected =
-        _selectedItemIds.contains(
+    final String image =
+        item.image?.trim() ?? '';
+
+    return Container(
+      width: 74,
+      height: 74,
+      clipBehavior:
+          Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: BuyerTheme.canvas,
+        borderRadius:
+            BorderRadius.circular(14),
+      ),
+      child: image.isEmpty
+          ? const Icon(
+              Icons
+                  .inventory_2_outlined,
+              color:
+                  BuyerTheme.muted,
+            )
+          : Image.network(
+              image,
+              fit: BoxFit.cover,
+              errorBuilder:
+                  (_, __, ___) =>
+                      const Icon(
+                Icons
+                    .inventory_2_outlined,
+                color:
+                    BuyerTheme.muted,
+              ),
+            ),
+    );
+  }
+
+  Widget _itemTile(
+    BuyerCartItem item,
+  ) {
+    final bool selected =
+        _selected.contains(
       item.id,
     );
 
-    final image =
-        item.image?.trim() ?? '';
-
-    return InkWell(
-      onTap: item.selectable
-          ? () =>
-              _toggleItem(item)
-          : null,
-      child: Container(
-        padding:
-            const EdgeInsets.all(12),
-        decoration:
-            const BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: border,
-            ),
+    return Container(
+      margin:
+          const EdgeInsets.only(
+        bottom: 10,
+      ),
+      padding:
+          const EdgeInsets.all(12),
+      decoration:
+          BuyerTheme.card(
+        radius: 17,
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: <Widget>[
+          Checkbox(
+            value: selected,
+            onChanged: item.selectable
+                ? (_) {
+                    _toggle(item);
+                  }
+                : null,
           ),
-        ),
-        child: Row(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            Checkbox(
-              value: selected,
-              activeColor: gold,
-              onChanged:
-                  item.selectable
-                      ? (_) =>
-                          _toggleItem(
-                            item,
-                          )
-                      : null,
-            ),
-            const SizedBox(width: 3),
-            ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(
-                10,
-              ),
-              child: SizedBox(
-                width: 78,
-                height: 78,
-                child: image.isEmpty
-                    ? _imagePlaceholder()
-                    : Image.network(
-                        image,
-                        fit:
-                            BoxFit.cover,
-                        errorBuilder:
-                            (_, __, ___) =>
-                                _imagePlaceholder(),
-                      ),
-              ),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.productName,
-                    maxLines: 2,
-                    overflow:
-                        TextOverflow.ellipsis,
-                    style:
-                        const TextStyle(
-                      color: dark,
-                      fontSize: 12,
-                      fontWeight:
-                          FontWeight.w700,
-                    ),
+
+          _itemImage(item),
+
+          const SizedBox(
+            width: 11,
+          ),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  item.productName,
+                  maxLines: 2,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(
+                    color:
+                        BuyerTheme.ink,
+                    fontSize: 12,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
+                ),
+
+                if (item.variantLabel
+                    .trim()
+                    .isNotEmpty) ...[
                   const SizedBox(
-                    height: 4,
+                    height: 3,
                   ),
                   Text(
                     item.variantLabel,
                     style:
                         const TextStyle(
-                      color: muted,
+                      color:
+                          BuyerTheme.muted,
                       fontSize: 9,
                     ),
                   ),
+                ],
+
+                const SizedBox(
+                  height: 7,
+                ),
+
+                Text(
+                  _money(
+                    item.unitPrice,
+                  ),
+                  style:
+                      const TextStyle(
+                    color:
+                        BuyerTheme
+                            .goldDark,
+                    fontSize: 15,
+                    fontWeight:
+                        FontWeight.w900,
+                    fontFamilyFallback:
+                        <String>[
+                      'Roboto',
+                      'Arial',
+                      'sans-serif',
+                    ],
+                  ),
+                ),
+
+                if (!item.selectable &&
+                    item.availabilityReason
+                        .isNotEmpty) ...[
                   const SizedBox(
                     height: 5,
                   ),
                   Text(
-                    '${_money(item.unitPrice)} each',
+                    item
+                        .availabilityReason,
                     style:
                         const TextStyle(
-                      color: muted,
+                      color:
+                          BuyerTheme.danger,
                       fontSize: 8,
                     ),
                   ),
-                  if (!item.selectable &&
-                      item.availabilityReason
-                          .isNotEmpty) ...[
-                    const SizedBox(
-                      height: 7,
-                    ),
-                    Text(
-                      item.availabilityReason,
-                      style:
-                          const TextStyle(
-                        color:
-                            Colors.redAccent,
-                        fontSize: 9,
-                        height: 1.4,
-                        fontWeight:
-                            FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  Row(
-                    children: [
-                      _quantityButton(
-                        icon:
-                            Icons.remove,
-                        enabled:
-                            item.quantityEditable &&
-                                item.quantity >
-                                    1,
-                        onTap: () =>
-                            _updateQuantity(
+                ],
+
+                const SizedBox(
+                  height: 9,
+                ),
+
+                Row(
+                  children: <Widget>[
+                    _qtyButton(
+                      icon:
+                          Icons.remove,
+                      enabled:
+                          item.quantity > 1,
+                      onTap: () {
+                        _updateQuantity(
                           item,
                           item.quantity -
                               1,
+                        );
+                      },
+                    ),
+
+                    Container(
+                      width: 37,
+                      alignment:
+                          Alignment.center,
+                      child: Text(
+                        '${item.quantity}',
+                        style:
+                            const TextStyle(
+                          fontWeight:
+                              FontWeight
+                                  .w800,
                         ),
                       ),
-                      Container(
-                        width: 42,
-                        height: 34,
-                        alignment:
-                            Alignment.center,
-                        decoration:
-                            const BoxDecoration(
-                          border:
-                              Border.symmetric(
-                            horizontal:
-                                BorderSide(
-                              color:
-                                  border,
-                            ),
-                          ),
-                        ),
-                        child: Text(
-                          '${item.quantity}',
-                          style:
-                              const TextStyle(
-                            color: dark,
-                            fontSize:
-                                11,
-                            fontWeight:
-                                FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      _quantityButton(
-                        icon: Icons.add,
-                        enabled:
-                            item.quantityEditable &&
-                                item.quantity <
-                                    item.maxStock,
-                        onTap: () =>
-                            _updateQuantity(
+                    ),
+
+                    _qtyButton(
+                      icon: Icons.add,
+                      enabled:
+                          item.quantity <
+                              item.maxStock,
+                      onTap: () {
+                        _updateQuantity(
                           item,
                           item.quantity +
                               1,
-                        ),
+                        );
+                      },
+                    ),
+
+                    const Spacer(),
+
+                    IconButton(
+                      tooltip:
+                          'Remove item',
+                      onPressed: () {
+                        _remove(item);
+                      },
+                      icon:
+                          const Icon(
+                        Icons
+                            .delete_outline_rounded,
+                        color:
+                            BuyerTheme
+                                .danger,
+                        size: 20,
                       ),
-                      const Spacer(),
-                      IconButton(
-                        tooltip: 'Remove',
-                        onPressed: () =>
-                            _removeItem(
-                          item,
-                        ),
-                        icon:
-                            const Icon(
-                          Icons
-                              .delete_outline_rounded,
-                          color:
-                              Colors.redAccent,
-                          size: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.end,
-              children: [
-                Text(
-                  _money(
-                    item.lineTotal,
-                  ),
-                  style:
-                      const TextStyle(
-                    color: goldDark,
-                    fontSize: 15,
-                    fontWeight:
-                        FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(
-                  height: 3,
-                ),
-                const Text(
-                  'Item total',
-                  style:
-                      TextStyle(
-                    color: muted,
-                    fontSize: 7,
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _quantityButton({
+  Widget _qtyButton({
     required IconData icon,
     required bool enabled,
     required VoidCallback onTap,
   }) {
     return SizedBox(
-      width: 36,
-      height: 34,
+      width: 31,
+      height: 31,
       child: OutlinedButton(
         onPressed:
             enabled ? onTap : null,
         style:
             OutlinedButton.styleFrom(
           padding: EdgeInsets.zero,
-          side: const BorderSide(
-            color: border,
-          ),
           shape:
               RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(
-              7,
+              9,
             ),
           ),
         ),
@@ -1118,183 +899,109 @@ return found == null ||
     );
   }
 
-  Widget _orderSummary() {
+  Widget _summary() {
     return Container(
-      padding:
-          const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(16),
-        border: Border.all(
-          color: border,
-        ),
+      margin:
+          const EdgeInsets.fromLTRB(
+        14,
+        12,
+        14,
+        14,
       ),
+      padding:
+          const EdgeInsets.all(17),
+      decoration:
+          BuyerTheme.card(),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Order Summary',
-                  style:
-                      TextStyle(
-                    color: dark,
-                    fontSize: 16,
-                    fontWeight:
-                        FontWeight.w800,
-                  ),
-                ),
-              ),
-              Text(
-                '${_selectedItemIds.length} selected',
-                style:
-                    const TextStyle(
-                  color: goldDark,
-                  fontSize: 9,
-                  fontWeight:
-                      FontWeight.w700,
-                ),
-              ),
-            ],
+        children: <Widget>[
+          _summaryRow(
+            'Subtotal',
+            _money(_subtotal),
           ),
+
           const SizedBox(
-            height: 15,
+            height: 8,
           ),
-          if (_previewLoading)
-            const LinearProgressIndicator(
-              color: gold,
-              minHeight: 2,
+
+          _summaryRow(
+            'Delivery fee',
+            _money(_deliveryFee),
+          ),
+
+          if (_shippingDiscount > 0) ...[
+            const SizedBox(
+              height: 8,
             ),
-          if (_previewError !=
-              null) ...[
+            _summaryRow(
+              'Shipping discount',
+              '-${_money(_shippingDiscount)}',
+              positive: true,
+            ),
+          ],
+
+          const Padding(
+            padding:
+                EdgeInsets.symmetric(
+              vertical: 12,
+            ),
+            child: Divider(
+              height: 1,
+            ),
+          ),
+
+          _summaryRow(
+            'Total',
+            _money(_grandTotal),
+            strong: true,
+          ),
+
+          if (_previewLoading) ...[
+            const SizedBox(
+              height: 12,
+            ),
+            const LinearProgressIndicator(),
+          ],
+
+          if (_previewError != null) ...[
+            const SizedBox(
+              height: 10,
+            ),
             Text(
               _previewError!,
               style:
                   const TextStyle(
                 color:
-                    Colors.redAccent,
+                    BuyerTheme.danger,
                 fontSize: 9,
-                height: 1.4,
               ),
-            ),
-            const SizedBox(
-              height: 12,
             ),
           ],
-          _summaryRow(
-            'Selected items',
-            _selectedSubtotal,
-          ),
+
           const SizedBox(
-            height: 10,
+            height: 15,
           ),
-          _summaryRow(
-            'Estimated delivery',
-            _originalDeliveryFee,
-          ),
-          if (_shippingDiscount >
-              0) ...[
-            const SizedBox(
-              height: 10,
-            ),
-            _summaryRow(
-              'Free Shipping discount',
-              -_shippingDiscount,
-              discount: true,
-            ),
-          ],
-          const SizedBox(
-            height: 10,
-          ),
-          _summaryRow(
-            'Delivery payable',
-            _selectedDeliveryFee,
-          ),
-          const SizedBox(
-            height: 14,
-          ),
-          const Divider(
-            color: border,
-          ),
-          const SizedBox(
-            height: 12,
-          ),
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Estimated Total',
-                  style:
-                      TextStyle(
-                    color: dark,
-                    fontSize: 11,
-                    fontWeight:
-                        FontWeight.w700,
-                  ),
-                ),
-              ),
-              Text(
-                _money(
-                  _selectedTotal,
-                ),
-                style:
-                    const TextStyle(
-                  color: goldDark,
-                  fontSize: 22,
-                  fontWeight:
-                      FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(
-            height: 16,
-          ),
+
           SizedBox(
             width: double.infinity,
-            child:
-                ElevatedButton(
+            height: 50,
+            child: FilledButton.icon(
               onPressed:
-                  _selectedItems
-                              .isEmpty ||
+                  _selectedItems.isEmpty ||
                           _previewLoading ||
                           _previewError !=
                               null
                       ? null
                       : _checkout,
-              style:
-                  ElevatedButton
-                      .styleFrom(
-                backgroundColor:
-                    gold,
-                foregroundColor:
-                    Colors.white,
-                padding:
-                    const EdgeInsets
-                        .symmetric(
-                  vertical: 14,
-                ),
+              icon:
+                  const Icon(
+                Icons
+                    .arrow_forward_rounded,
               ),
-              child:
-                  const Text(
-                'Checkout',
+              label: Text(
+                _selectedItems.isEmpty
+                    ? 'Select Items'
+                    : 'Checkout (${_selectedItems.length})',
               ),
-            ),
-          ),
-          const SizedBox(
-            height: 10,
-          ),
-          const Text(
-            'Only checked products will continue to checkout. Items you do not select stay safely in your cart.',
-            style: TextStyle(
-              color: Color(
-                0xFF67809A,
-              ),
-              fontSize: 8,
-              height: 1.45,
             ),
           ),
         ],
@@ -1304,128 +1011,112 @@ return found == null ||
 
   Widget _summaryRow(
     String label,
-    double amount, {
-    bool discount = false,
+    String value, {
+    bool strong = false,
+    bool positive = false,
   }) {
     return Row(
-      children: [
+      children: <Widget>[
         Expanded(
           child: Text(
             label,
             style: TextStyle(
-              color: discount
-                  ? const Color(
-                      0xFF4F8065,
-                    )
-                  : muted,
-              fontSize: 9,
+              color: strong
+                  ? BuyerTheme.ink
+                  : BuyerTheme.muted,
+              fontSize:
+                  strong ? 13 : 10,
+              fontWeight: strong
+                  ? FontWeight.w800
+                  : FontWeight.w500,
             ),
           ),
         ),
         Text(
-          amount < 0
-              ? '-${_money(amount.abs())}'
-              : _money(amount),
+          value,
           style: TextStyle(
-            color: discount
-                ? const Color(
-                    0xFF4F8065,
-                  )
-                : dark,
-            fontSize: 9,
-            fontWeight:
-                FontWeight.w700,
+            color: positive
+                ? BuyerTheme.success
+                : strong
+                    ? BuyerTheme
+                        .goldDark
+                    : BuyerTheme.ink,
+            fontSize:
+                strong ? 17 : 11,
+            fontWeight: strong
+                ? FontWeight.w900
+                : FontWeight.w700,
+            fontFamilyFallback:
+                const <String>[
+              'Roboto',
+              'Arial',
+              'sans-serif',
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _imagePlaceholder() {
-    return const ColoredBox(
-      color: Color(0xFFF4F4F4),
-      child: Center(
-        child: Icon(
-          Icons.inventory_2_outlined,
-          color: Color(
-            0xFFAAAEB5,
-          ),
-          size: 30,
-        ),
-      ),
-    );
-  }
-
-  Widget _emptyCart() {
+  Widget _empty() {
     return ListView(
+      physics:
+          const AlwaysScrollableScrollPhysics(),
       padding:
-          const EdgeInsets.all(24),
-      children: [
-        const SizedBox(height: 60),
-        const Icon(
-          Icons.shopping_cart_outlined,
-          size: 58,
-          color: muted,
+          const EdgeInsets.all(28),
+      children: <Widget>[
+        const SizedBox(
+          height: 80,
         ),
-        const SizedBox(height: 14),
+        const Icon(
+          Icons
+              .shopping_cart_outlined,
+          size: 60,
+          color:
+              BuyerTheme.muted,
+        ),
+        const SizedBox(
+          height: 16,
+        ),
         const Text(
           'Your cart is empty',
-          textAlign: TextAlign.center,
+          textAlign:
+              TextAlign.center,
           style: TextStyle(
-            color: dark,
-            fontSize: 17,
+            color: BuyerTheme.ink,
+            fontSize: 18,
             fontWeight:
-                FontWeight.w800,
+                FontWeight.w900,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(
+          height: 7,
+        ),
         const Text(
-          'Start exploring products from approved SARI sellers.',
-          textAlign: TextAlign.center,
+          'Browse SARI products and add something you like.',
+          textAlign:
+              TextAlign.center,
           style: TextStyle(
-            color: muted,
-            fontSize: 10,
+            color:
+                BuyerTheme.muted,
           ),
         ),
-        const SizedBox(height: 18),
-        OutlinedButton(
-          onPressed: () =>
-              widget.onTabChanged
-                  ?.call(1),
-          child: const Text(
+        const SizedBox(
+          height: 18,
+        ),
+        FilledButton.icon(
+          onPressed: () {
+            widget.onTabChanged
+                ?.call(1);
+          },
+          icon:
+              const Icon(
+            Icons
+                .shopping_bag_outlined,
+          ),
+          label:
+              const Text(
             'Browse Products',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _errorState() {
-    return ListView(
-      padding:
-          const EdgeInsets.all(24),
-      children: [
-        const SizedBox(height: 60),
-        const Icon(
-          Icons.wifi_off_rounded,
-          size: 48,
-          color: muted,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          _error ??
-              'Unable to load cart.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: muted,
-            fontSize: 10,
-          ),
-        ),
-        const SizedBox(height: 14),
-        FilledButton(
-          onPressed: _loadCart,
-          child: const Text(
-            'Try Again',
           ),
         ),
       ],
@@ -1437,79 +1128,208 @@ return found == null ||
     BuildContext context,
   ) {
     return Scaffold(
-      backgroundColor: canvas,
+      backgroundColor:
+          BuyerTheme.canvas,
       body: Column(
-        children: [
+        children: <Widget>[
           BuyerHeader(
             pageTitle:
                 'Shopping Cart',
             cartCount:
                 _items.length,
             notificationCount: 0,
-            onSearchTap: () =>
-                widget.onTabChanged
-                    ?.call(1),
+            onSearchTap: () {
+              widget.onTabChanged
+                  ?.call(1);
+            },
             onCartTap: () {},
-            onNotificationTap: () =>
-                widget.onTabChanged
-                    ?.call(5),
-            onProfileTap: () =>
-                widget.onTabChanged
-                    ?.call(4),
+            onNotificationTap: () {
+              widget.onTabChanged
+                  ?.call(5);
+            },
+            onProfileTap: () {
+              widget.onTabChanged
+                  ?.call(4);
+            },
           ),
+
           Expanded(
-            child: RefreshIndicator(
-              color: gold,
-              onRefresh:
-                  _loadCart,
-              child: _loading
-                  ? ListView(
-    children: const [
-      SizedBox(
-        height: 180,
-      ),
-      Center(
-        child: CircularProgressIndicator(
-          color: gold,
-        ),
-      ),
-    ],
-  )
-                  : _error != null
-                      ? _errorState()
-                      : _items.isEmpty
-                          ? _emptyCart()
-                          : ListView(
+            child: _loading
+                ? const Center(
+                    child:
+                        CircularProgressIndicator(),
+                  )
+                : _error != null &&
+                        _items.isEmpty
+                    ? RefreshIndicator(
+                        onRefresh:
+                            _loadCart,
+                        child: ListView(
+                          physics:
+                              const AlwaysScrollableScrollPhysics(),
+                          padding:
+                              const EdgeInsets.all(
+                            30,
+                          ),
+                          children: <Widget>[
+                            const SizedBox(
+                              height: 70,
+                            ),
+                            const Icon(
+                              Icons
+                                  .cloud_off_outlined,
+                              size: 50,
+                              color:
+                                  BuyerTheme
+                                      .muted,
+                            ),
+                            const SizedBox(
+                              height: 15,
+                            ),
+                            Text(
+                              _error!,
+                              textAlign:
+                                  TextAlign
+                                      .center,
+                            ),
+                          ],
+                        ),
+                      )
+                    : _items.isEmpty
+                        ? RefreshIndicator(
+                            onRefresh:
+                                _loadCart,
+                            child:
+                                _empty(),
+                          )
+                        : RefreshIndicator(
+                            onRefresh:
+                                _loadCart,
+                            child:
+                                ListView(
                               physics:
                                   const AlwaysScrollableScrollPhysics(),
                               padding:
-                                  const EdgeInsets.fromLTRB(
-                                14,
-                                18,
-                                14,
-                                30,
+                                  const EdgeInsets.only(
+                                bottom:
+                                    25,
                               ),
-                              children: [
-                                _pageHeader(),
-                                const SizedBox(
-                                  height: 15,
-                                ),
-                                _selectAllToolbar(),
-                                const SizedBox(
-                                  height: 12,
-                                ),
-                                ..._sellerGroups.entries
-                                    .map(
-                                  (entry) =>
-                                      _sellerGroup(
-                                    entry.key,
-                                    entry.value,
+                              children: <Widget>[
+                                _hero(),
+
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(
+                                    14,
+                                    16,
+                                    14,
+                                    8,
+                                  ),
+                                  child:
+                                      Row(
+                                    children: <Widget>[
+                                      Checkbox(
+                                        value:
+                                            _allSelected,
+                                        onChanged:
+                                            (_) {
+                                          _toggleAll();
+                                        },
+                                      ),
+                                      const Expanded(
+                                        child:
+                                            Text(
+                                          'Select all available items',
+                                          style:
+                                              TextStyle(
+                                            color:
+                                                BuyerTheme.ink,
+                                            fontSize:
+                                                11,
+                                            fontWeight:
+                                                FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                _orderSummary(),
+
+                                ..._groups.entries.map(
+                                  (
+                                    MapEntry<
+                                            String,
+                                            List<
+                                                BuyerCartItem>>
+                                        group,
+                                  ) {
+                                    return Padding(
+                                      padding:
+                                          const EdgeInsets.fromLTRB(
+                                        14,
+                                        0,
+                                        14,
+                                        15,
+                                      ),
+                                      child:
+                                          Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          Padding(
+                                            padding:
+                                                const EdgeInsets.only(
+                                              left:
+                                                  3,
+                                              bottom:
+                                                  8,
+                                            ),
+                                            child:
+                                                Row(
+                                              children: <Widget>[
+                                                const Icon(
+                                                  Icons.storefront_outlined,
+                                                  size:
+                                                      17,
+                                                  color:
+                                                      BuyerTheme.goldDark,
+                                                ),
+                                                const SizedBox(
+                                                  width:
+                                                      6,
+                                                ),
+                                                Expanded(
+                                                  child:
+                                                      Text(
+                                                    group.key,
+                                                    style:
+                                                        const TextStyle(
+                                                      color:
+                                                          BuyerTheme.ink,
+                                                      fontSize:
+                                                          12,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          ...group.value
+                                              .map(
+                                            _itemTile,
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+
+                                _summary(),
                               ],
                             ),
-            ),
+                          ),
           ),
         ],
       ),

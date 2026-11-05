@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../services/sari_live_data.dart';
 
@@ -8,13 +8,13 @@ import 'buyer_account.dart';
 import 'buyer_cart.dart';
 import 'buyer_home.dart';
 import 'buyer_messages.dart';
-import 'buyer_shipping.dart';
-import 'widgets/buyer_navigation_scope.dart';
 import 'buyer_notifications.dart';
 import 'buyer_orders.dart';
 import 'buyer_products.dart';
+import 'buyer_shipping.dart';
 import 'buyer_theme.dart';
 import 'widgets/buyer_bottom_nav.dart';
+import 'widgets/buyer_navigation_scope.dart';
 
 class BuyerShell extends StatefulWidget {
   const BuyerShell({
@@ -26,24 +26,10 @@ class BuyerShell extends StatefulWidget {
       _BuyerShellState();
 }
 
-class _BuyerShellState
-    extends State<BuyerShell> {
-  // ------------------------------------------
-  // BUYER MOBILE PAGE MAP
-  // ------------------------------------------
-  //
-  // 0 = Home
-  // 1 = Shop Products
-  // 2 = Shopping Cart
-  // 3 = My Orders
-  // 4 = Account
-  // 5 = Notifications
-  //
-  // Other Laravel Buyer pages will be added
-  // after their mobile content/flow is aligned.
-  // ------------------------------------------
+class _BuyerShellState extends State<BuyerShell> {
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+      GlobalKey<ScaffoldState>();
 
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _currentPage = 0;
   int _currentNavIndex = 0;
 
@@ -52,42 +38,46 @@ class _BuyerShellState
 
   static const Color _gold =
       Color(0xFFD9950B);
+int _navIndexForPage(
+  int page,
+) {
+  switch (page) {
+    case 0:
+      return 0;
 
-  int _navIndexForPage(
-    int page,
-  ) {
-    switch (page) {
-      case 0:
-        return 0;
+    case 1:
+      return 1;
 
-      case 1:
-        return 1;
+    case 3:
+      return 2;
 
-      case 3:
-        return 2;
+    case 6:
+      return 3;
 
-      case 5:
-        return 3;
+    case 4:
+      return 4;
 
-      case 4:
-        return 4;
-
-      default:
-        return _currentNavIndex;
-    }
+    default:
+      return _currentNavIndex;
   }
+}
 
   bool _requiresLogin(
     int page,
   ) {
-    return page == 2 || page == 3 || page == 4 ||
-        page == 5 || page == 6 || page == 7;
+    return page == 2 ||
+        page == 3 ||
+        page == 4 ||
+        page == 5 ||
+        page == 6 ||
+        page == 7;
   }
 
   Future<void> _openPage(
     int page,
   ) async {
-    if (page < 0 || page > 7) {
+    if (page < 0 ||
+        page > 7) {
       return;
     }
 
@@ -99,12 +89,17 @@ class _BuyerShellState
       return;
     }
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     setState(() {
       _currentPage = page;
+
       _currentNavIndex =
-          _navIndexForPage(page);
+          _navIndexForPage(
+        page,
+      );
     });
   }
 
@@ -120,24 +115,33 @@ class _BuyerShellState
     });
 
     try {
-      final hasToken =
-          await SariLiveData.instance
+      final bool hasToken =
+          await SariLiveData
+              .instance
               .hasAccessToken();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (!hasToken) {
         _showLoginRequired();
+
         return;
       }
 
       setState(() {
         _currentPage = page;
+
         _currentNavIndex =
-            _navIndexForPage(page);
+            _navIndexForPage(
+          page,
+        );
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _showMessage(
         'Unable to verify your session: $error',
@@ -145,37 +149,41 @@ class _BuyerShellState
     } finally {
       if (mounted) {
         setState(() {
-          _checkingAccess = false;
+          _checkingAccess =
+              false;
         });
       }
     }
   }
 
-  Future<void> _onBottomNavTap(
-    int index,
-  ) async {
-    const pages = <int>[
-      0,
-      1,
-      3,
-      5,
-      4,
-    ];
+Future<void> _onBottomNavTap(
+  int index,
+) async {
+  const List<int> pages =
+      <int>[
+    0, // Home
+    1, // Shop
+    3, // Orders
+    6, // Messages
+    4, // Account
+  ];
 
-    if (index < 0 ||
-        index >= pages.length) {
-      return;
-    }
-
-    await _openPage(
-      pages[index],
-    );
+  if (index < 0 ||
+      index >= pages.length) {
+    return;
   }
+
+  await _openPage(
+    pages[index],
+  );
+}
 
   void _showLoginRequired() {
     showDialog<void>(
       context: context,
-      builder: (dialogContext) {
+      builder: (
+        BuildContext dialogContext,
+      ) {
         return AlertDialog(
           title: const Text(
             'Login Required',
@@ -187,7 +195,7 @@ class _BuyerShellState
           content: const Text(
             'Please log in to your SARI Buyer account to access this page.',
           ),
-          actions: [
+          actions: <Widget>[
             TextButton(
               onPressed: () {
                 Navigator.of(
@@ -195,7 +203,9 @@ class _BuyerShellState
                 ).pop();
               },
               child:
-                  const Text('Cancel'),
+                  const Text(
+                'Cancel',
+              ),
             ),
             ElevatedButton(
               onPressed: () {
@@ -203,20 +213,24 @@ class _BuyerShellState
                   dialogContext,
                 ).pop();
 
-                Navigator.of(context)
-                    .pushNamed(
+                Navigator.of(
+                  context,
+                ).pushNamed(
                   '/login',
                 );
               },
               style:
-                  ElevatedButton.styleFrom(
+                  ElevatedButton
+                      .styleFrom(
                 backgroundColor:
                     _gold,
                 foregroundColor:
                     Colors.white,
               ),
               child:
-                  const Text('Login'),
+                  const Text(
+                'Login',
+              ),
             ),
           ],
         );
@@ -227,15 +241,19 @@ class _BuyerShellState
   void _showMessage(
     String message,
   ) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message),
+          content:
+              Text(message),
           behavior:
-              SnackBarBehavior.floating,
+              SnackBarBehavior
+                  .floating,
         ),
       );
   }
@@ -243,15 +261,107 @@ class _BuyerShellState
   ThemeData _buyerTheme(
     BuildContext context,
   ) {
-    final base =
+    final ThemeData base =
         Theme.of(context);
 
-    final textTheme =
-        GoogleFonts.poppinsTextTheme(
+    const List<String>
+        fallbackFonts =
+        <String>[
+      'Roboto',
+      'Arial',
+      'sans-serif',
+    ];
+
+    TextStyle? withFallback(
+      TextStyle? style,
+    ) {
+      return style?.copyWith(
+        fontFamilyFallback:
+            fallbackFonts,
+      );
+    }
+
+    final TextTheme interTheme =
+        GoogleFonts.interTextTheme(
       base.textTheme,
     ).apply(
-      bodyColor: BuyerTheme.ink,
-      displayColor: BuyerTheme.ink,
+      bodyColor:
+          BuyerTheme.ink,
+      displayColor:
+          BuyerTheme.ink,
+    );
+
+    /*
+     * Very important:
+     *
+     * Google Fonts can occasionally miss the
+     * Philippine peso character depending on
+     * the loaded font subset.
+     *
+     * Explicit fallback keeps ₱ visible.
+     */
+    final TextTheme textTheme =
+        interTheme.copyWith(
+      displayLarge:
+          withFallback(
+        interTheme.displayLarge,
+      ),
+      displayMedium:
+          withFallback(
+        interTheme.displayMedium,
+      ),
+      displaySmall:
+          withFallback(
+        interTheme.displaySmall,
+      ),
+      headlineLarge:
+          withFallback(
+        interTheme.headlineLarge,
+      ),
+      headlineMedium:
+          withFallback(
+        interTheme.headlineMedium,
+      ),
+      headlineSmall:
+          withFallback(
+        interTheme.headlineSmall,
+      ),
+      titleLarge:
+          withFallback(
+        interTheme.titleLarge,
+      ),
+      titleMedium:
+          withFallback(
+        interTheme.titleMedium,
+      ),
+      titleSmall:
+          withFallback(
+        interTheme.titleSmall,
+      ),
+      bodyLarge:
+          withFallback(
+        interTheme.bodyLarge,
+      ),
+      bodyMedium:
+          withFallback(
+        interTheme.bodyMedium,
+      ),
+      bodySmall:
+          withFallback(
+        interTheme.bodySmall,
+      ),
+      labelLarge:
+          withFallback(
+        interTheme.labelLarge,
+      ),
+      labelMedium:
+          withFallback(
+        interTheme.labelMedium,
+      ),
+      labelSmall:
+          withFallback(
+        interTheme.labelSmall,
+      ),
     );
 
     return base.copyWith(
@@ -260,11 +370,14 @@ class _BuyerShellState
       canvasColor:
           BuyerTheme.canvas,
       textTheme: textTheme,
-      primaryTextTheme: textTheme,
+      primaryTextTheme:
+          textTheme,
 
       colorScheme:
-          base.colorScheme.copyWith(
-        primary: BuyerTheme.gold,
+          base.colorScheme
+              .copyWith(
+        primary:
+            BuyerTheme.gold,
         secondary:
             BuyerTheme.goldDark,
         surface:
@@ -275,7 +388,8 @@ class _BuyerShellState
             BuyerTheme.danger,
       ),
 
-      appBarTheme: AppBarTheme(
+      appBarTheme:
+          AppBarTheme(
         backgroundColor:
             BuyerTheme.surface,
         foregroundColor:
@@ -283,10 +397,12 @@ class _BuyerShellState
         surfaceTintColor:
             Colors.transparent,
         elevation: 0,
-        scrolledUnderElevation: 0,
+        scrolledUnderElevation:
+            0,
         titleTextStyle:
-            GoogleFonts.poppins(
-          color: BuyerTheme.inkCool,
+            GoogleFonts.inter(
+          color:
+              BuyerTheme.inkCool,
           fontSize: 17,
           fontWeight:
               FontWeight.w700,
@@ -299,7 +415,8 @@ class _BuyerShellState
         fillColor:
             BuyerTheme.surface,
         contentPadding:
-            const EdgeInsets.symmetric(
+            const EdgeInsets
+                .symmetric(
           horizontal: 13,
           vertical: 12,
         ),
@@ -307,14 +424,16 @@ class _BuyerShellState
             OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(
-            BuyerTheme.controlRadius,
+            BuyerTheme
+                .controlRadius,
           ),
         ),
         enabledBorder:
             OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(
-            BuyerTheme.controlRadius,
+            BuyerTheme
+                .controlRadius,
           ),
           borderSide:
               const BorderSide(
@@ -326,7 +445,8 @@ class _BuyerShellState
             OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(
-            BuyerTheme.controlRadius,
+            BuyerTheme
+                .controlRadius,
           ),
           borderSide:
               const BorderSide(
@@ -340,7 +460,8 @@ class _BuyerShellState
       elevatedButtonTheme:
           ElevatedButtonThemeData(
         style:
-            ElevatedButton.styleFrom(
+            ElevatedButton
+                .styleFrom(
           backgroundColor:
               BuyerTheme.gold,
           foregroundColor:
@@ -350,11 +471,12 @@ class _BuyerShellState
               RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(
-              BuyerTheme.controlRadius,
+              BuyerTheme
+                  .controlRadius,
             ),
           ),
           textStyle:
-              GoogleFonts.poppins(
+              GoogleFonts.inter(
             fontWeight:
                 FontWeight.w700,
           ),
@@ -364,7 +486,8 @@ class _BuyerShellState
       outlinedButtonTheme:
           OutlinedButtonThemeData(
         style:
-            OutlinedButton.styleFrom(
+            OutlinedButton
+                .styleFrom(
           foregroundColor:
               BuyerTheme.goldDark,
           side:
@@ -376,7 +499,8 @@ class _BuyerShellState
               RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(
-              BuyerTheme.controlRadius,
+              BuyerTheme
+                  .controlRadius,
             ),
           ),
         ),
@@ -389,12 +513,13 @@ class _BuyerShellState
           0xFF292929,
         ),
         contentTextStyle:
-            GoogleFonts.poppins(
+            GoogleFonts.inter(
           color: Colors.white,
           fontSize: 11,
         ),
         behavior:
-            SnackBarBehavior.floating,
+            SnackBarBehavior
+                .floating,
       ),
     );
   }
@@ -434,9 +559,17 @@ class _BuyerShellState
         );
 
       case 5:
-        return BuyerNotifications(onTabChanged: _openPage);
+        return BuyerNotifications(
+          onTabChanged:
+              _openPage,
+        );
+
       case 6:
-        return BuyerMessages(onTabChanged: _openPage);
+        return BuyerMessages(
+          onTabChanged:
+              _openPage,
+        );
+
       case 7:
         return const BuyerShipping();
 
@@ -450,110 +583,425 @@ class _BuyerShellState
 
   void _openAccountSettings() {
     if (_currentPage == 4) {
-      _scaffoldKey.currentState?.openEndDrawer();
+      _scaffoldKey
+          .currentState
+          ?.openEndDrawer();
     }
   }
 
-  void _openSettingsPage(int page) {
-    _scaffoldKey.currentState?.closeEndDrawer();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _openPage(page);
-    });
+  void _openSettingsPage(
+    int page,
+  ) {
+    _scaffoldKey
+        .currentState
+        ?.closeEndDrawer();
+
+    WidgetsBinding.instance
+        .addPostFrameCallback(
+      (_) {
+        if (mounted) {
+          _openPage(page);
+        }
+      },
+    );
   }
 
   Future<void> _logout() async {
-    if (_loggingOut) return;
-    _scaffoldKey.currentState?.closeEndDrawer();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Log out of SARI?'),
-        content: const Text('You will need to sign in again to access your Buyer account.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Stay signed in')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Log out')),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    setState(() => _loggingOut = true);
-    bool revokedRemotely = false;
-    try {
-      await SariLiveData.instance.logout();
-      revokedRemotely = true;
-    } catch (_) {
-      // Server can be offline. Still clear local credentials for device logout.
+    if (_loggingOut) {
+      return;
     }
+
+    _scaffoldKey
+        .currentState
+        ?.closeEndDrawer();
+
+    final bool? confirmed =
+        await showDialog<bool>(
+      context: context,
+      builder: (
+        BuildContext dialogContext,
+      ) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(
+              20,
+            ),
+          ),
+          title:
+              const Text(
+            'Log out of SARI?',
+          ),
+          content:
+              const Text(
+            'You will need to sign in again to access your Buyer account.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  false,
+                );
+              },
+              child:
+                  const Text(
+                'Stay signed in',
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  true,
+                );
+              },
+              child:
+                  const Text(
+                'Log out',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true ||
+        !mounted) {
+      return;
+    }
+
+    setState(() {
+      _loggingOut = true;
+    });
+
+    bool revokedRemotely =
+        false;
+
     try {
-      const storage = FlutterSecureStorage();
-      await storage.delete(key: 'sari_access_token');
-      await storage.delete(key: 'sari_account_role');
-      if (!mounted) return;
-      if (!revokedRemotely) {
-        _showMessage('Logged out on this device. Server session revocation could not be confirmed.');
+      await SariLiveData
+          .instance
+          .logout();
+
+      revokedRemotely =
+          true;
+    } catch (_) {
+      /*
+       * Server may temporarily be unavailable.
+       * Still clear this device session.
+       */
+    }
+
+    try {
+      const FlutterSecureStorage
+          storage =
+          FlutterSecureStorage();
+
+      await storage.delete(
+        key:
+            'sari_access_token',
+      );
+
+      await storage.delete(
+        key:
+            'sari_account_role',
+      );
+
+      if (!mounted) {
+        return;
       }
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+
+      if (!revokedRemotely) {
+        _showMessage(
+          'Logged out on this device. Server session revocation could not be confirmed.',
+        );
+      }
+
+      Navigator.of(context)
+          .pushNamedAndRemoveUntil(
+        '/login',
+        (
+          Route<dynamic> route,
+        ) =>
+            false,
+      );
     } catch (error) {
-      if (mounted) _showMessage('Unable to clear the local session: $error');
+      if (mounted) {
+        _showMessage(
+          'Unable to clear the local session: $error',
+        );
+      }
     } finally {
-      if (mounted) setState(() => _loggingOut = false);
+      if (mounted) {
+        setState(() {
+          _loggingOut = false;
+        });
+      }
     }
   }
 
   Widget _settingsDrawer() {
+    final double width =
+        MediaQuery.sizeOf(context)
+                    .width >
+                430
+            ? 335
+            : MediaQuery.sizeOf(
+                  context,
+                ).width *
+                .86;
+
     return Drawer(
-      width: MediaQuery.sizeOf(context).width > 430 ? 335 : MediaQuery.sizeOf(context).width * .86,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.horizontal(left: Radius.circular(26)),
+      width: width,
+      shape:
+          const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.horizontal(
+          left:
+              Radius.circular(
+            26,
+          ),
+        ),
       ),
-      backgroundColor: BuyerTheme.surface,
+      backgroundColor:
+          BuyerTheme.surface,
       child: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          crossAxisAlignment:
+              CrossAxisAlignment
+                  .start,
+          children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
-              child: Row(children: [
-                Container(
-                  height: 43, width: 43,
-                  decoration: BoxDecoration(color: BuyerTheme.goldPale, borderRadius: BorderRadius.circular(14)),
-                  child: const Icon(Icons.tune_rounded, color: BuyerTheme.goldDark),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Account settings', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: BuyerTheme.ink)),
-                  Text('More options for your account', style: TextStyle(fontSize: 10, color: BuyerTheme.muted)),
-                ])),
-                IconButton(tooltip: 'Close settings', onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close_rounded)),
-              ]),
+              padding:
+                  const EdgeInsets
+                      .fromLTRB(
+                20,
+                18,
+                16,
+                12,
+              ),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    height: 43,
+                    width: 43,
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          BuyerTheme
+                              .goldPale,
+                      borderRadius:
+                          BorderRadius
+                              .circular(
+                        14,
+                      ),
+                    ),
+                    child:
+                        const Icon(
+                      Icons
+                          .tune_rounded,
+                      color:
+                          BuyerTheme
+                              .goldDark,
+                    ),
+                  ),
+                  const SizedBox(
+                    width: 12,
+                  ),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment
+                              .start,
+                      children: <Widget>[
+                        Text(
+                          'Account settings',
+                          style:
+                              TextStyle(
+                            fontSize: 17,
+                            fontWeight:
+                                FontWeight
+                                    .w900,
+                            color:
+                                BuyerTheme
+                                    .ink,
+                          ),
+                        ),
+                        Text(
+                          'More options for your account',
+                          style:
+                              TextStyle(
+                            fontSize: 10,
+                            color:
+                                BuyerTheme
+                                    .muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip:
+                        'Close settings',
+                    onPressed: () {
+                      Navigator.of(
+                        context,
+                      ).pop();
+                    },
+                    icon:
+                        const Icon(
+                      Icons
+                          .close_rounded,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const Divider(height: 1, color: BuyerTheme.border),
+
+            const Divider(
+              height: 1,
+              color:
+                  BuyerTheme.border,
+            ),
+
             const Padding(
-              padding: EdgeInsets.fromLTRB(22, 20, 16, 8),
-              child: Text('MORE SERVICES', style: TextStyle(color: BuyerTheme.goldDark, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.3)),
-            ),
-            _settingsLink(Icons.chat_bubble_outline_rounded, 'Messages', 'Conversations with sellers', () => _openSettingsPage(6)),
-            _settingsLink(Icons.local_shipping_outlined, 'Shipping & tracking', 'Track your orders in transit', () => _openSettingsPage(7)),
-            const Spacer(),
-            const Divider(height: 1, color: BuyerTheme.border),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 5),
-              child: Material(
-                color: const Color(0xFFFFF1EF),
-                borderRadius: BorderRadius.circular(15),
-                child: ListTile(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  leading: const Icon(Icons.logout_rounded, color: BuyerTheme.danger),
-                  title: Text(_loggingOut ? 'Signing out...' : 'Log out', style: const TextStyle(fontWeight: FontWeight.w800, color: BuyerTheme.danger)),
-                  subtitle: const Text('End your Buyer session on this device', style: TextStyle(fontSize: 10)),
-                  onTap: _loggingOut ? null : _logout,
+              padding:
+                  EdgeInsets.fromLTRB(
+                22,
+                20,
+                16,
+                8,
+              ),
+              child: Text(
+                'MORE SERVICES',
+                style: TextStyle(
+                  color:
+                      BuyerTheme
+                          .goldDark,
+                  fontSize: 10,
+                  fontWeight:
+                      FontWeight.w800,
+                  letterSpacing:
+                      1.3,
                 ),
               ),
             ),
+
+            _settingsLink(
+              Icons
+                  .chat_bubble_outline_rounded,
+              'Messages',
+              'Conversations with sellers',
+              () {
+                _openSettingsPage(
+                  6,
+                );
+              },
+            ),
+
+            _settingsLink(
+              Icons
+                  .local_shipping_outlined,
+              'Shipping & tracking',
+              'Track your orders in transit',
+              () {
+                _openSettingsPage(
+                  7,
+                );
+              },
+            ),
+
+            const Spacer(),
+
+            const Divider(
+              height: 1,
+              color:
+                  BuyerTheme.border,
+            ),
+
+            Padding(
+              padding:
+                  const EdgeInsets
+                      .fromLTRB(
+                12,
+                10,
+                12,
+                5,
+              ),
+              child: Material(
+                color:
+                    const Color(
+                  0xFFFFF1EF,
+                ),
+                borderRadius:
+                    BorderRadius
+                        .circular(
+                  15,
+                ),
+                child: ListTile(
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius
+                            .circular(
+                      15,
+                    ),
+                  ),
+                  leading:
+                      const Icon(
+                    Icons
+                        .logout_rounded,
+                    color:
+                        BuyerTheme
+                            .danger,
+                  ),
+                  title: Text(
+                    _loggingOut
+                        ? 'Signing out...'
+                        : 'Log out',
+                    style:
+                        const TextStyle(
+                      fontWeight:
+                          FontWeight
+                              .w800,
+                      color:
+                          BuyerTheme
+                              .danger,
+                    ),
+                  ),
+                  subtitle:
+                      const Text(
+                    'End your Buyer session on this device',
+                    style:
+                        TextStyle(
+                      fontSize: 10,
+                    ),
+                  ),
+                  onTap:
+                      _loggingOut
+                          ? null
+                          : _logout,
+                ),
+              ),
+            ),
+
             const Padding(
-              padding: EdgeInsets.fromLTRB(22, 6, 22, 12),
-              child: Text('SARI Marketplace · Buyer account', style: TextStyle(fontSize: 10, color: BuyerTheme.muted)),
+              padding:
+                  EdgeInsets.fromLTRB(
+                22,
+                6,
+                22,
+                12,
+              ),
+              child: Text(
+                'SARI Marketplace · Buyer account',
+                style: TextStyle(
+                  fontSize: 10,
+                  color:
+                      BuyerTheme.muted,
+                ),
+              ),
             ),
           ],
         ),
@@ -561,74 +1009,169 @@ class _BuyerShellState
     );
   }
 
-  Widget _settingsLink(IconData icon, String title, String subtitle, VoidCallback onTap) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-    child: Material(
-      color: BuyerTheme.canvas,
-      borderRadius: BorderRadius.circular(15),
-      child: ListTile(
-        onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        leading: Icon(icon, color: BuyerTheme.goldDark),
-        title: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: BuyerTheme.ink)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 10, color: BuyerTheme.muted)),
-        trailing: const Icon(Icons.chevron_right_rounded, color: BuyerTheme.muted, size: 20),
+  Widget _settingsLink(
+    IconData icon,
+    String title,
+    String subtitle,
+    VoidCallback onTap,
+  ) {
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 3,
       ),
-    ),
-  );
+      child: Material(
+        color:
+            BuyerTheme.canvas,
+        borderRadius:
+            BorderRadius.circular(
+          15,
+        ),
+        child: ListTile(
+          onTap: onTap,
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(
+              15,
+            ),
+          ),
+          leading: Icon(
+            icon,
+            color:
+                BuyerTheme.goldDark,
+          ),
+          title: Text(
+            title,
+            style:
+                const TextStyle(
+              fontSize: 13,
+              fontWeight:
+                  FontWeight.w800,
+              color:
+                  BuyerTheme.ink,
+            ),
+          ),
+          subtitle: Text(
+            subtitle,
+            style:
+                const TextStyle(
+              fontSize: 10,
+              color:
+                  BuyerTheme.muted,
+            ),
+          ),
+          trailing:
+              const Icon(
+            Icons
+                .chevron_right_rounded,
+            color:
+                BuyerTheme.muted,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Theme(
       data:
-          _buyerTheme(context),
-      child: BuyerNavigationScope(
-        openSettings: _openAccountSettings,
+          _buyerTheme(
+        context,
+      ),
+      child:
+          BuyerNavigationScope(
+        openSettings:
+            _openAccountSettings,
         child: Scaffold(
-        key: _scaffoldKey,
-        endDrawer: _currentPage == 4 ? _settingsDrawer() : null,
-        endDrawerEnableOpenDragGesture: false,
-        backgroundColor:
-            BuyerTheme.canvas,
-        body: Stack(
-          children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: child,
-              ),
-              child: KeyedSubtree(
-                key: ValueKey<int>(_currentPage),
-                child: _buildPage(_currentPage),
-              ),
-            ),
-            if (_checkingAccess)
-              Positioned.fill(
-                child: ColoredBox(
-                  color: const Color(0x55FFFFFF),
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BuyerTheme.card(),
-                      child: const CircularProgressIndicator(color: _gold),
-                    ),
+          key: _scaffoldKey,
+          endDrawer:
+              _currentPage == 4
+                  ? _settingsDrawer()
+                  : null,
+          endDrawerEnableOpenDragGesture:
+              false,
+          backgroundColor:
+              BuyerTheme.canvas,
+          body: Stack(
+            children: <Widget>[
+              AnimatedSwitcher(
+                duration:
+                    const Duration(
+                  milliseconds: 220,
+                ),
+                switchInCurve:
+                    Curves.easeOutCubic,
+                switchOutCurve:
+                    Curves.easeInCubic,
+                transitionBuilder:
+                    (
+                  Widget child,
+                  Animation<double>
+                      animation,
+                ) {
+                  return FadeTransition(
+                    opacity:
+                        animation,
+                    child: child,
+                  );
+                },
+                child:
+                    KeyedSubtree(
+                  key: ValueKey<int>(
+                    _currentPage,
+                  ),
+                  child:
+                      _buildPage(
+                    _currentPage,
                   ),
                 ),
               ),
-          ],
+
+              if (_checkingAccess)
+                Positioned.fill(
+                  child:
+                      ColoredBox(
+                    color:
+                        const Color(
+                      0x55FFFFFF,
+                    ),
+                    child: Center(
+                      child:
+                          Container(
+                        padding:
+                            const EdgeInsets
+                                .all(
+                          18,
+                        ),
+                        decoration:
+                            BuyerTheme
+                                .card(),
+                        child:
+                            const CircularProgressIndicator(
+                          color:
+                              _gold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          bottomNavigationBar:
+              BuyerBottomNav(
+            currentIndex:
+                _currentNavIndex,
+            onTap:
+                _onBottomNavTap,
+          ),
         ),
-        bottomNavigationBar:
-            BuyerBottomNav(
-          currentIndex:
-              _currentNavIndex,
-          onTap:
-              _onBottomNavTap,
-        ),
-        ), // Scaffold
-      ), // BuyerNavigationScope
-    ); // Theme
+      ),
+    );
   }
 }

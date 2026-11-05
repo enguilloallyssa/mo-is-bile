@@ -25,7 +25,7 @@ class BuyerAddressPicker extends StatefulWidget {
 class _BuyerAddressPickerState
     extends State<BuyerAddressPicker> {
   static const Color gold =
-      Color(0xFFCC8A0B);
+      Color(0xFFD49A32);
 
   String? _provinceCode;
   String? _municipalityCode;
@@ -61,27 +61,29 @@ class _BuyerAddressPickerState
       return _cache[path]!;
     }
 
-    final base = ApiConfig.baseUrl
-        .replaceFirst(
-          RegExp(r'/+$'),
-          '',
-        );
+    final String base =
+        ApiConfig.apiBaseUrl.replaceFirst(
+      RegExp(r'/+$'),
+      '',
+    );
 
-    final response = await http
-        .get(
-          Uri.parse(
-            '$base$path',
-          ),
-          headers: const {
-            'Accept':
-                'application/json',
-          },
-        )
-        .timeout(
-          const Duration(
-            seconds: 20,
-          ),
-        );
+    final http.Response response =
+        await http
+            .get(
+              Uri.parse(
+                '$base$path',
+              ),
+              headers:
+                  const <String, String>{
+                'Accept':
+                    'application/json',
+              },
+            )
+            .timeout(
+              const Duration(
+                seconds: 20,
+              ),
+            );
 
     if (response.statusCode < 200 ||
         response.statusCode >= 300) {
@@ -91,7 +93,8 @@ class _BuyerAddressPickerState
       );
     }
 
-    final decoded = jsonDecode(
+    final dynamic decoded =
+        jsonDecode(
       utf8.decode(
         response.bodyBytes,
       ),
@@ -111,29 +114,35 @@ class _BuyerAddressPickerState
       );
     }
 
-    final options = raw
-        .whereType<Map>()
-        .map(
-          (item) =>
-              _AddressOption(
-            code:
-                '${item['code'] ?? ''}',
-            name:
-                '${item['name'] ?? ''}',
-          ),
-        )
-        .where(
-          (option) =>
-              option.code.isNotEmpty &&
-              option.name.isNotEmpty,
-        )
-        .toList()
-      ..sort(
-        (a, b) =>
-            a.name.compareTo(
-          b.name,
-        ),
-      );
+    final List<_AddressOption> options =
+        raw
+            .whereType<Map>()
+            .map(
+              (Map item) =>
+                  _AddressOption(
+                code:
+                    '${item['code'] ?? ''}',
+                name:
+                    '${item['name'] ?? ''}',
+              ),
+            )
+            .where(
+              (
+                _AddressOption option,
+              ) =>
+                  option.code.isNotEmpty &&
+                  option.name.isNotEmpty,
+            )
+            .toList()
+          ..sort(
+            (
+              _AddressOption a,
+              _AddressOption b,
+            ) =>
+                a.name.compareTo(
+              b.name,
+            ),
+          );
 
     _cache[path] = options;
 
@@ -148,22 +157,28 @@ class _BuyerAddressPickerState
       return;
     }
 
-    setState(() {
-      _resolving = true;
-    });
+    if (mounted) {
+      setState(() {
+        _resolving = true;
+      });
+    }
 
     try {
-      final provinces = await _load(
+      final List<_AddressOption>
+          provinces =
+          await _load(
         '/address/provinces',
       );
 
-      for (final province in provinces) {
+      for (final _AddressOption province
+          in provinces) {
         if (_normalize(province.name) ==
             _normalize(
               widget.province.text,
             )) {
           _provinceCode =
               province.code;
+
           break;
         }
       }
@@ -175,13 +190,14 @@ class _BuyerAddressPickerState
         return;
       }
 
-      final municipalities =
+      final List<_AddressOption>
+          municipalities =
           await _load(
         '/address/provinces/'
         '$_provinceCode/municipalities',
       );
 
-      for (final municipality
+      for (final _AddressOption municipality
           in municipalities) {
         if (_normalize(
               municipality.name,
@@ -191,12 +207,13 @@ class _BuyerAddressPickerState
             )) {
           _municipalityCode =
               municipality.code;
+
           break;
         }
       }
     } catch (_) {
-      // Existing values remain visible even
-      // when lookup hydration fails.
+      // Keep existing address values visible
+      // if lookup hydration temporarily fails.
     } finally {
       if (mounted) {
         setState(() {
@@ -209,13 +226,16 @@ class _BuyerAddressPickerState
   Future<void> _chooseProvince()
       async {
     try {
-      final values = await _load(
+      final List<_AddressOption> values =
+          await _load(
         '/address/provinces',
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      final selected =
+      final _AddressOption? selected =
           await _showPicker(
         title: 'Select Province',
         values: values,
@@ -236,9 +256,7 @@ class _BuyerAddressPickerState
         widget.province.text =
             selected.name;
 
-        widget.municipality
-            .clear();
-
+        widget.municipality.clear();
         widget.barangay.clear();
       });
     } catch (error) {
@@ -258,18 +276,22 @@ class _BuyerAddressPickerState
       _message(
         'Select a province first.',
       );
+
       return;
     }
 
     try {
-      final values = await _load(
+      final List<_AddressOption> values =
+          await _load(
         '/address/provinces/'
         '$_provinceCode/municipalities',
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      final selected =
+      final _AddressOption? selected =
           await _showPicker(
         title:
             'Select City / Municipality',
@@ -307,18 +329,22 @@ class _BuyerAddressPickerState
       _message(
         'Select a city or municipality first.',
       );
+
       return;
     }
 
     try {
-      final values = await _load(
+      final List<_AddressOption> values =
+          await _load(
         '/address/municipalities/'
         '$_municipalityCode/barangays',
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      final selected =
+      final _AddressOption? selected =
           await _showPicker(
         title: 'Select Barangay',
         values: values,
@@ -342,14 +368,15 @@ class _BuyerAddressPickerState
 
   Future<_AddressOption?> _showPicker({
     required String title,
-    required List<_AddressOption>
-        values,
-  }) async {
-    return showDialog<
-        _AddressOption>(
+    required List<_AddressOption> values,
+  }) {
+    return showDialog<_AddressOption>(
       context: context,
-      builder: (_) =>
-          _BuyerAddressPickerDialog(
+      builder:
+          (
+            BuildContext context,
+          ) =>
+              _BuyerAddressPickerDialog(
         title: title,
         values: values,
       ),
@@ -359,14 +386,15 @@ class _BuyerAddressPickerState
   void _message(
     String message,
   ) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content:
-              Text(message),
+          content: Text(message),
           behavior:
               SnackBarBehavior.floating,
         ),
@@ -375,8 +403,7 @@ class _BuyerAddressPickerState
 
   Widget _field({
     required String label,
-    required TextEditingController
-        controller,
+    required TextEditingController controller,
     required VoidCallback onTap,
   }) {
     return TextFormField(
@@ -405,7 +432,10 @@ class _BuyerAddressPickerState
                     .keyboard_arrow_down_rounded,
               ),
       ),
-      validator: (value) {
+      validator:
+          (
+            String? value,
+          ) {
         if ((value ?? '')
             .trim()
             .isEmpty) {
@@ -422,14 +452,19 @@ class _BuyerAddressPickerState
     BuildContext context,
   ) {
     return Column(
-      children: [
+      children: <Widget>[
         _field(
           label: 'Province / Area',
           controller:
               widget.province,
-          onTap: _chooseProvince,
+          onTap:
+              _chooseProvince,
         ),
-        const SizedBox(height: 10),
+
+        const SizedBox(
+          height: 10,
+        ),
+
         _field(
           label:
               'City / Municipality',
@@ -438,12 +473,17 @@ class _BuyerAddressPickerState
           onTap:
               _chooseMunicipality,
         ),
-        const SizedBox(height: 10),
+
+        const SizedBox(
+          height: 10,
+        ),
+
         _field(
           label: 'Barangay',
           controller:
               widget.barangay,
-          onTap: _chooseBarangay,
+          onTap:
+              _chooseBarangay,
         ),
       ],
     );
@@ -463,9 +503,7 @@ class _AddressOption {
 class _BuyerAddressPickerDialog
     extends StatefulWidget {
   final String title;
-
-  final List<_AddressOption>
-      values;
+  final List<_AddressOption> values;
 
   const _BuyerAddressPickerDialog({
     required this.title,
@@ -487,12 +525,14 @@ class _BuyerAddressPickerDialogState
   Widget build(
     BuildContext context,
   ) {
-    final query =
+    final String query =
         _query.trim().toLowerCase();
 
-    final filtered =
+    final List<_AddressOption> filtered =
         widget.values.where(
-      (option) {
+      (
+        _AddressOption option,
+      ) {
         return query.isEmpty ||
             option.name
                 .toLowerCase()
@@ -501,17 +541,19 @@ class _BuyerAddressPickerDialogState
     ).toList();
 
     return AlertDialog(
-      title: Text(
-        widget.title,
-      ),
+      title:
+          Text(widget.title),
       content: SizedBox(
         width: 420,
         height: 440,
         child: Column(
-          children: [
+          children: <Widget>[
             TextField(
               autofocus: true,
-              onChanged: (value) {
+              onChanged:
+                  (
+                    String value,
+                  ) {
                 setState(() {
                   _query = value;
                 });
@@ -520,14 +562,17 @@ class _BuyerAddressPickerDialogState
                   const InputDecoration(
                 hintText:
                     'Search location...',
-                prefixIcon: Icon(
+                prefixIcon:
+                    Icon(
                   Icons.search_rounded,
                 ),
               ),
             ),
+
             const SizedBox(
               height: 10,
             ),
+
             Expanded(
               child: filtered.isEmpty
                   ? const Center(
@@ -539,21 +584,31 @@ class _BuyerAddressPickerDialogState
                       itemCount:
                           filtered.length,
                       itemBuilder:
-                          (_, index) {
-                        final option =
-                            filtered[
-                                index];
+                          (
+                            BuildContext context,
+                            int index,
+                          ) {
+                        final _AddressOption
+                            option =
+                            filtered[index];
 
                         return ListTile(
-                          title: Text(
+                          leading:
+                              const Icon(
+                            Icons
+                                .location_on_outlined,
+                          ),
+                          title:
+                              Text(
                             option.name,
                           ),
-                          onTap: () =>
-                              Navigator.of(
-                                context,
-                              ).pop(
-                            option,
-                          ),
+                          onTap: () {
+                            Navigator.of(
+                              context,
+                            ).pop(
+                              option,
+                            );
+                          },
                         );
                       },
                     ),
@@ -561,13 +616,15 @@ class _BuyerAddressPickerDialogState
           ],
         ),
       ),
-      actions: [
+      actions: <Widget>[
         TextButton(
-          onPressed: () =>
-              Navigator.of(
-                context,
-              ).pop(),
-          child: const Text(
+          onPressed: () {
+            Navigator.of(
+              context,
+            ).pop();
+          },
+          child:
+              const Text(
             'Cancel',
           ),
         ),

@@ -30,21 +30,29 @@ class SariApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
         scaffoldBackgroundColor: const Color(0xFFF7F5F1),
+
+        // Important:
+        // Keeps symbols such as the Philippine Peso sign ₱
+        // visible even if a custom font does not contain it.
         fontFamilyFallback: const <String>[
           'Roboto',
           'Arial',
           'sans-serif',
         ],
+
         appBarTheme: const AppBarTheme(
           centerTitle: false,
           elevation: 0,
           scrolledUnderElevation: 0,
         ),
+
         snackBarTheme: const SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
         ),
       ),
+
       initialRoute: '/splash',
+
       routes: <String, WidgetBuilder>{
         '/splash': (BuildContext context) =>
             const SplashScreen(),
@@ -67,6 +75,7 @@ class SariApp extends StatelessWidget {
         '/logistics': (BuildContext context) =>
             const LogisticsShell(),
       },
+
       onUnknownRoute: (RouteSettings settings) {
         return MaterialPageRoute<void>(
           builder: (BuildContext context) =>

@@ -12,30 +12,40 @@ class RiderBottomNav extends StatelessWidget {
     required this.onTap,
   });
 
-  static const List<_RiderNavItem> _items = [
+  static const List<_RiderNavItem> _items =
+      <_RiderNavItem>[
     _RiderNavItem(
       icon: Icons.dashboard_outlined,
-      selectedIcon: Icons.dashboard_rounded,
-      label: 'Dashboard',
+      selectedIcon:
+          Icons.dashboard_rounded,
+      label: 'Home',
     ),
     _RiderNavItem(
-      icon: Icons.assignment_outlined,
-      selectedIcon: Icons.assignment_rounded,
-      label: 'Assignments',
+      icon:
+          Icons.assignment_outlined,
+      selectedIcon:
+          Icons.assignment_rounded,
+      label: 'Jobs',
     ),
     _RiderNavItem(
-      icon: Icons.local_shipping_outlined,
-      selectedIcon: Icons.local_shipping_rounded,
+      icon:
+          Icons.local_shipping_outlined,
+      selectedIcon:
+          Icons.local_shipping_rounded,
       label: 'Deliveries',
     ),
     _RiderNavItem(
-      icon: Icons.account_balance_wallet_outlined,
-      selectedIcon: Icons.account_balance_wallet_rounded,
+      icon: Icons
+          .account_balance_wallet_outlined,
+      selectedIcon: Icons
+          .account_balance_wallet_rounded,
       label: 'Earnings',
     ),
     _RiderNavItem(
-      icon: Icons.person_outline_rounded,
-      selectedIcon: Icons.person_rounded,
+      icon:
+          Icons.person_outline_rounded,
+      selectedIcon:
+          Icons.person_rounded,
       label: 'Account',
     ),
   ];
@@ -45,13 +55,15 @@ class RiderBottomNav extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(
+        margin:
+            const EdgeInsets.fromLTRB(
           10,
           0,
           10,
           8,
         ),
-        padding: const EdgeInsets.symmetric(
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 5,
           vertical: 6,
         ),
@@ -62,28 +74,26 @@ class RiderBottomNav extends StatelessWidget {
           border: Border.all(
             color: RiderColors.border,
           ),
-          boxShadow: [
+          boxShadow: <BoxShadow>[
             BoxShadow(
               color: Colors.black.withValues(
-                alpha:
-                    RiderColors.isDark
-                        ? .25
-                        : .08,
+                alpha: RiderColors.isDark
+                    ? .25
+                    : .08,
               ),
               blurRadius: 20,
-              offset:
-                  const Offset(0, 7),
+              offset: const Offset(0, 7),
             ),
           ],
         ),
         child: Row(
-          children: List.generate(
+          children: List<Widget>.generate(
             _items.length,
-            (index) {
-              final item =
+            (int index) {
+              final _RiderNavItem item =
                   _items[index];
 
-              final selected =
+              final bool selected =
                   currentIndex == index;
 
               return Expanded(
@@ -91,8 +101,9 @@ class RiderBottomNav extends StatelessWidget {
                   color:
                       Colors.transparent,
                   child: InkWell(
-                    onTap: () =>
-                        onTap(index),
+                    onTap: () {
+                      onTap(index);
+                    },
                     borderRadius:
                         BorderRadius.circular(
                       15,
@@ -105,66 +116,68 @@ class RiderBottomNav extends StatelessWidget {
                       child: Column(
                         mainAxisSize:
                             MainAxisSize.min,
-                        children: [
+                        children: <Widget>[
                           AnimatedContainer(
                             duration:
                                 const Duration(
                               milliseconds: 180,
                             ),
-                            width: 37,
+                            width: 38,
                             height: 35,
                             alignment:
                                 Alignment.center,
                             decoration:
                                 BoxDecoration(
                               color: selected
-                                  ? RiderColors.goldSoft
+                                  ? RiderColors
+                                      .goldSoft
                                   : Colors
                                       .transparent,
                               borderRadius:
-                                  BorderRadius.circular(
+                                  BorderRadius
+                                      .circular(
                                 12,
                               ),
                             ),
                             child: Icon(
                               selected
-                                  ? item
-                                      .selectedIcon
+                                  ? item.selectedIcon
                                   : item.icon,
-                              size: 20,
-                              color: selected
-                                  ? RiderColors
-                                      .gold
-                                  : RiderColors
-                                      .muted,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 3,
-                          ),
-                          Text(
-                            item.label,
-                            maxLines: 1,
-                            overflow:
-                                TextOverflow
-                                    .ellipsis,
-                            textAlign:
-                                TextAlign.center,
-                            style:
-                                TextStyle(
+                              size: 21,
                               color: selected
                                   ? RiderColors
                                       .goldDark
                                   : RiderColors
                                       .muted,
-                              fontSize: 8,
-                              height: 1,
-                              fontWeight:
-                                  selected
-                                      ? FontWeight
-                                          .w800
-                                      : FontWeight
-                                          .w600,
+                            ),
+                          ),
+
+                          const SizedBox(
+                            height: 3,
+                          ),
+
+                          AnimatedDefaultTextStyle(
+                            duration:
+                                const Duration(
+                              milliseconds: 180,
+                            ),
+                            style: TextStyle(
+                              color: selected
+                                  ? RiderColors
+                                      .goldDark
+                                  : RiderColors
+                                      .muted,
+                              fontSize: 9,
+                              fontWeight: selected
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                            ),
+                            child: Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow:
+                                  TextOverflow
+                                      .ellipsis,
                             ),
                           ),
                         ],

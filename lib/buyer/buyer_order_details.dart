@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/sari_live_data.dart';
+import 'buyer_theme.dart';
 import 'models/buyer_order_model.dart';
 
-class BuyerOrderDetails
-    extends StatefulWidget {
+class BuyerOrderDetails extends StatefulWidget {
   final BuyerOrder order;
 
   const BuyerOrderDetails({
@@ -14,48 +14,17 @@ class BuyerOrderDetails
   });
 
   @override
-  State<BuyerOrderDetails>
-      createState() =>
-          _BuyerOrderDetailsState();
+  State<BuyerOrderDetails> createState() =>
+      _BuyerOrderDetailsState();
 }
 
 class _BuyerOrderDetailsState
     extends State<BuyerOrderDetails> {
-  static const Color gold =
-      Color(0xFFCC8A0B);
-
-  static const Color goldDark =
-      Color(0xFFA96D07);
-
-  static const Color dark =
-      Color(0xFF24201C);
-
-  static const Color muted =
-      Color(0xFF7F776E);
-
-  static const Color canvas =
-      Color(0xFFFBFAF8);
-
-  static const Color border =
-      Color(0xFFE9E3DB);
-
-  static const List<String>
-      _cancellationReasons = [
-    'Need to change shipping address',
-    'Need to change payment method',
-    'Need item sooner',
-    'Need to change color or size',
-    'High delivery costs',
-    'Better price available',
-    'No longer needed',
-    'Seller not responsive to inquiries',
-    'Seller requesting order cancellation',
-  ];
-
   BuyerOrder? _order;
 
-  List<Map<String, dynamic>>
-      _trackingEvents = [];
+  final List<Map<String, dynamic>>
+      _trackingEvents =
+      <Map<String, dynamic>>[];
 
   String _courierName = '';
 
@@ -73,143 +42,244 @@ class _BuyerOrderDetailsState
     _load();
   }
 
+  // ============================================================
+  // HELPERS
+  // ============================================================
+
   Map<String, dynamic> _map(
     dynamic value,
   ) {
-    if (value is Map) {
-      return Map<String, dynamic>.from(
-        value,
-      );
-    }
-
-    return {};
+    return value is Map
+        ? Map<String, dynamic>.from(value)
+        : <String, dynamic>{};
   }
 
   String _text(
     dynamic value, [
     String fallback = '',
   ]) {
-    final text =
+    final String result =
         value?.toString().trim() ?? '';
 
-    return text.isEmpty
+    return result.isEmpty
         ? fallback
-        : text;
+        : result;
   }
 
   int _integer(
     dynamic value,
   ) {
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse('$value') ?? 0;
+    return value is num
+        ? value.toInt()
+        : int.tryParse(
+              '$value',
+            ) ??
+            0;
   }
 
   double _decimal(
     dynamic value,
   ) {
-    if (value is num) {
-      return value.toDouble();
+    return value is num
+        ? value.toDouble()
+        : double.tryParse(
+              '$value',
+            ) ??
+            0;
+  }
+
+  String _money(
+    double value,
+  ) {
+    return '₱${value.toStringAsFixed(2)}';
+  }
+
+  String _dateTime(
+    String raw,
+  ) {
+    if (raw.trim().isEmpty) {
+      return '—';
     }
 
-    return double.tryParse('$value') ?? 0;
+    final DateTime? date =
+        DateTime.tryParse(
+      raw,
+    )?.toLocal();
+
+    if (date == null) {
+      return raw;
+    }
+
+    const List<String> months =
+        <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    final int hour =
+        date.hour == 0
+            ? 12
+            : date.hour > 12
+                ? date.hour - 12
+                : date.hour;
+
+    final String minute =
+        date.minute
+            .toString()
+            .padLeft(
+              2,
+              '0',
+            );
+
+    final String period =
+        date.hour >= 12
+            ? 'PM'
+            : 'AM';
+
+    return '${months[date.month - 1]} '
+        '${date.day}, ${date.year} • '
+        '$hour:$minute $period';
+  }
+
+  // ============================================================
+  // PARSER
+  // ============================================================
+
+  BuyerOrderItem _parseItem(
+    dynamic raw,
+  ) {
+    final Map<String, dynamic> item =
+        _map(raw);
+
+    final String image =
+        _text(
+      item['image_url'] ??
+          item['image'],
+    );
+
+    return BuyerOrderItem(
+      productId:
+          _integer(
+        item['product_id'],
+      ),
+      variantId:
+          item['variant_id'] == null
+              ? null
+              : _integer(
+                  item['variant_id'],
+                ),
+      name:
+          _text(
+        item['name'],
+        'Product',
+      ),
+      variantLabel:
+          _text(
+        item['variant_label'],
+        'Standard',
+      ),
+      quantity:
+          _integer(
+        item['qty'] ??
+            item['quantity'],
+      ),
+      lineTotal:
+          _decimal(
+        item['line_total'],
+      ),
+      image:
+          image.isEmpty
+              ? null
+              : image,
+    );
   }
 
   BuyerOrder _parseOrder(
     dynamic raw,
   ) {
-    final data = _map(raw);
+    final Map<String, dynamic> data =
+        _map(raw);
 
-    final rawItems =
+    final List<BuyerOrderItem> items =
         data['items'] is List
-            ? data['items'] as List
-            : const [];
-
-    final items = rawItems.map(
-      (rawItem) {
-        final item =
-            _map(rawItem);
-
-        return BuyerOrderItem(
-          productId: _integer(
-            item['product_id'],
-          ),
-          variantId:
-              item['variant_id'] ==
-                      null
-                  ? null
-                  : _integer(
-                      item[
-                          'variant_id'],
-                    ),
-          name: _text(
-            item['name'],
-            'Product',
-          ),
-          variantLabel: _text(
-            item['variant_label'],
-            'Standard',
-          ),
-          quantity: _integer(
-            item['qty'] ??
-                item['quantity'],
-          ),
-          lineTotal: _decimal(
-            item['line_total'],
-          ),
-        );
-      },
-    ).toList();
+            ? (data['items'] as List)
+                .map(_parseItem)
+                .toList()
+            : <BuyerOrderItem>[];
 
     return BuyerOrder(
-      id: _integer(
+      id:
+          _integer(
         data['id'],
       ),
-      orderNumber: _text(
+      orderNumber:
+          _text(
         data['order_number'],
+        'SARI Order',
       ),
-      status: _text(
+      status:
+          _text(
         data['status'],
       ),
-      apiStatusLabel: _text(
+      apiStatusLabel:
+          _text(
         data['status_label'],
       ),
-      paymentMethod: _text(
+      paymentMethod:
+          _text(
         data['payment_method'],
-        'Not specified',
+        'Cash on Delivery',
       ),
-      paymentStatus: _text(
+      paymentStatus:
+          _text(
         data['payment_status'],
         'pending',
       ),
-      subtotal: _decimal(
+      subtotal:
+          _decimal(
         data['subtotal'],
       ),
-      deliveryFee: _decimal(
+      deliveryFee:
+          _decimal(
         data['delivery_fee'],
       ),
-      totalAmount: _decimal(
+      totalAmount:
+          _decimal(
         data['total'],
       ),
-      createdAt: _text(
+      createdAt:
+          _text(
         data['created_at'],
       ),
-      deliveredAt: _text(
+      deliveredAt:
+          _text(
         data['delivered_at'],
       ),
-      buyerName: _text(
+      deliveryAddress:
+          _text(
+        data['buyer_address'],
+      ),
+      buyerName:
+          _text(
         data['buyer_name'],
         'SARI Buyer',
       ),
-      buyerPhone: _text(
+      buyerPhone:
+          _text(
         data['buyer_phone'],
       ),
-      deliveryAddress: _text(
-        data['buyer_address'],
-      ),
-      sellerName: _text(
+      sellerName:
+          _text(
         data['store_name'],
         'SARI Seller',
       ),
@@ -218,29 +288,68 @@ class _BuyerOrderDetailsState
         data['seller_id'],
       ),
       items: items,
-      productNames: items
-          .map(
-            (item) => item.name,
-          )
-          .toList(),
+      productNames:
+          items
+              .map(
+                (
+                  BuyerOrderItem item,
+                ) =>
+                    item.name,
+              )
+              .toList(),
+      latestUpdateTime:
+          _text(
+        data['updated_at'],
+      ),
+      latestUpdateMessage:
+          _text(
+        data['status_label'],
+      ),
+      cancelledAt:
+          _text(
+                  data['cancelled_at'],
+                )
+                .isEmpty
+              ? null
+              : _text(
+                  data['cancelled_at'],
+                ),
+      cancellationReason:
+          _text(
+                  data[
+                      'cancellation_reason'],
+                )
+                .isEmpty
+              ? null
+              : _text(
+                  data[
+                      'cancellation_reason'],
+                ),
     );
   }
 
-  Future<void> _load()
-      async {
+  // ============================================================
+  // LOAD FRESH SERVER STATE
+  // ============================================================
+
+  Future<void> _load() async {
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
-      final response =
+      final Map<String, dynamic> response =
           await SariLiveData.instance
               .buyerOrderDetails(
         widget.order.id,
       );
 
-      final raw =
+      final dynamic raw =
           response['data'];
 
       if (raw is! Map) {
@@ -249,7 +358,7 @@ class _BuyerOrderDetailsState
         );
       }
 
-      final order =
+      final BuyerOrder order =
           _parseOrder(raw);
 
       if (order.id !=
@@ -260,23 +369,26 @@ class _BuyerOrderDetailsState
       }
 
       List<Map<String, dynamic>>
-          events = [];
+          events =
+          <Map<String, dynamic>>[];
 
       String courier = '';
 
       try {
-        final tracking =
+        final Map<String, dynamic> tracking =
             await SariLiveData.instance
                 .buyerTracking(
           order.id,
         );
 
-        final trackingData =
+        final Map<String, dynamic>
+            trackingData =
             _map(
           tracking['data'],
         );
 
-        courier = _text(
+        courier =
+            _text(
           trackingData[
               'courier_name'],
         );
@@ -290,21 +402,30 @@ class _BuyerOrderDetailsState
                   .toList();
         }
       } catch (_) {
-        // Order details remain usable even when
-        // tracking information is not available.
+        // Order details remain usable
+        // even if tracking temporarily fails.
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _order = order;
-        _trackingEvents = events;
-        _courierName = courier;
+
+        _trackingEvents
+          ..clear()
+          ..addAll(events);
+
+        _courierName =
+            courier;
 
         _loading = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _loading = false;
@@ -314,9 +435,14 @@ class _BuyerOrderDetailsState
     }
   }
 
+  // ============================================================
+  // COPY
+  // ============================================================
+
   Future<void> _copyOrderNumber()
       async {
-    final order = _order;
+    final BuyerOrder? order =
+        _order;
 
     if (order == null) {
       return;
@@ -334,9 +460,13 @@ class _BuyerOrderDetailsState
     );
   }
 
-  Future<void> _cancelOrder()
-      async {
-    final order = _order;
+  // ============================================================
+  // CANCEL
+  // ============================================================
+
+  Future<void> _cancelOrder() async {
+    final BuyerOrder? order =
+        _order;
 
     if (order == null ||
         !order.canCancel ||
@@ -344,111 +474,151 @@ class _BuyerOrderDetailsState
       return;
     }
 
-    String reason =
-        _cancellationReasons.first;
+    final TextEditingController reasonController =
+        TextEditingController();
 
-    final confirmed =
-        await showDialog<bool>(
+    final String? reason =
+        await showDialog<String>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder:
-              (
-            context,
-            setDialogState,
+      builder:
+          (
+            BuildContext dialogContext,
           ) {
-            return AlertDialog(
-              title: const Text(
+        return AlertDialog(
+          title:
+              const Text(
+            'Cancel Order',
+          ),
+          content:
+              Column(
+            mainAxisSize:
+                MainAxisSize.min,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(
+                'Tell us why you want to cancel this order.',
+              ),
+
+              const SizedBox(
+                height: 14,
+              ),
+
+              TextField(
+                controller:
+                    reasonController,
+                minLines: 3,
+                maxLines: 5,
+                maxLength: 500,
+                decoration:
+                    const InputDecoration(
+                  labelText:
+                      'Cancellation Reason',
+                  hintText:
+                      'Enter your reason...',
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                );
+              },
+              child:
+                  const Text(
+                'Keep Order',
+              ),
+            ),
+
+            FilledButton(
+              style:
+                  FilledButton
+                      .styleFrom(
+                backgroundColor:
+                    BuyerTheme.danger,
+              ),
+              onPressed: () {
+                final String reason =
+                    reasonController
+                        .text
+                        .trim();
+
+                if (reason.length < 3) {
+                  return;
+                }
+
+                Navigator.pop(
+                  dialogContext,
+                  reason,
+                );
+              },
+              child:
+                  const Text(
                 'Cancel Order',
               ),
-              content: Column(
-                mainAxisSize:
-                    MainAxisSize.min,
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-                children: [
+            ),
+          ],
+        );
+      },
+    );
+
+    reasonController.dispose();
+
+    if (reason == null ||
+        reason.trim().isEmpty ||
+        !mounted) {
+      return;
+    }
+
+    final bool? confirmed =
+        await showDialog<bool>(
+      context: context,
+      builder:
+          (
+            BuildContext dialogContext,
+          ) {
+        return AlertDialog(
+          title:
+              const Text(
+            'Confirm Cancellation',
+          ),
+          content: Text(
+            'Cancel ${order.orderNumber}?',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  false,
+                );
+              },
+              child:
                   const Text(
-                    'Cancellation is only available before the seller starts fulfillment.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 14,
-                  ),
-                  DropdownButtonFormField<
-                      String>(
-                    value: reason,
-                    decoration:
-                        const InputDecoration(
-                      labelText:
-                          'Reason',
-                    ),
-                    items:
-                        _cancellationReasons
-                            .map(
-                      (value) =>
-                          DropdownMenuItem<
-                              String>(
-                        value:
-                            value,
-                        child:
-                            Text(
-                          value,
-                        ),
-                      ),
-                    )
-                            .toList(),
-                    onChanged: (value) {
-                      if (value !=
-                          null) {
-                        setDialogState(
-                          () {
-                            reason =
-                                value;
-                          },
-                        );
-                      }
-                    },
-                  ),
-                ],
+                'No',
               ),
-              actions: [
-                TextButton(
-                  onPressed: () =>
-                      Navigator.of(
-                        dialogContext,
-                      ).pop(
-                        false,
-                      ),
-                  child:
-                      const Text(
-                    'Keep Order',
-                  ),
-                ),
-                FilledButton(
-                  onPressed: () =>
-                      Navigator.of(
-                        dialogContext,
-                      ).pop(
-                        true,
-                      ),
-                  style:
-                      FilledButton
-                          .styleFrom(
-                    backgroundColor:
-                        Colors.redAccent,
-                  ),
-                  child:
-                      const Text(
-                    'Cancel Order',
-                  ),
-                ),
-              ],
-            );
-          },
+            ),
+            FilledButton(
+              style:
+                  FilledButton.styleFrom(
+                backgroundColor:
+                    BuyerTheme.danger,
+              ),
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  true,
+                );
+              },
+              child:
+                  const Text(
+                'Yes, Cancel',
+              ),
+            ),
+          ],
         );
       },
     );
@@ -463,7 +633,7 @@ class _BuyerOrderDetailsState
     });
 
     try {
-      final response =
+      final Map<String, dynamic> response =
           await SariLiveData.instance
               .buyerCancelOrder(
         order.id,
@@ -471,9 +641,10 @@ class _BuyerOrderDetailsState
       );
 
       _message(
-        response['message']
-                ?.toString() ??
-            'Order cancelled.',
+        _text(
+          response['message'],
+          'Order cancelled.',
+        ),
       );
 
       await _load();
@@ -490,9 +661,13 @@ class _BuyerOrderDetailsState
     }
   }
 
-  Future<void> _reviewOrder()
-      async {
-    final order = _order;
+  // ============================================================
+  // REVIEW
+  // ============================================================
+
+  Future<void> _reviewOrder() async {
+    final BuyerOrder? order =
+        _order;
 
     if (order == null ||
         !order.canReview ||
@@ -501,10 +676,13 @@ class _BuyerOrderDetailsState
       return;
     }
 
-    final reviewableItems =
+    final List<BuyerOrderItem>
+        reviewableItems =
         order.items
             .where(
-              (item) =>
+              (
+                BuyerOrderItem item,
+              ) =>
                   item.productId > 0,
             )
             .toList();
@@ -517,27 +695,34 @@ class _BuyerOrderDetailsState
       return;
     }
 
-    var productId =
+    int productId =
         reviewableItems.first.productId;
 
-    var rating = 5;
+    int rating = 5;
 
-    final commentController =
+    final TextEditingController
+        commentController =
         TextEditingController();
 
-    final submitted =
+    final bool? submitted =
         await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
+      builder:
+          (
+            BuildContext dialogContext,
+          ) {
         return StatefulBuilder(
           builder:
               (
-            context,
-            setDialogState,
-          ) {
+                BuildContext context,
+                void Function(
+                  void Function(),
+                ) setDialogState,
+              ) {
             return AlertDialog(
-              title: const Text(
-                'Write a Review',
+              title:
+                  const Text(
+                'Review Product',
               ),
               content:
                   SingleChildScrollView(
@@ -545,14 +730,11 @@ class _BuyerOrderDetailsState
                   mainAxisSize:
                       MainAxisSize.min,
                   crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
-                  children: [
-                    if (reviewableItems
-                            .length >
-                        1) ...[
-                      DropdownButtonFormField<
-                          int>(
+                      CrossAxisAlignment.start,
+                  children: <Widget>[
+                    if (reviewableItems.length >
+                        1)
+                      DropdownButtonFormField<int>(
                         value:
                             productId,
                         decoration:
@@ -563,60 +745,80 @@ class _BuyerOrderDetailsState
                         items:
                             reviewableItems
                                 .map(
-                          (item) =>
-                              DropdownMenuItem<
-                                  int>(
-                            value: item
-                                .productId,
-                            child: Text(
-                              item.name,
-                              overflow:
-                                  TextOverflow
-                                      .ellipsis,
-                            ),
-                          ),
-                        )
+                                  (
+                                    BuyerOrderItem item,
+                                  ) =>
+                                      DropdownMenuItem<int>(
+                                    value:
+                                        item.productId,
+                                    child:
+                                        Text(
+                                      item.name,
+                                      overflow:
+                                          TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
                                 .toList(),
                         onChanged:
-                            (value) {
-                          if (value !=
+                            (
+                              int? value,
+                            ) {
+                          if (value ==
                               null) {
-                            setDialogState(
-                              () {
-                                productId =
-                                    value;
-                              },
-                            );
+                            return;
                           }
+
+                          setDialogState(
+                            () {
+                              productId =
+                                  value;
+                            },
+                          );
                         },
+                      )
+                    else
+                      Text(
+                        reviewableItems
+                            .first.name,
+                        style:
+                            const TextStyle(
+                          fontWeight:
+                              FontWeight.w800,
+                        ),
                       ),
-                      const SizedBox(
-                        height: 14,
-                      ),
-                    ],
+
+                    const SizedBox(
+                      height: 18,
+                    ),
+
                     const Text(
-                      'Rating',
-                      style: TextStyle(
-                        fontSize: 11,
+                      'Your Rating',
+                      style:
+                          TextStyle(
                         fontWeight:
                             FontWeight.w700,
                       ),
                     ),
+
                     const SizedBox(
-                      height: 7,
+                      height: 8,
                     ),
-                    Wrap(
-                      spacing: 3,
+
+                    Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.center,
                       children:
-                          List.generate(
+                          List<Widget>.generate(
                         5,
-                        (index) {
-                          final value =
+                        (
+                          int index,
+                        ) {
+                          final int value =
                               index + 1;
 
                           return IconButton(
-                            onPressed:
-                                () {
+                            onPressed: () {
                               setDialogState(
                                 () {
                                   rating =
@@ -633,65 +835,58 @@ class _BuyerOrderDetailsState
                                   : Icons
                                       .star_border_rounded,
                               color:
-                                  gold,
-                              size:
-                                  28,
+                                  const Color(
+                                0xFFF1B43B,
+                              ),
+                              size: 31,
                             ),
                           );
                         },
                       ),
                     ),
+
                     const SizedBox(
                       height: 12,
                     ),
+
                     TextField(
                       controller:
                           commentController,
                       minLines: 3,
                       maxLines: 5,
-                      maxLength: 1500,
+                      maxLength: 1000,
                       decoration:
                           const InputDecoration(
                         labelText:
-                            'Comment (optional)',
+                            'Comment',
                         hintText:
-                            'Share your experience with this product.',
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 4,
-                    ),
-                    const Text(
-                      'Review photos are not included in the current mobile baseline yet.',
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 8,
-                        height: 1.4,
+                            'Share your experience...',
                       ),
                     ),
                   ],
                 ),
               ),
-              actions: [
+              actions: <Widget>[
                 TextButton(
-                  onPressed: () =>
-                      Navigator.of(
-                        dialogContext,
-                      ).pop(
-                        false,
-                      ),
+                  onPressed: () {
+                    Navigator.pop(
+                      dialogContext,
+                      false,
+                    );
+                  },
                   child:
                       const Text(
                     'Cancel',
                   ),
                 ),
+
                 FilledButton(
-                  onPressed: () =>
-                      Navigator.of(
-                        dialogContext,
-                      ).pop(
-                        true,
-                      ),
+                  onPressed: () {
+                    Navigator.pop(
+                      dialogContext,
+                      true,
+                    );
+                  },
                   child:
                       const Text(
                     'Submit Review',
@@ -707,6 +902,7 @@ class _BuyerOrderDetailsState
     if (submitted != true ||
         !mounted) {
       commentController.dispose();
+
       return;
     }
 
@@ -715,7 +911,7 @@ class _BuyerOrderDetailsState
     });
 
     try {
-      final response =
+      final Map<String, dynamic> response =
           await SariLiveData.instance
               .buyerReviewOrder(
         order.id,
@@ -728,9 +924,10 @@ class _BuyerOrderDetailsState
       );
 
       _message(
-        response['message']
-                ?.toString() ??
-            'Product review saved.',
+        _text(
+          response['message'],
+          'Product review saved.',
+        ),
       );
     } catch (error) {
       _message(
@@ -747,156 +944,351 @@ class _BuyerOrderDetailsState
     }
   }
 
-  void _message(
-    String message,
-  ) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content:
-              Text(message),
-          behavior:
-              SnackBarBehavior.floating,
-        ),
-      );
-  }
-
-  String _money(
-    double amount,
-  ) {
-    return '₱${amount.toStringAsFixed(2)}';
-  }
-
-  String _date(
-    String raw,
-  ) {
-    final value =
-        DateTime.tryParse(raw)
-            ?.toLocal();
-
-    if (value == null) {
-      return raw.isEmpty
-          ? 'Not available'
-          : raw;
-    }
-
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-
-    return '${months[value.month - 1]} '
-        '${value.day}, '
-        '${value.year}';
-  }
-
-  String _dateTime(
-    String raw,
-  ) {
-    final value =
-        DateTime.tryParse(raw)
-            ?.toLocal();
-
-    if (value == null) {
-      return raw.isEmpty
-          ? ''
-          : raw;
-    }
-
-    final hour =
-        value.hour == 0
-            ? 12
-            : value.hour > 12
-                ? value.hour - 12
-                : value.hour;
-
-    final minute =
-        value.minute
-            .toString()
-            .padLeft(
-              2,
-              '0',
-            );
-
-    final meridiem =
-        value.hour >= 12
-            ? 'PM'
-            : 'AM';
-
-    return '${_date(raw)} · '
-        '$hour:$minute '
-        '$meridiem';
-  }
+  // ============================================================
+  // STATUS
+  // ============================================================
 
   Color _statusColor(
     BuyerOrder order,
   ) {
     if (order.isDelivered) {
-      return const Color(
-        0xFF4F8065,
-      );
+      return BuyerTheme.success;
+    }
+
+    if (order.isCancelled) {
+      return BuyerTheme.danger;
+    }
+
+    if (order.filterGroup ==
+        'in-transit') {
+      return BuyerTheme.blue;
+    }
+
+    return BuyerTheme.goldDark;
+  }
+
+  Color _statusBackground(
+    BuyerOrder order,
+  ) {
+    if (order.isDelivered) {
+      return BuyerTheme.successSoft;
     }
 
     if (order.isCancelled) {
       return const Color(
-        0xFFCC4D4D,
+        0xFFFFECEB,
       );
     }
 
-    return goldDark;
+    if (order.filterGroup ==
+        'in-transit') {
+      return BuyerTheme.blueSoft;
+    }
+
+    return BuyerTheme.goldPale;
   }
 
-  Widget _orderOverview(
+  IconData _statusIcon(
     BuyerOrder order,
   ) {
-    final statusColor =
-        _statusColor(order);
+    if (order.isDelivered) {
+      return Icons
+          .check_circle_outline_rounded;
+    }
 
-    return _card(
+    if (order.isCancelled) {
+      return Icons
+          .cancel_outlined;
+    }
+
+    if (order.filterGroup ==
+        'in-transit') {
+      return Icons
+          .local_shipping_outlined;
+    }
+
+    return Icons
+        .inventory_2_outlined;
+  }
+
+  List<
+      ({
+        String title,
+        String subtitle,
+        IconData icon,
+      })> _statusSteps() {
+    return const [
+      (
+        title: 'Order Placed',
+        subtitle:
+            'Your order was created.',
+        icon:
+            Icons.receipt_long_outlined,
+      ),
+      (
+        title: 'Preparing',
+        subtitle:
+            'Seller is preparing your parcel.',
+        icon:
+            Icons.inventory_2_outlined,
+      ),
+      (
+        title: 'Picked Up',
+        subtitle:
+            'Parcel was released for delivery.',
+        icon:
+            Icons.delivery_dining_outlined,
+      ),
+      (
+        title: 'In Transit',
+        subtitle:
+            'Your parcel is on the way.',
+        icon:
+            Icons.local_shipping_outlined,
+      ),
+      (
+        title: 'Delivered',
+        subtitle:
+            'Parcel reached the Buyer.',
+        icon:
+            Icons.check_circle_outline_rounded,
+      ),
+    ];
+  }
+
+  // ============================================================
+  // UI HELPERS
+  // ============================================================
+
+  Widget _section({
+    required String title,
+    IconData? icon,
+    required Widget child,
+  }) {
+    return Container(
+      margin:
+          const EdgeInsets.only(
+        bottom: 13,
+      ),
+      padding:
+          const EdgeInsets.all(
+        17,
+      ),
+      decoration:
+          BuyerTheme.card(),
       child: Column(
         crossAxisAlignment:
             CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'ORDER DETAILS',
-            style: TextStyle(
-              color: goldDark,
-              fontSize: 8,
-              fontWeight:
-                  FontWeight.w800,
-              letterSpacing: 1.1,
-            ),
-          ),
-          const SizedBox(
-            height: 8,
-          ),
+        children: <Widget>[
           Row(
-            children: [
+            children: <Widget>[
+              if (icon != null) ...[
+                Container(
+                  width: 38,
+                  height: 38,
+                  alignment:
+                      Alignment.center,
+                  decoration:
+                      BoxDecoration(
+                    color:
+                        BuyerTheme.goldPale,
+                    borderRadius:
+                        BorderRadius.circular(
+                      12,
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    color:
+                        BuyerTheme.goldDark,
+                    size: 19,
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 10,
+                ),
+              ],
+
               Expanded(
                 child: Text(
-                  order.orderNumber,
+                  title,
                   style:
                       const TextStyle(
-                    color: dark,
-                    fontSize: 20,
+                    color:
+                        BuyerTheme.ink,
+                    fontSize: 15,
                     fontWeight:
-                        FontWeight.w800,
+                        FontWeight.w900,
                   ),
                 ),
               ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 15,
+          ),
+
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(
+    String label,
+    String value, {
+    bool strong = false,
+  }) {
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(
+        vertical: 6,
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 115,
+            child: Text(
+              label,
+              style:
+                  const TextStyle(
+                color:
+                    BuyerTheme.muted,
+                fontSize: 9.5,
+              ),
+            ),
+          ),
+
+          Expanded(
+            child: Text(
+              value.isEmpty
+                  ? '—'
+                  : value,
+              textAlign:
+                  TextAlign.right,
+              style:
+                  TextStyle(
+                color: strong
+                    ? BuyerTheme.goldDark
+                    : BuyerTheme.ink,
+                fontSize:
+                    strong ? 13 : 9.5,
+                fontWeight: strong
+                    ? FontWeight.w900
+                    : FontWeight.w700,
+                fontFamilyFallback:
+                    const <String>[
+                  'Roboto',
+                  'Arial',
+                  'sans-serif',
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hero(
+    BuyerOrder order,
+  ) {
+    final Color color =
+        _statusColor(order);
+
+    return Container(
+      margin:
+          const EdgeInsets.only(
+        bottom: 13,
+      ),
+      padding:
+          const EdgeInsets.all(
+        20,
+      ),
+      decoration:
+          BoxDecoration(
+        gradient:
+            const LinearGradient(
+          colors:
+              BuyerTheme.heroGradient,
+          begin:
+              Alignment.topLeft,
+          end:
+              Alignment.bottomRight,
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          23,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Text(
+                      'ORDER DETAILS',
+                      style:
+                          TextStyle(
+                        color:
+                            Color(
+                          0xFFFFD98A,
+                        ),
+                        fontSize: 9,
+                        fontWeight:
+                            FontWeight.w900,
+                        letterSpacing:
+                            1.2,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 7,
+                    ),
+
+                    Text(
+                      order.orderNumber,
+                      style:
+                          const TextStyle(
+                        color:
+                            Colors.white,
+                        fontSize: 21,
+                        fontWeight:
+                            FontWeight.w900,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 6,
+                    ),
+
+                    Text(
+                      _dateTime(
+                        order.createdAt,
+                      ),
+                      style:
+                          const TextStyle(
+                        color:
+                            Colors.white70,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               IconButton(
                 tooltip:
                     'Copy order number',
@@ -904,537 +1296,57 @@ class _BuyerOrderDetailsState
                     _copyOrderNumber,
                 icon:
                     const Icon(
-                  Icons.copy_outlined,
-                  color: muted,
-                  size: 19,
+                  Icons
+                      .content_copy_outlined,
+                  color:
+                      Colors.white,
                 ),
               ),
             ],
           ),
-          Text(
-            'Placed on ${_date(order.createdAt)}',
-            style:
-                const TextStyle(
-              color: muted,
-              fontSize: 9,
-            ),
-          ),
+
           const SizedBox(
-            height: 15,
+            height: 17,
           ),
+
           Container(
             padding:
                 const EdgeInsets.symmetric(
               horizontal: 11,
-              vertical: 7,
+              vertical: 8,
             ),
             decoration:
                 BoxDecoration(
-              color: statusColor
-                  .withOpacity(
-                .10,
-              ),
+              color:
+                  Colors.white
+                      .withOpacity(.10),
               borderRadius:
                   BorderRadius.circular(
                 20,
               ),
             ),
-            child: Text(
-              order.statusLabel,
-              style:
-                  TextStyle(
-                color:
-                    statusColor,
-                fontSize: 9,
-                fontWeight:
-                    FontWeight.w700,
-              ),
-            ),
-          ),
-          if (order.deliveredAt
-              .isNotEmpty) ...[
-            const SizedBox(
-              height: 12,
-            ),
-            _infoRow(
-              'Delivered On',
-              _date(
-                order.deliveredAt,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _progressSection(
-    BuyerOrder order,
-  ) {
-    if (order.isCancelled) {
-      return _card(
-        child: const Row(
-          children: [
-            Icon(
-              Icons
-                  .cancel_outlined,
-              color: Color(
-                0xFFCC4D4D,
-              ),
-            ),
-            SizedBox(
-              width: 10,
-            ),
-            Expanded(
-              child: Text(
-                'This order was cancelled.',
-                style: TextStyle(
-                  color: Color(
-                    0xFFCC4D4D,
-                  ),
-                  fontSize: 11,
-                  fontWeight:
-                      FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    const steps = [
-      (
-        'Order Placed',
-        Icons
-            .shopping_bag_outlined,
-      ),
-      (
-        'Preparing',
-        Icons.inventory_2_outlined,
-      ),
-      (
-        'Courier Assigned',
-        Icons
-            .local_shipping_outlined,
-      ),
-      (
-        'Out for Delivery',
-        Icons
-            .two_wheeler_outlined,
-      ),
-      (
-        'Delivered',
-        Icons.home_outlined,
-      ),
-    ];
-
-    return _card(
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Order Progress',
-            style: TextStyle(
-              color: dark,
-              fontSize: 15,
-              fontWeight:
-                  FontWeight.w800,
-            ),
-          ),
-          const SizedBox(
-            height: 16,
-          ),
-          ...List.generate(
-            steps.length,
-            (index) {
-              final reached =
-                  index <=
-                      order.statusStep;
-
-              final current =
-                  index ==
-                      order.statusStep;
-
-              return Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-                children: [
-                  Column(
-                    children: [
-                      Container(
-                        width: 31,
-                        height: 31,
-                        alignment:
-                            Alignment.center,
-                        decoration:
-                            BoxDecoration(
-                          shape:
-                              BoxShape.circle,
-                          color: reached
-                              ? gold
-                              : const Color(
-                                  0xFFF1EEE8,
-                                ),
-                        ),
-                        child: Icon(
-                          steps[index]
-                              .$2,
-                          color: reached
-                              ? Colors
-                                  .white
-                              : muted,
-                          size: 16,
-                        ),
-                      ),
-                      if (index !=
-                          steps.length -
-                              1)
-                        Container(
-                          width: 1.5,
-                          height: 27,
-                          color: index <
-                                  order
-                                      .statusStep
-                              ? gold
-                              : border,
-                        ),
-                    ],
-                  ),
-                  const SizedBox(
-                    width: 11,
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding:
-                          const EdgeInsets
-                              .only(
-                        top: 5,
-                      ),
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
-                        children: [
-                          Text(
-                            steps[index]
-                                .$1,
-                            style:
-                                TextStyle(
-                              color: reached
-                                  ? dark
-                                  : muted,
-                              fontSize:
-                                  10,
-                              fontWeight: current
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
-                            ),
-                          ),
-                          if (current)
-                            const Padding(
-                              padding:
-                                  EdgeInsets
-                                      .only(
-                                top: 2,
-                              ),
-                              child:
-                                  Text(
-                                'Current status',
-                                style:
-                                    TextStyle(
-                                  color:
-                                      goldDark,
-                                  fontSize:
-                                      8,
-                                  fontWeight:
-                                      FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _itemsSection(
-    BuyerOrder order,
-  ) {
-    return _card(
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Order Items',
-            style: TextStyle(
-              color: dark,
-              fontSize: 15,
-              fontWeight:
-                  FontWeight.w800,
-            ),
-          ),
-          const SizedBox(
-            height: 13,
-          ),
-          if (order.items.isEmpty)
-            const Text(
-              'No item details are available.',
-              style: TextStyle(
-                color: muted,
-                fontSize: 9,
-              ),
-            )
-          else
-            ...order.items.map(
-              (item) =>
-                  Container(
-                margin:
-                    const EdgeInsets.only(
-                  bottom: 9,
-                ),
-                padding:
-                    const EdgeInsets.all(
-                  11,
-                ),
-                decoration:
-                    BoxDecoration(
+            child: Row(
+              mainAxisSize:
+                  MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  _statusIcon(order),
                   color:
-                      const Color(
-                    0xFFFCFBF8,
-                  ),
-                  borderRadius:
-                      BorderRadius
-                          .circular(
-                    10,
-                  ),
-                  border:
-                      Border.all(
-                    color: border,
-                  ),
+                      Colors.white,
+                  size: 16,
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      alignment:
-                          Alignment.center,
-                      decoration:
-                          BoxDecoration(
-                        color:
-                            const Color(
-                          0xFFFFF3DA,
-                        ),
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                          9,
-                        ),
-                      ),
-                      child:
-                          const Icon(
-                        Icons
-                            .inventory_2_outlined,
-                        color:
-                            goldDark,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(
-                      width: 10,
-                    ),
-                    Expanded(
-                      child:
-                          Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
-                        children: [
-                          Text(
-                            item.name,
-                            style:
-                                const TextStyle(
-                              color:
-                                  dark,
-                              fontSize:
-                                  10,
-                              fontWeight:
-                                  FontWeight
-                                      .w700,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 3,
-                          ),
-                          Text(
-                            '${item.variantLabel} · Qty: ${item.quantity}',
-                            style:
-                                const TextStyle(
-                              color:
-                                  muted,
-                              fontSize:
-                                  8,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      _money(
-                        item.lineTotal,
-                      ),
-                      style:
-                          const TextStyle(
-                        color:
-                            goldDark,
-                        fontSize: 10,
-                        fontWeight:
-                            FontWeight
-                                .w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
-  Widget _deliverySection(
-    BuyerOrder order,
-  ) {
-    return _card(
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Delivery Information',
-            style: TextStyle(
-              color: dark,
-              fontSize: 15,
-              fontWeight:
-                  FontWeight.w800,
-            ),
-          ),
-          const SizedBox(
-            height: 13,
-          ),
-          _infoRow(
-            'Recipient',
-            order.buyerName,
-          ),
-          _infoRow(
-            'Contact',
-            order.buyerPhone
-                    .isEmpty
-                ? 'Not available'
-                : order
-                    .buyerPhone,
-          ),
-          const SizedBox(
-            height: 9,
-          ),
-          const Text(
-            'Delivery Address',
-            style: TextStyle(
-              color: muted,
-              fontSize: 9,
-            ),
-          ),
-          const SizedBox(
-            height: 5,
-          ),
-          Text(
-            order.deliveryAddress
-                    .isEmpty
-                ? 'Not available'
-                : order
-                    .deliveryAddress,
-            style:
-                const TextStyle(
-              color: dark,
-              fontSize: 10,
-              height: 1.5,
-              fontWeight:
-                  FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sellerSection(
-    BuyerOrder order,
-  ) {
-    return _card(
-      child: Row(
-        children: [
-          Container(
-            width: 43,
-            height: 43,
-            alignment:
-                Alignment.center,
-            decoration:
-                BoxDecoration(
-              color:
-                  const Color(
-                0xFFFFF3DA,
-              ),
-              borderRadius:
-                  BorderRadius
-                      .circular(
-                10,
-              ),
-            ),
-            child: const Icon(
-              Icons
-                  .storefront_outlined,
-              color: goldDark,
-              size: 21,
-            ),
-          ),
-          const SizedBox(
-            width: 11,
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
-              children: [
-                const Text(
-                  'Seller',
-                  style:
-                      TextStyle(
-                    color:
-                        muted,
-                    fontSize: 8,
-                  ),
-                ),
                 const SizedBox(
-                  height: 3,
+                  width: 6,
                 ),
+
                 Text(
-                  order.sellerName,
+                  order.statusLabel,
                   style:
                       const TextStyle(
-                    color: dark,
-                    fontSize: 11,
+                    color:
+                        Colors.white,
+                    fontSize: 10,
                     fontWeight:
                         FontWeight.w800,
                   ),
@@ -1442,134 +1354,556 @@ class _BuyerOrderDetailsState
               ],
             ),
           ),
+
+          const SizedBox(
+            height: 14,
+          ),
+
+          ClipRRect(
+            borderRadius:
+                BorderRadius.circular(
+              10,
+            ),
+            child:
+                LinearProgressIndicator(
+              value:
+                  order.isCancelled
+                      ? 0
+                      : (order.statusStep +
+                              1) /
+                          5,
+              minHeight: 6,
+              backgroundColor:
+                  Colors.white
+                      .withOpacity(.15),
+              color: color,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _paymentSection(
+  Widget _timeline(
     BuyerOrder order,
   ) {
-    return _card(
-      child: Column(
-        children: [
-          const Align(
-            alignment:
-                Alignment.centerLeft,
-            child: Text(
-              'Payment Summary',
-              style: TextStyle(
-                color: dark,
-                fontSize: 15,
-                fontWeight:
-                    FontWeight.w800,
-              ),
+    if (order.isCancelled) {
+      return _section(
+        title:
+            'Order Status',
+        icon:
+            Icons.cancel_outlined,
+        child: Container(
+          width:
+              double.infinity,
+          padding:
+              const EdgeInsets.all(
+            14,
+          ),
+          decoration:
+              BoxDecoration(
+            color:
+                const Color(
+              0xFFFFECEB,
+            ),
+            borderRadius:
+                BorderRadius.circular(
+              14,
             ),
           ),
-          const SizedBox(
-            height: 13,
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(
+                'Cancelled',
+                style:
+                    TextStyle(
+                  color:
+                      BuyerTheme.danger,
+                  fontSize: 13,
+                  fontWeight:
+                      FontWeight.w900,
+                ),
+              ),
+
+              if ((order
+                          .cancellationReason ??
+                      '')
+                  .isNotEmpty) ...[
+                const SizedBox(
+                  height: 6,
+                ),
+                Text(
+                  order
+                      .cancellationReason!,
+                  style:
+                      const TextStyle(
+                    color:
+                        BuyerTheme.muted,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+
+              if ((order.cancelledAt ??
+                      '')
+                  .isNotEmpty) ...[
+                const SizedBox(
+                  height: 6,
+                ),
+                Text(
+                  _dateTime(
+                    order.cancelledAt!,
+                  ),
+                  style:
+                      const TextStyle(
+                    color:
+                        BuyerTheme.muted,
+                    fontSize: 9,
+                  ),
+                ),
+              ],
+            ],
           ),
+        ),
+      );
+    }
+
+    final steps =
+        _statusSteps();
+
+    return _section(
+      title:
+          'Order Progress',
+      icon:
+          Icons.route_outlined,
+      child: Column(
+        children:
+            List<Widget>.generate(
+          steps.length,
+          (
+            int index,
+          ) {
+            final step =
+                steps[index];
+
+            final bool complete =
+                index <=
+                    order.statusStep;
+
+            final bool current =
+                index ==
+                    order.statusStep;
+
+            final bool last =
+                index ==
+                    steps.length - 1;
+
+            return Row(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: <Widget>[
+                Column(
+                  children: <Widget>[
+                    Container(
+                      width: 34,
+                      height: 34,
+                      alignment:
+                          Alignment.center,
+                      decoration:
+                          BoxDecoration(
+                        color: complete
+                            ? BuyerTheme
+                                .successSoft
+                            : BuyerTheme
+                                .canvas,
+                        shape:
+                            BoxShape.circle,
+                      ),
+                      child: Icon(
+                        complete
+                            ? Icons
+                                .check_rounded
+                            : step.icon,
+                        color: complete
+                            ? BuyerTheme
+                                .success
+                            : BuyerTheme
+                                .muted,
+                        size: 17,
+                      ),
+                    ),
+
+                    if (!last)
+                      Container(
+                        width: 2,
+                        height: 42,
+                        color: complete
+                            ? BuyerTheme
+                                .successSoft
+                            : BuyerTheme
+                                .border,
+                      ),
+                  ],
+                ),
+
+                const SizedBox(
+                  width: 12,
+                ),
+
+                Expanded(
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      top: 2,
+                    ),
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          step.title,
+                          style:
+                              TextStyle(
+                            color: complete
+                                ? BuyerTheme
+                                    .ink
+                                : BuyerTheme
+                                    .muted,
+                            fontSize: 11,
+                            fontWeight: current
+                                ? FontWeight
+                                    .w900
+                                : FontWeight
+                                    .w700,
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 3,
+                        ),
+
+                        Text(
+                          step.subtitle,
+                          style:
+                              const TextStyle(
+                            color:
+                                BuyerTheme.muted,
+                            fontSize: 8.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _items(
+    BuyerOrder order,
+  ) {
+    return _section(
+      title: 'Items',
+      icon:
+          Icons.shopping_bag_outlined,
+      child: Column(
+        children:
+            order.items.map(
+          (
+            BuyerOrderItem item,
+          ) {
+            return Container(
+              margin:
+                  const EdgeInsets.only(
+                bottom: 9,
+              ),
+              padding:
+                  const EdgeInsets.all(
+                12,
+              ),
+              decoration:
+                  BoxDecoration(
+                color:
+                    BuyerTheme.canvas,
+                borderRadius:
+                    BorderRadius.circular(
+                  14,
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: 55,
+                    height: 55,
+                    clipBehavior:
+                        Clip.antiAlias,
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          BuyerTheme.surface,
+                      borderRadius:
+                          BorderRadius.circular(
+                        12,
+                      ),
+                    ),
+                    child:
+                        item.image == null ||
+                                item.image!
+                                    .trim()
+                                    .isEmpty
+                            ? const Icon(
+                                Icons
+                                    .inventory_2_outlined,
+                                color:
+                                    BuyerTheme.muted,
+                              )
+                            : Image.network(
+                                item.image!,
+                                fit:
+                                    BoxFit.cover,
+                                errorBuilder:
+                                    (
+                                      _,
+                                      __,
+                                      ___,
+                                    ) =>
+                                        const Icon(
+                                  Icons
+                                      .inventory_2_outlined,
+                                  color:
+                                      BuyerTheme.muted,
+                                ),
+                              ),
+                  ),
+
+                  const SizedBox(
+                    width: 11,
+                  ),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          item.name,
+                          maxLines: 2,
+                          overflow:
+                              TextOverflow.ellipsis,
+                          style:
+                              const TextStyle(
+                            color:
+                                BuyerTheme.ink,
+                            fontSize: 11,
+                            fontWeight:
+                                FontWeight.w800,
+                          ),
+                        ),
+
+                        if (item.variantLabel
+                            .isNotEmpty) ...[
+                          const SizedBox(
+                            height: 3,
+                          ),
+                          Text(
+                            item.variantLabel,
+                            style:
+                                const TextStyle(
+                              color:
+                                  BuyerTheme.muted,
+                              fontSize: 8.5,
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(
+                          height: 4,
+                        ),
+
+                        Text(
+                          'Qty: ${item.quantity}',
+                          style:
+                              const TextStyle(
+                            color:
+                                BuyerTheme.muted,
+                            fontSize: 8.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(
+                    width: 8,
+                  ),
+
+                  Text(
+                    _money(
+                      item.lineTotal,
+                    ),
+                    style:
+                        const TextStyle(
+                      color:
+                          BuyerTheme.goldDark,
+                      fontSize: 11,
+                      fontWeight:
+                          FontWeight.w900,
+                      fontFamilyFallback:
+                          <String>[
+                        'Roboto',
+                        'Arial',
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ).toList(),
+      ),
+    );
+  }
+
+  Widget _delivery(
+    BuyerOrder order,
+  ) {
+    return _section(
+      title:
+          'Delivery Information',
+      icon:
+          Icons.location_on_outlined,
+      child: Column(
+        children: <Widget>[
           _infoRow(
-            'Payment Method',
+            'Recipient',
+            order.buyerName,
+          ),
+
+          _infoRow(
+            'Contact',
+            order.buyerPhone,
+          ),
+
+          _infoRow(
+            'Address',
+            order.deliveryAddress,
+          ),
+
+          if (_courierName
+              .trim()
+              .isNotEmpty)
+            _infoRow(
+              'Rider',
+              _courierName,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _payment(
+    BuyerOrder order,
+  ) {
+    return _section(
+      title:
+          'Payment Summary',
+      icon:
+          Icons.receipt_long_outlined,
+      child: Column(
+        children: <Widget>[
+          _infoRow(
+            'Payment',
             order.paymentMethod,
           ),
+
           _infoRow(
             'Payment Status',
-            order.paymentStatus,
+            order.paymentStatus
+                .replaceAll(
+                  '_',
+                  ' ',
+                )
+                .toUpperCase(),
           ),
+
+          const Divider(),
+
           _infoRow(
-            'Merchandise Subtotal',
+            'Subtotal',
             _money(
-              order.resolvedSubtotal,
+              order
+                  .resolvedSubtotal,
             ),
           ),
+
           _infoRow(
             'Delivery Fee',
             _money(
               order.deliveryFee,
             ),
           ),
-          const Divider(
-            color: border,
-            height: 22,
-          ),
+
+          const Divider(),
+
           _infoRow(
-            'Order Total',
+            'Total',
             _money(
               order.resolvedTotal,
             ),
-            emphasis: true,
+            strong: true,
           ),
         ],
       ),
     );
   }
 
-  Widget _trackingSection() {
-    return _card(
+  Widget _tracking() {
+    if (_trackingEvents.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return _section(
+      title:
+          'Tracking Updates',
+      icon:
+          Icons.local_shipping_outlined,
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Delivery Tracking',
-            style: TextStyle(
-              color: dark,
-              fontSize: 15,
-              fontWeight:
-                  FontWeight.w800,
-            ),
-          ),
-          if (_courierName
-              .isNotEmpty) ...[
-            const SizedBox(
-              height: 5,
-            ),
-            Text(
-              'Courier: $_courierName',
-              style:
-                  const TextStyle(
-                color: muted,
-                fontSize: 9,
-              ),
-            ),
-          ],
-          const SizedBox(
-            height: 14,
-          ),
-          if (_trackingEvents
-              .isEmpty)
-            const Text(
-              'No buyer-visible tracking events are available yet.',
-              style: TextStyle(
-                color: muted,
-                fontSize: 9,
-              ),
-            )
-          else
-            ..._trackingEvents.map(
-              (event) =>
-                  Padding(
-                padding:
-                    const EdgeInsets.only(
-                  bottom: 12,
-                ),
-                child: Row(
-                  crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
-                  children: [
+        children:
+            List<Widget>.generate(
+          _trackingEvents.length,
+          (
+            int index,
+          ) {
+            final Map<String, dynamic>
+                event =
+                _trackingEvents[index];
+
+            final bool last =
+                index ==
+                    _trackingEvents.length -
+                        1;
+
+            return Row(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: <Widget>[
+                Column(
+                  children: <Widget>[
                     Container(
-                      width: 29,
-                      height: 29,
+                      width: 30,
+                      height: 30,
                       alignment:
                           Alignment.center,
                       decoration:
                           const BoxDecoration(
                         color:
-                            Color(
-                          0xFFFFF3DA,
-                        ),
+                            BuyerTheme.successSoft,
                         shape:
                             BoxShape.circle,
                       ),
@@ -1578,131 +1912,123 @@ class _BuyerOrderDetailsState
                         Icons
                             .check_rounded,
                         color:
-                            goldDark,
-                        size: 15,
+                            BuyerTheme.success,
+                        size: 16,
                       ),
                     ),
-                    const SizedBox(
-                      width: 10,
+
+                    if (!last)
+                      Container(
+                        width: 2,
+                        height: 48,
+                        color:
+                            BuyerTheme.border,
+                      ),
+                  ],
+                ),
+
+                const SizedBox(
+                  width: 11,
+                ),
+
+                Expanded(
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      top: 2,
+                      bottom: 16,
                     ),
-                    Expanded(
-                      child:
-                          Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
-                        children: [
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          _text(
+                            event['title'],
+                            _text(
+                              event['status'],
+                              'Order Update',
+                            ),
+                          ),
+                          style:
+                              const TextStyle(
+                            color:
+                                BuyerTheme.ink,
+                            fontSize: 10.5,
+                            fontWeight:
+                                FontWeight.w800,
+                          ),
+                        ),
+
+                        if (_text(
+                          event['message'],
+                        ).isNotEmpty) ...[
+                          const SizedBox(
+                            height: 3,
+                          ),
                           Text(
                             _text(
-                              event[
-                                  'title'],
+                              event['message'],
+                            ),
+                            style:
+                                const TextStyle(
+                              color:
+                                  BuyerTheme.muted,
+                              fontSize: 8.5,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+
+                        if (_text(
+                          event['created_at'],
+                        ).isNotEmpty) ...[
+                          const SizedBox(
+                            height: 4,
+                          ),
+                          Text(
+                            _dateTime(
                               _text(
-                                event[
-                                    'status'],
-                                'Order Update',
+                                event['created_at'],
                               ),
                             ),
                             style:
                                 const TextStyle(
                               color:
-                                  dark,
-                              fontSize:
-                                  10,
-                              fontWeight:
-                                  FontWeight
-                                      .w700,
+                                  BuyerTheme.muted,
+                              fontSize: 8,
                             ),
                           ),
-                          if (_text(
-                            event[
-                                'message'],
-                          ).isNotEmpty) ...[
-                            const SizedBox(
-                              height:
-                                  3,
-                            ),
-                            Text(
-                              _text(
-                                event[
-                                    'message'],
-                              ),
-                              style:
-                                  const TextStyle(
-                                color:
-                                    muted,
-                                fontSize:
-                                    8.5,
-                                height:
-                                    1.45,
-                              ),
-                            ),
-                          ],
-                          if (_text(
-                            event[
-                                'created_at'],
-                          ).isNotEmpty) ...[
-                            const SizedBox(
-                              height:
-                                  3,
-                            ),
-                            Text(
-                              _dateTime(
-                                _text(
-                                  event[
-                                      'created_at'],
-                                ),
-                              ),
-                              style:
-                                  const TextStyle(
-                                color:
-                                    muted,
-                                fontSize:
-                                    7.5,
-                              ),
-                            ),
-                          ],
                         ],
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-        ],
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _actionsSection(
+  Widget _actions(
     BuyerOrder order,
   ) {
     if (!order.canCancel &&
         !order.canReview) {
-      return const SizedBox
-          .shrink();
+      return const SizedBox.shrink();
     }
 
-    return _card(
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Order Actions',
-            style: TextStyle(
-              color: dark,
-              fontSize: 15,
-              fontWeight:
-                  FontWeight.w800,
-            ),
-          ),
-          const SizedBox(
-            height: 13,
-          ),
+    return Container(
+      margin:
+          const EdgeInsets.only(
+        bottom: 15,
+      ),
+      child: Row(
+        children: <Widget>[
           if (order.canCancel)
-            SizedBox(
-              width:
-                  double.infinity,
+            Expanded(
               child:
                   OutlinedButton.icon(
                 onPressed:
@@ -1713,16 +2039,11 @@ class _BuyerOrderDetailsState
                     OutlinedButton
                         .styleFrom(
                   foregroundColor:
-                      Colors.redAccent,
+                      BuyerTheme.danger,
                   side:
                       const BorderSide(
                     color:
-                        Colors.redAccent,
-                  ),
-                  padding:
-                      const EdgeInsets
-                          .symmetric(
-                    vertical: 13,
+                        BuyerTheme.danger,
                   ),
                 ),
                 icon:
@@ -1736,122 +2057,33 @@ class _BuyerOrderDetailsState
                 ),
               ),
             ),
+
+          if (order.canCancel &&
+              order.canReview)
+            const SizedBox(
+              width: 9,
+            ),
+
           if (order.canReview)
-            SizedBox(
-              width:
-                  double.infinity,
+            Expanded(
               child:
-                  ElevatedButton.icon(
+                  FilledButton.icon(
                 onPressed:
                     _actionLoading
                         ? null
                         : _reviewOrder,
-                style:
-                    ElevatedButton
-                        .styleFrom(
-                  backgroundColor:
-                      gold,
-                  foregroundColor:
-                      Colors.white,
-                  padding:
-                      const EdgeInsets
-                          .symmetric(
-                    vertical: 13,
-                  ),
-                ),
                 icon:
                     const Icon(
-                  Icons
-                      .star_outline_rounded,
+                  Icons.star_outline_rounded,
                 ),
                 label:
                     const Text(
-                  'Write a Review',
+                  'Write Review',
                 ),
               ),
             ),
         ],
       ),
-    );
-  }
-
-  Widget _infoRow(
-    String label,
-    String value, {
-    bool emphasis = false,
-  }) {
-    return Padding(
-      padding:
-          const EdgeInsets.symmetric(
-        vertical: 7,
-      ),
-      child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style:
-                  const TextStyle(
-                color: muted,
-                fontSize: 9,
-              ),
-            ),
-          ),
-          const SizedBox(
-            width: 12,
-          ),
-          Flexible(
-            child: Text(
-              value,
-              textAlign:
-                  TextAlign.right,
-              style:
-                  TextStyle(
-                color: emphasis
-                    ? goldDark
-                    : dark,
-                fontSize: emphasis
-                    ? 14
-                    : 9,
-                fontWeight:
-                    emphasis
-                        ? FontWeight
-                            .w900
-                        : FontWeight
-                            .w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _card({
-    required Widget child,
-  }) {
-    return Container(
-      width:
-          double.infinity,
-      padding:
-          const EdgeInsets.all(
-        16,
-      ),
-      decoration:
-          BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(
-          14,
-        ),
-        border:
-            Border.all(
-          color: border,
-        ),
-      ),
-      child: child,
     );
   }
 
@@ -1860,34 +2092,39 @@ class _BuyerOrderDetailsState
       child: Padding(
         padding:
             const EdgeInsets.all(
-          24,
+          26,
         ),
         child: Column(
           mainAxisSize:
               MainAxisSize.min,
-          children: [
+          children: <Widget>[
             const Icon(
-              Icons
-                  .error_outline_rounded,
-              size: 46,
-              color: muted,
+              Icons.cloud_off_outlined,
+              size: 49,
+              color:
+                  BuyerTheme.muted,
             ),
+
             const SizedBox(
-              height: 12,
+              height: 13,
             ),
+
             const Text(
               'Unable to load order',
               style:
                   TextStyle(
-                color: dark,
-                fontSize: 16,
+                color:
+                    BuyerTheme.ink,
+                fontSize: 17,
                 fontWeight:
-                    FontWeight.w800,
+                    FontWeight.w900,
               ),
             ),
+
             const SizedBox(
               height: 7,
             ),
+
             Text(
               _error ??
                   'Please try again.',
@@ -1895,13 +2132,15 @@ class _BuyerOrderDetailsState
                   TextAlign.center,
               style:
                   const TextStyle(
-                color: muted,
-                fontSize: 9,
+                color:
+                    BuyerTheme.muted,
               ),
             ),
+
             const SizedBox(
-              height: 14,
+              height: 16,
             ),
+
             OutlinedButton.icon(
               onPressed:
                   _load,
@@ -1911,7 +2150,7 @@ class _BuyerOrderDetailsState
               ),
               label:
                   const Text(
-                'Try Again',
+                'Retry',
               ),
             ),
           ],
@@ -1920,103 +2159,142 @@ class _BuyerOrderDetailsState
     );
   }
 
+  void _message(
+    String message,
+  ) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content:
+              Text(message),
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(
     BuildContext context,
   ) {
-    final order = _order;
+    final BuyerOrder? order =
+        _order;
 
     return Scaffold(
-      backgroundColor: canvas,
+      backgroundColor:
+          BuyerTheme.canvas,
       appBar: AppBar(
-        backgroundColor:
-            Colors.white,
-        foregroundColor: dark,
-        surfaceTintColor:
-            Colors.white,
-        title: const Text(
+        title:
+            const Text(
           'Order Details',
-          style: TextStyle(
-            fontSize: 16,
+          style:
+              TextStyle(
             fontWeight:
-                FontWeight.w800,
+                FontWeight.w900,
           ),
         ),
+        actions: <Widget>[
+          IconButton(
+            tooltip:
+                'Refresh',
+            onPressed:
+                _loading
+                    ? null
+                    : _load,
+            icon:
+                const Icon(
+              Icons.refresh_rounded,
+            ),
+          ),
+        ],
       ),
-      body: _loading
+      body: _loading &&
+              order == null
           ? const Center(
               child:
-                  CircularProgressIndicator(
-                color: gold,
-              ),
+                  CircularProgressIndicator(),
             )
-          : _error != null ||
+          : _error != null &&
                   order == null
               ? _errorState()
-              : RefreshIndicator(
-                  color: gold,
-                  onRefresh: _load,
-                  child: ListView(
-                    physics:
-                        const AlwaysScrollableScrollPhysics(),
-                    padding:
-                        const EdgeInsets.fromLTRB(
-                      14,
-                      16,
-                      14,
-                      30,
-                    ),
-                    children: [
-                      _orderOverview(
-                        order,
-                      ),
-                      const SizedBox(
-                        height: 12,
-                      ),
-                      _progressSection(
-                        order,
-                      ),
-                      const SizedBox(
-                        height: 12,
-                      ),
-                      _itemsSection(
-                        order,
-                      ),
-                      const SizedBox(
-                        height: 12,
-                      ),
-                      _deliverySection(
-                        order,
-                      ),
-                      const SizedBox(
-                        height: 12,
-                      ),
-                      _sellerSection(
-                        order,
-                      ),
-                      const SizedBox(
-                        height: 12,
-                      ),
-                      _paymentSection(
-                        order,
-                      ),
-                      const SizedBox(
-                        height: 12,
-                      ),
-                      _trackingSection(),
-                      if (order.canCancel ||
-                          order
-                              .canReview) ...[
-                        const SizedBox(
-                          height: 12,
+              : order == null
+                  ? _errorState()
+                  : Stack(
+                      children: <Widget>[
+                        RefreshIndicator(
+                          color:
+                              BuyerTheme.gold,
+                          onRefresh:
+                              _load,
+                          child: ListView(
+                            physics:
+                                const AlwaysScrollableScrollPhysics(),
+                            padding:
+                                const EdgeInsets.fromLTRB(
+                              14,
+                              14,
+                              14,
+                              30,
+                            ),
+                            children: <Widget>[
+                              _hero(
+                                order,
+                              ),
+
+                              _timeline(
+                                order,
+                              ),
+
+                              if (order
+                                  .items
+                                  .isNotEmpty)
+                                _items(
+                                  order,
+                                ),
+
+                              _delivery(
+                                order,
+                              ),
+
+                              _payment(
+                                order,
+                              ),
+
+                              _tracking(),
+
+                              _actions(
+                                order,
+                              ),
+                            ],
+                          ),
                         ),
-                        _actionsSection(
-                          order,
-                        ),
+
+                        if (_actionLoading)
+                          Positioned.fill(
+                            child:
+                                ColoredBox(
+                              color:
+                                  const Color(
+                                0x33FFFFFF,
+                              ),
+                              child:
+                                  const Center(
+                                child:
+                                    CircularProgressIndicator(),
+                              ),
+                            ),
+                          ),
                       ],
-                    ],
-                  ),
-                ),
+                    ),
     );
   }
 }

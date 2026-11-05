@@ -27,5 +27,6 @@ class RiderProfile {
     required this.rating,
   });
 
-  String get fullName => '$firstName $lastName'.trim();
+  String get fullName =>
+      '$firstName $lastName'.trim();
 }

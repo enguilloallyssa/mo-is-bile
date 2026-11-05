@@ -40,7 +40,7 @@ class _RiderShellState extends State<RiderShell> {
   final ImagePicker _imagePicker = ImagePicker();
   final GlobalKey<ScaffoldState> _shellKey = GlobalKey<ScaffoldState>();
 
-  void _openDrawer() => _shellKey.currentState?.openDrawer();
+  void _openDrawer() => _shellKey.currentState?.openEndDrawer();
 
   @override
   void dispose() {
@@ -768,12 +768,12 @@ class _RiderShellState extends State<RiderShell> {
   }
 
   void _drawerNavigate(int tab) {
-    _shellKey.currentState?.closeDrawer();
+    _shellKey.currentState?.closeEndDrawer();
     _changeTab(tab);
   }
 
   void _drawerOpen(VoidCallback action) {
-    _shellKey.currentState?.closeDrawer();
+    _shellKey.currentState?.closeEndDrawer();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) action();
     });
@@ -1214,6 +1214,121 @@ class _RiderShellState extends State<RiderShell> {
     }
   }
 
+  Future<bool> _confirmCodCashIfRequired(
+    Map<String, dynamic> scanData, {
+    required int orderId,
+    required String orderNumber,
+  }) async {
+    final requiresPayment =
+        scanData['requires_payment'] == true ||
+            scanData['requires_payment']?.toString() == '1';
+
+    if (!requiresPayment) {
+      return true;
+    }
+
+    final paymentToken =
+        _text(scanData['payment_token']);
+    final amountDue =
+        _text(scanData['amount_due'], '0.00');
+
+    if (paymentToken.isEmpty) {
+      _toast(
+        'COD verification token is missing. Scan the parcel again.',
+      );
+      return false;
+    }
+
+    final confirmed =
+        await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(
+            'Confirm COD cash received',
+          ),
+          content: Column(
+            mainAxisSize:
+                MainAxisSize.min,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                orderNumber,
+                style: const TextStyle(
+                  fontWeight:
+                      FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Amount to collect: ₱$amountDue',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight:
+                      FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Only confirm after the Buyer has physically handed you the full cash amount. The order will not be marked paid until this confirmation is recorded on the server.',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(
+                dialogContext,
+              ).pop(false),
+              child: const Text(
+                'Not yet',
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: () =>
+                  Navigator.of(
+                dialogContext,
+              ).pop(true),
+              icon: const Icon(
+                Icons.payments_outlined,
+              ),
+              label: const Text(
+                'Cash received',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true ||
+        !mounted) {
+      return false;
+    }
+
+    try {
+      final response =
+          await SariLiveData.instance
+              .riderConfirmCodCash(
+        orderId: orderId,
+        paymentToken: paymentToken,
+      );
+
+      _toast(
+        _text(
+          response['message'],
+          'COD cash receipt confirmed.',
+        ),
+      );
+      return true;
+    } catch (error) {
+      _toast(error.toString());
+      return false;
+    }
+  }
+
   Future<bool> _verifyAndCaptureProof(
     RiderDelivery delivery,
   ) async {
@@ -1230,13 +1345,25 @@ class _RiderShellState extends State<RiderShell> {
       return false;
     }
 
-    return _captureProof(
+    final proofSaved =
+        await _captureProof(
       orderId:
           delivery.id,
       orderNumber:
           delivery.orderNumber,
       recipientName:
           delivery.buyerName,
+    );
+
+    if (!proofSaved ||
+        !mounted) {
+      return false;
+    }
+
+    return _confirmCodCashIfRequired(
+      verified,
+      orderId: delivery.id,
+      orderNumber: delivery.orderNumber,
     );
   }
 
@@ -1267,6 +1394,16 @@ class _RiderShellState extends State<RiderShell> {
     }
 
     try {
+      if (action == 'confirm_pickup' && delivery.isLogisticsPickup) {
+        final verified = await _scanAndVerify(
+          expectedOrderId: delivery.id,
+          expectedOrderNumber: delivery.orderNumber,
+        );
+        if (verified == null || !mounted) return;
+        await _loadAll();
+        return;
+      }
+
       if (action == 'complete') {
         final ready =
             await _verifyAndCaptureProof(
@@ -1589,6 +1726,18 @@ class _RiderShellState extends State<RiderShell> {
     );
 
     if (!proofSaved ||
+        !mounted) {
+      return;
+    }
+
+    final codReady =
+        await _confirmCodCashIfRequired(
+      verified,
+      orderId: parcel.id,
+      orderNumber: parcel.orderNumber,
+    );
+
+    if (!codReady ||
         !mounted) {
       return;
     }
@@ -2441,7 +2590,7 @@ class _RiderShellState extends State<RiderShell> {
 
           return Scaffold(
             key: _shellKey,
-            drawer: RiderDrawer(
+            endDrawer: RiderDrawer(
               profile: _profile,
               activeIndex: _currentIndex,
               onDashboard: () => _drawerNavigate(0),

@@ -49,7 +49,8 @@ class BuyerCartItem {
   double get lineTotal =>
       serverLineTotal ?? unitPrice * quantity;
 
-  bool get quantityEditable => maxStock > 0;
+  bool get quantityEditable =>
+      maxStock > 0;
 
   BuyerCartItem copyWith({
     int? id,
@@ -70,22 +71,35 @@ class BuyerCartItem {
   }) {
     return BuyerCartItem(
       id: id ?? this.id,
-      productId: productId ?? this.productId,
-      sellerId: sellerId ?? this.sellerId,
-      variantId: variantId ?? this.variantId,
-      storeName: storeName ?? this.storeName,
-      productName: productName ?? this.productName,
-      variantLabel: variantLabel ?? this.variantLabel,
-      image: image ?? this.image,
-      unitPrice: unitPrice ?? this.unitPrice,
+      productId:
+          productId ?? this.productId,
+      sellerId:
+          sellerId ?? this.sellerId,
+      variantId:
+          variantId ?? this.variantId,
+      storeName:
+          storeName ?? this.storeName,
+      productName:
+          productName ?? this.productName,
+      variantLabel:
+          variantLabel ?? this.variantLabel,
+      image:
+          image ?? this.image,
+      unitPrice:
+          unitPrice ?? this.unitPrice,
       serverLineTotal:
-          serverLineTotal ?? this.serverLineTotal,
-      quantity: quantity ?? this.quantity,
-      maxStock: maxStock ?? this.maxStock,
+          serverLineTotal ??
+              this.serverLineTotal,
+      quantity:
+          quantity ?? this.quantity,
+      maxStock:
+          maxStock ?? this.maxStock,
       freeShipping:
-          freeShipping ?? this.freeShipping,
+          freeShipping ??
+              this.freeShipping,
       selectable:
-          selectable ?? this.selectable,
+          selectable ??
+              this.selectable,
       availabilityReason:
           availabilityReason ??
               this.availabilityReason,

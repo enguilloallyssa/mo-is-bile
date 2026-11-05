@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../config/api_config.dart';
 import '../services/sari_live_data.dart';
+import 'buyer_theme.dart';
 import 'widgets/buyer_address_picker.dart';
 import 'widgets/buyer_header.dart';
-import 'buyer_theme.dart';
 
 class BuyerAccount extends StatefulWidget {
   final ValueChanged<int>? onTabChanged;
@@ -24,64 +24,39 @@ class BuyerAccount extends StatefulWidget {
 
 class _BuyerAccountState
     extends State<BuyerAccount> {
-  static const Color gold =
-      Color(0xFFCC8A0B);
-
-  static const Color goldDark =
-      Color(0xFFA96D07);
-
-  static const Color dark =
-      Color(0xFF24201C);
-
-  static const Color muted =
-      Color(0xFF7F776E);
-
-  static const Color canvas =
-      Color(0xFFFBFAF8);
-
-  static const Color border =
-      Color(0xFFE9E3DB);
-
-  final GlobalKey<FormState>
-      _profileFormKey =
+  final GlobalKey<FormState> _formKey =
       GlobalKey<FormState>();
 
-  final TextEditingController
-      _firstNameController =
+  final TextEditingController _firstName =
       TextEditingController();
 
-  final TextEditingController
-      _middleInitialController =
+  final TextEditingController _middleInitial =
       TextEditingController();
 
-  final TextEditingController
-      _lastNameController =
+  final TextEditingController _lastName =
       TextEditingController();
 
-  final TextEditingController
-      _birthdayController =
+  final TextEditingController _birthday =
       TextEditingController();
 
-  final TextEditingController
-      _contactController =
+  final TextEditingController _contact =
       TextEditingController();
 
-  final TextEditingController
-      _streetController =
+  final TextEditingController _street =
       TextEditingController();
 
-  Map<String, dynamic>
-      _profile = {};
+  Map<String, dynamic> _profile =
+      <String, dynamic>{};
 
-  List<Map<String, dynamic>>
-      _addresses = [];
+  final List<Map<String, dynamic>> _addresses =
+      <Map<String, dynamic>>[];
 
   String _sex = '';
 
-  String? _pickedProfileImagePath;
+  String? _newPhoto;
 
   bool _loading = true;
-  bool _savingProfile = false;
+  bool _saving = false;
 
   String? _error;
 
@@ -94,12 +69,12 @@ class _BuyerAccountState
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _middleInitialController.dispose();
-    _lastNameController.dispose();
-    _birthdayController.dispose();
-    _contactController.dispose();
-    _streetController.dispose();
+    _firstName.dispose();
+    _middleInitial.dispose();
+    _lastName.dispose();
+    _birthday.dispose();
+    _contact.dispose();
+    _street.dispose();
 
     super.dispose();
   }
@@ -107,151 +82,150 @@ class _BuyerAccountState
   Map<String, dynamic> _map(
     dynamic value,
   ) {
-    if (value is Map) {
-      return Map<String, dynamic>.from(
-        value,
-      );
-    }
-
-    return {};
+    return value is Map
+        ? Map<String, dynamic>.from(
+            value,
+          )
+        : <String, dynamic>{};
   }
 
   String _text(
     dynamic value, [
     String fallback = '',
   ]) {
-    final text =
-        value?.toString().trim() ?? '';
+    final String result =
+        value?.toString().trim() ??
+            '';
 
-    return text.isEmpty
+    return result.isEmpty
         ? fallback
-        : text;
+        : result;
   }
 
   int _integer(
     dynamic value,
   ) {
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse('$value') ?? 0;
+    return value is num
+        ? value.toInt()
+        : int.tryParse('$value') ??
+            0;
   }
 
   String _absoluteUrl(
-    String value,
+    dynamic raw,
   ) {
-    final path = value.trim();
+    final String value =
+        _text(raw);
 
-    if (path.isEmpty) {
+    if (value.isEmpty) {
       return '';
     }
 
-    if (path.startsWith(
+    if (value.startsWith(
           'http://',
         ) ||
-        path.startsWith(
+        value.startsWith(
           'https://',
         )) {
-      return path;
+      return value;
     }
 
-    final base = ApiConfig.baseUrl
-        .replaceFirst(
-          RegExp(r'/+$'),
-          '',
-        );
+    final String base =
+        ApiConfig.baseUrl.replaceFirst(
+      RegExp(r'/+$'),
+      '',
+    );
 
-    if (path.startsWith('/')) {
-      return '$base$path';
-    }
-
-    return '$base/$path';
-  }
-
-  Map<String, dynamic>?
-      get _activeAddress {
-    for (final address
-        in _addresses) {
-      if (address['is_default'] ==
-          true) {
-        return address;
-      }
-    }
-
-    return null;
+    return value.startsWith('/')
+        ? '$base$value'
+        : '$base/$value';
   }
 
   int? get _age {
-    final birthday =
+    final DateTime? value =
         DateTime.tryParse(
-      _birthdayController.text,
+      _birthday.text,
     );
 
-    if (birthday == null) {
+    if (value == null) {
       return null;
     }
 
-    final now = DateTime.now();
+    final DateTime now =
+        DateTime.now();
 
-    var age =
-        now.year - birthday.year;
+    int age =
+        now.year - value.year;
 
-    final birthdayPassed =
-        now.month > birthday.month ||
-            (now.month ==
-                    birthday.month &&
-                now.day >=
-                    birthday.day);
-
-    if (!birthdayPassed) {
+    if (now.month < value.month ||
+        (now.month == value.month &&
+            now.day < value.day)) {
       age--;
     }
 
     return age;
   }
 
-  String get _profileArea {
-    return [
+  String get _fullName {
+    return <String>[
+      _firstName.text.trim(),
+      if (_middleInitial.text
+          .trim()
+          .isNotEmpty)
+        _middleInitial.text
+            .trim()
+            .toUpperCase(),
+      _lastName.text.trim(),
+    ].join(' ');
+  }
+
+  String get _area {
+    return <String>[
       _text(
         _profile['barangay_name'],
       ),
       _text(
-        _profile['municipality_name'],
+        _profile[
+            'municipality_name'],
       ),
       _text(
         _profile['province_name'],
       ),
     ]
         .where(
-          (part) => part.isNotEmpty,
+          (
+            String value,
+          ) =>
+              value.isNotEmpty,
         )
         .join(', ');
   }
 
-  Future<void> _load()
-      async {
+  Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
-      final response =
-          await SariLiveData.instance
+      final Map<String, dynamic>
+          response =
+          await SariLiveData
+              .instance
               .buyerProfile();
 
-      final data =
+      final Map<String, dynamic> data =
           _map(
         response['data'],
       );
 
-      final profile =
+      final Map<String, dynamic> profile =
           _map(
         data['profile'],
       );
 
-      final addresses =
+      final List<Map<String, dynamic>>
+          addresses =
           data['addresses'] is List
               ? (data['addresses']
                       as List)
@@ -259,103 +233,99 @@ class _BuyerAccountState
                   .toList()
               : <Map<String, dynamic>>[];
 
-      if (!mounted) return;
-
-      _firstNameController.text =
+      _firstName.text =
           _text(
         profile['first_name'],
       );
 
-      _middleInitialController.text =
+      _middleInitial.text =
           _text(
         profile['middle_initial'],
       );
 
-      _lastNameController.text =
+      _lastName.text =
           _text(
         profile['last_name'],
       );
 
-      _birthdayController.text =
+      _birthday.text =
           _text(
         profile['birthday'],
       );
 
-      _contactController.text =
+      _contact.text =
           _text(
         profile['contact_no'],
       );
 
-      _streetController.text =
+      _street.text =
           _text(
         profile['street_address'],
       );
 
-      setState(() {
-        _profile = profile;
+      if (!mounted) {
+        return;
+      }
 
-        _addresses = addresses;
+      setState(() {
+        _profile =
+            profile;
+
+        _addresses
+          ..clear()
+          ..addAll(
+            addresses,
+          );
 
         _sex =
             _text(
           profile['sex'],
         );
 
-        _pickedProfileImagePath =
-            null;
+        _newPhoto = null;
 
         _loading = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _loading = false;
-
         _error =
             error.toString();
       });
     }
   }
 
-  Future<void>
-      _pickProfilePhoto() async {
-final result =
-    await FilePicker.pickFiles(
-  type: FileType.custom,
-  allowedExtensions: const [
-    'jpg',
-    'jpeg',
-    'png',
-    'webp',
-  ],
-  allowMultiple: false,
-);
+  Future<void> _pickPhoto() async {
+    final FilePickerResult? result =
+        await FilePicker.pickFiles(
+      type:
+          FileType.custom,
+      allowedExtensions:
+          const <String>[
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+      ],
+    );
 
     if (result == null ||
         result.files.isEmpty) {
       return;
     }
 
-    final path =
-        result.files.single.path;
+    final PlatformFile file =
+        result.files.single;
 
-    if (path == null ||
-        path.trim().isEmpty) {
-      _message(
-        'The selected photo cannot be read.',
-      );
-
+    if (file.path == null) {
       return;
     }
 
-    final file =
-        File(path);
-
-    final size =
-        await file.length();
-
-    if (size >
+    if (file.size >
         5 * 1024 * 1024) {
       _message(
         'Profile photo must be 5 MB or smaller.',
@@ -364,28 +334,26 @@ final result =
       return;
     }
 
-    if (!mounted) return;
-
     setState(() {
-      _pickedProfileImagePath =
-          path;
+      _newPhoto =
+          file.path;
     });
   }
 
-  Future<void> _selectBirthday()
-      async {
-    final now = DateTime.now();
+  Future<void> _pickBirthday() async {
+    final DateTime now =
+        DateTime.now();
 
-    final maximumDate = DateTime(
+    final DateTime maximum =
+        DateTime(
       now.year - 18,
       now.month,
       now.day,
     );
 
-    DateTime initialDate =
+    DateTime initial =
         DateTime.tryParse(
-              _birthdayController
-                  .text,
+              _birthday.text,
             ) ??
             DateTime(
               2000,
@@ -393,67 +361,43 @@ final result =
               1,
             );
 
-    if (initialDate
-        .isAfter(maximumDate)) {
-      initialDate =
-          maximumDate;
+    if (initial.isAfter(maximum)) {
+      initial = maximum;
     }
 
-    final selected =
+    final DateTime? selected =
         await showDatePicker(
       context: context,
-      initialDate:
-          initialDate,
-      firstDate: DateTime(
-        1900,
-        1,
-        1,
-      ),
+      initialDate: initial,
+      firstDate:
+          DateTime(1900),
       lastDate:
-          maximumDate,
+          maximum,
     );
 
-    if (selected == null ||
-        !mounted) {
+    if (selected == null) {
       return;
     }
 
     setState(() {
-      _birthdayController.text =
+      _birthday.text =
           '${selected.year.toString().padLeft(4, '0')}-'
           '${selected.month.toString().padLeft(2, '0')}-'
           '${selected.day.toString().padLeft(2, '0')}';
     });
   }
 
-  Future<void> _saveProfile()
-      async {
+  Future<void> _save() async {
     FocusScope.of(context)
         .unfocus();
 
-    if (!_profileFormKey
-        .currentState!
-        .validate()) {
+    if (!(_formKey.currentState
+            ?.validate() ??
+        false)) {
       return;
     }
 
-    final birthday =
-        DateTime.tryParse(
-      _birthdayController.text,
-    );
-
-    if (birthday == null) {
-      _message(
-        'Select a valid birthday.',
-      );
-
-      return;
-    }
-
-    final age = _age;
-
-    if (age == null ||
-        age < 18) {
+    if ((_age ?? 0) < 18) {
       _message(
         'Buyer must be at least 18 years old.',
       );
@@ -462,55 +406,56 @@ final result =
     }
 
     setState(() {
-      _savingProfile = true;
+      _saving = true;
     });
 
     try {
-      final fields =
+      final Map<String, String> fields =
           <String, String>{
         'first_name':
-            _firstNameController.text
-                .trim(),
+            _firstName.text.trim(),
+
         'middle_initial':
-            _middleInitialController
-                .text
+            _middleInitial.text
                 .trim()
                 .toUpperCase(),
+
         'last_name':
-            _lastNameController.text
-                .trim(),
+            _lastName.text.trim(),
+
         if (_sex.isNotEmpty)
-          'sex': _sex,
+          'sex':
+              _sex,
+
         'birthday':
-            _birthdayController.text
-                .trim(),
+            _birthday.text.trim(),
+
         'contact_no':
-            _contactController.text
-                .trim(),
+            _contact.text.trim(),
+
         'street_address':
-            _streetController.text
-                .trim(),
+            _street.text.trim(),
       };
 
-      final image =
-          _pickedProfileImagePath ==
-                  null
-              ? null
-              : File(
-                  _pickedProfileImagePath!,
-                );
-
-      final response =
-          await SariLiveData.instance
+      final Map<String, dynamic>
+          response =
+          await SariLiveData
+              .instance
               .buyerUpdateProfileForm(
         fields: fields,
-        profileImage: image,
+        profileImage:
+            _newPhoto == null
+                ? null
+                : File(
+                    _newPhoto!,
+                  ),
       );
 
       _message(
-        response['message']
-                ?.toString() ??
-            'Buyer account updated.',
+        _text(
+          response['message'],
+          'Buyer account updated.',
+        ),
       );
 
       await _load();
@@ -521,184 +466,112 @@ final result =
     } finally {
       if (mounted) {
         setState(() {
-          _savingProfile = false;
+          _saving = false;
         });
       }
     }
   }
 
-  Future<void> _openAddressForm({
-    Map<String, dynamic>?
-        address,
-  }) async {
-    final editing =
-        address != null;
-
-    final formKey =
+  Future<void> _addAddress() async {
+    final GlobalKey<FormState> formKey =
         GlobalKey<FormState>();
 
-    final label =
+    final TextEditingController label =
         TextEditingController(
-      text: editing
-          ? _text(
-              address['label'],
-            )
-          : 'Home',
+      text: 'Home',
     );
 
-    final recipient =
+    final TextEditingController recipient =
         TextEditingController(
-      text: editing
-          ? _text(
-              address['recipient_name'],
-            )
-          : _text(
-              _profile[
-                  'full_name'],
-            ),
+      text: _fullName,
     );
 
-    final contact =
+    final TextEditingController contact =
         TextEditingController(
-      text: editing
-          ? _text(
-              address['contact_no'],
-            )
-          : _text(
-              _profile[
-                  'contact_no'],
-            ),
+      text: _contact.text,
     );
 
-    final street =
-        TextEditingController(
-      text: editing
-          ? _text(
-              address[
-                  'street_address'],
-            )
-          : '',
-    );
+    final TextEditingController street =
+        TextEditingController();
 
-    final province =
-        TextEditingController(
-      text: editing
-          ? _text(
-              address[
-                  'province_name'],
-            )
-          : _text(
-              _profile[
-                  'province_name'],
-            ),
-    );
+    final TextEditingController province =
+        TextEditingController();
 
-    final municipality =
-        TextEditingController(
-      text: editing
-          ? _text(
-              address[
-                  'municipality_name'],
-            )
-          : _text(
-              _profile[
-                  'municipality_name'],
-            ),
-    );
+    final TextEditingController municipality =
+        TextEditingController();
 
-    final barangay =
-        TextEditingController(
-      text: editing
-          ? _text(
-              address[
-                  'barangay_name'],
-            )
-          : _text(
-              _profile[
-                  'barangay_name'],
-            ),
-    );
+    final TextEditingController barangay =
+        TextEditingController();
 
-    final postal =
-        TextEditingController(
-      text: editing
-          ? _text(
-              address[
-                  'postal_code'],
-            )
-          : '',
-    );
+    final TextEditingController postal =
+        TextEditingController();
 
-    var makeDefault =
-        editing
-            ? address[
-                    'is_default'] ==
-                true
-            : _addresses.isEmpty;
+    bool makeDefault =
+        _addresses.isEmpty;
 
-    final saved =
+    final bool? save =
         await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
+      builder:
+          (
+            BuildContext dialogContext,
+          ) {
         return StatefulBuilder(
           builder:
               (
-            context,
-            setDialogState,
-          ) {
+                BuildContext context,
+                void Function(
+                  void Function(),
+                ) setDialogState,
+              ) {
             return AlertDialog(
-              title: Text(
-                editing
-                    ? 'Edit Address'
-                    : 'Add Address',
+              title:
+                  const Text(
+                'Add Address',
               ),
               content:
                   SizedBox(
-                width: 450,
+                width: 430,
                 child:
-                    Form(
-                  key: formKey,
-                  child:
-                      SingleChildScrollView(
-                    child:
-                        Column(
+                    SingleChildScrollView(
+                  child: Form(
+                    key: formKey,
+                    child: Column(
                       mainAxisSize:
                           MainAxisSize.min,
-                      children: [
+                      children: <Widget>[
                         TextFormField(
                           controller:
                               label,
-                          maxLength:
-                              50,
                           decoration:
                               const InputDecoration(
                             labelText:
                                 'Label',
-                            hintText:
-                                'Home, Office, etc.',
                           ),
                           validator:
-                              _requiredValidator,
+                              _required,
                         ),
+
                         const SizedBox(
-                          height: 10,
+                          height: 9,
                         ),
+
                         TextFormField(
                           controller:
                               recipient,
-                          maxLength:
-                              150,
                           decoration:
                               const InputDecoration(
                             labelText:
                                 'Recipient',
                           ),
                           validator:
-                              _requiredValidator,
+                              _required,
                         ),
+
                         const SizedBox(
-                          height: 10,
+                          height: 9,
                         ),
+
                         TextFormField(
                           controller:
                               contact,
@@ -708,37 +581,15 @@ final result =
                               const InputDecoration(
                             labelText:
                                 'Contact Number',
-                            hintText:
-                                '09XXXXXXXXX',
                           ),
                           validator:
                               _phoneValidator,
                         ),
+
                         const SizedBox(
-                          height: 10,
+                          height: 9,
                         ),
-                        TextFormField(
-                          controller:
-                              street,
-                          maxLength:
-                              500,
-                          minLines:
-                              2,
-                          maxLines:
-                              3,
-                          decoration:
-                              const InputDecoration(
-                            labelText:
-                                'Street / Unit Address',
-                            hintText:
-                                'House, unit, building, subdivision, or street',
-                          ),
-                          validator:
-                              _requiredValidator,
-                        ),
-                        const SizedBox(
-                          height: 10,
-                        ),
+
                         BuyerAddressPicker(
                           province:
                               province,
@@ -747,66 +598,61 @@ final result =
                           barangay:
                               barangay,
                         ),
+
                         const SizedBox(
-                          height: 10,
+                          height: 9,
                         ),
+
+                        TextFormField(
+                          controller:
+                              street,
+                          minLines: 2,
+                          maxLines: 3,
+                          decoration:
+                              const InputDecoration(
+                            labelText:
+                                'Street / Unit Address',
+                          ),
+                          validator:
+                              _required,
+                        ),
+
+                        const SizedBox(
+                          height: 9,
+                        ),
+
                         TextFormField(
                           controller:
                               postal,
                           keyboardType:
                               TextInputType.number,
-                          maxLength:
-                              4,
+                          maxLength: 4,
                           decoration:
                               const InputDecoration(
                             labelText:
                                 'Postal Code',
-                            hintText:
-                                'Optional',
+                            counterText:
+                                '',
                           ),
-                          validator:
-                              (value) {
-                            final text =
-                                (value ?? '')
-                                    .trim();
-
-                            if (text.isEmpty) {
-                              return null;
-                            }
-
-                            if (!RegExp(
-                              r'^\d{4}$',
-                            ).hasMatch(
-                              text,
-                            )) {
-                              return 'Postal code must be 4 digits.';
-                            }
-
-                            return null;
-                          },
                         ),
+
                         CheckboxListTile(
-                          value:
-                              makeDefault,
                           contentPadding:
                               EdgeInsets.zero,
-                          activeColor:
-                              gold,
+                          value:
+                              makeDefault,
                           title:
                               const Text(
-                            'Set as active address',
-                          ),
-                          subtitle:
-                              const Text(
-                            'This address will be treated as your default saved delivery address.',
+                            'Set as default address',
                             style:
                                 TextStyle(
-                              fontSize:
-                                  9,
+                              fontSize: 11,
                             ),
                           ),
                           onChanged:
-                              (value) {
+                              (
+                                bool? value,
+                              ) {
                             setDialogState(
                               () {
                                 makeDefault =
@@ -821,14 +667,14 @@ final result =
                   ),
                 ),
               ),
-              actions: [
+              actions: <Widget>[
                 TextButton(
-                  onPressed: () =>
-                      Navigator.of(
-                        dialogContext,
-                      ).pop(
-                        false,
-                      ),
+                  onPressed: () {
+                    Navigator.pop(
+                      dialogContext,
+                      false,
+                    );
+                  },
                   child:
                       const Text(
                     'Cancel',
@@ -836,22 +682,21 @@ final result =
                 ),
                 FilledButton(
                   onPressed: () {
-                    if (!formKey
-                        .currentState!
-                        .validate()) {
+                    if (!(formKey
+                            .currentState
+                            ?.validate() ??
+                        false)) {
                       return;
                     }
 
-                    Navigator.of(
+                    Navigator.pop(
                       dialogContext,
-                    ).pop(
                       true,
                     );
                   },
-                  child: Text(
-                    editing
-                        ? 'Save Address'
-                        : 'Add Address',
+                  child:
+                      const Text(
+                    'Add Address',
                   ),
                 ),
               ],
@@ -861,94 +706,67 @@ final result =
       },
     );
 
-    if (saved != true) {
-      label.dispose();
-      recipient.dispose();
-      contact.dispose();
-      street.dispose();
-      province.dispose();
-      municipality.dispose();
-      barangay.dispose();
-      postal.dispose();
-
-      return;
-    }
-
-    try {
-      final body =
+    if (save == true) {
+      try {
+        await SariLiveData.instance
+            .buyerStoreAddress(
           <String, dynamic>{
-        'label':
-            label.text.trim(),
-        'recipient_name':
-            recipient.text.trim(),
-        'contact_no':
-            contact.text.trim(),
-        'street_address':
-            street.text.trim(),
-        'barangay_name':
-            barangay.text.trim(),
-        'municipality_name':
-            municipality.text.trim(),
-        'province_name':
-            province.text.trim(),
-        'postal_code':
-            postal.text.trim(),
-        'is_default':
-            makeDefault,
-      };
+            'label':
+                label.text.trim(),
 
-      final response = editing
-          ? await SariLiveData.instance
-              .buyerUpdateAddress(
-              _integer(
-                address['id'],
-              ),
-              body,
-            )
-          : await SariLiveData.instance
-              .buyerStoreAddress(
-              body,
-            );
+            'recipient_name':
+                recipient.text
+                    .trim(),
 
-      _message(
-        response['message']
-                ?.toString() ??
-            (editing
-                ? 'Delivery address updated.'
-                : 'Delivery address added.'),
-      );
+            'contact_no':
+                contact.text.trim(),
 
-      await _load();
-    } catch (error) {
-      _message(
-        error.toString(),
-      );
-    } finally {
-      label.dispose();
-      recipient.dispose();
-      contact.dispose();
-      street.dispose();
-      province.dispose();
-      municipality.dispose();
-      barangay.dispose();
-      postal.dispose();
+            'street_address':
+                street.text.trim(),
+
+            'barangay_name':
+                barangay.text.trim(),
+
+            'municipality_name':
+                municipality.text
+                    .trim(),
+
+            'province_name':
+                province.text.trim(),
+
+            'postal_code':
+                postal.text.trim(),
+
+            'is_default':
+                makeDefault,
+          },
+        );
+
+        await _load();
+      } catch (error) {
+        _message(
+          error.toString(),
+        );
+      }
     }
+
+    label.dispose();
+    recipient.dispose();
+    contact.dispose();
+    street.dispose();
+    province.dispose();
+    municipality.dispose();
+    barangay.dispose();
+    postal.dispose();
   }
 
-  Future<void> _setDefaultAddress(
+  Future<void> _setDefault(
     int id,
   ) async {
     try {
-      final response =
-          await SariLiveData.instance
-              .buyerSetDefaultAddress(
+      await SariLiveData.instance
+          .buyerSetDefaultAddress(
         id,
-      );
-
-      _message(
-        response['message']
-                ?.toString() ??
-            'Default delivery address updated.',
       );
 
       await _load();
@@ -960,52 +778,51 @@ final result =
   }
 
   Future<void> _deleteAddress(
-    Map<String, dynamic> address,
+    int id,
   ) async {
-    final confirmed =
+    final bool? confirmed =
         await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text(
-            'Remove Address',
-          ),
-          content: Text(
-            'Remove "${_text(address['label'], 'this address')}" from your saved delivery addresses?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.of(
-                    dialogContext,
-                  ).pop(
-                    false,
-                  ),
-              child:
-                  const Text(
-                'Cancel',
-              ),
+      builder:
+          (
+            BuildContext context,
+          ) =>
+              AlertDialog(
+        title:
+            const Text(
+          'Remove Address?',
+        ),
+        content:
+            const Text(
+          'This saved delivery address will be removed.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () {
+              Navigator.pop(
+                context,
+                false,
+              );
+            },
+            child:
+                const Text(
+              'Cancel',
             ),
-            FilledButton(
-              style:
-                  FilledButton.styleFrom(
-                backgroundColor:
-                    Colors.redAccent,
-              ),
-              onPressed: () =>
-                  Navigator.of(
-                    dialogContext,
-                  ).pop(
-                    true,
-                  ),
-              child:
-                  const Text(
-                'Remove',
-              ),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(
+                context,
+                true,
+              );
+            },
+            child:
+                const Text(
+              'Remove',
             ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
 
     if (confirmed != true) {
@@ -1013,18 +830,9 @@ final result =
     }
 
     try {
-      final response =
-          await SariLiveData.instance
-              .buyerDeleteAddress(
-        _integer(
-          address['id'],
-        ),
-      );
-
-      _message(
-        response['message']
-                ?.toString() ??
-            'Delivery address removed.',
+      await SariLiveData.instance
+          .buyerDeleteAddress(
+        id,
       );
 
       await _load();
@@ -1035,13 +843,24 @@ final result =
     }
   }
 
-  String? _requiredValidator(
+  String? _required(
     String? value,
   ) {
-    if ((value ?? '')
-        .trim()
-        .isEmpty) {
-      return 'This field is required.';
+    return (value ?? '')
+            .trim()
+            .isEmpty
+        ? 'Required.'
+        : null;
+  }
+
+  String? _nameValidator(
+    String? value,
+  ) {
+    final String name =
+        (value ?? '').trim();
+
+    if (name.length < 2) {
+      return 'Enter at least 2 characters.';
     }
 
     return null;
@@ -1050,49 +869,974 @@ final result =
   String? _phoneValidator(
     String? value,
   ) {
-    final phone =
+    final String phone =
         (value ?? '').trim();
-
-    if (phone.isEmpty) {
-      return 'Contact number is required.';
-    }
 
     if (!RegExp(
       r'^(?:09\d{9}|\+639\d{9})$',
-    ).hasMatch(
-      phone,
-    )) {
+    ).hasMatch(phone)) {
       return 'Use 09XXXXXXXXX or +639XXXXXXXXX.';
     }
 
     return null;
   }
 
-  String? _nameValidator(
-    String? value,
+  ImageProvider? _profileImage() {
+    if (_newPhoto != null) {
+      return FileImage(
+        File(
+          _newPhoto!,
+        ),
+      );
+    }
+
+    final String url =
+        _absoluteUrl(
+      _profile[
+          'profile_image_url'],
+    );
+
+    return url.isEmpty
+        ? null
+        : NetworkImage(url);
+  }
+
+  Widget _profileHero() {
+    final ImageProvider? image =
+        _profileImage();
+
+    return Container(
+      margin:
+          const EdgeInsets.fromLTRB(
+        11,
+        8,
+        11,
+        0,
+      ),
+      padding:
+          const EdgeInsets.all(
+        14,
+      ),
+      decoration:
+          BoxDecoration(
+        gradient:
+            const LinearGradient(
+          begin:
+              Alignment.topLeft,
+          end:
+              Alignment.bottomRight,
+          colors: <Color>[
+            Color(
+              0xFF172334,
+            ),
+            Color(
+              0xFF303D4B,
+            ),
+            Color(
+              0xFF7B632B,
+            ),
+          ],
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          18,
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Stack(
+            clipBehavior:
+                Clip.none,
+            children: <Widget>[
+              Container(
+                width: 69,
+                height: 69,
+                decoration:
+                    BoxDecoration(
+                  borderRadius:
+                      BorderRadius.circular(
+                    18,
+                  ),
+                  color:
+                      Colors.white12,
+                  border:
+                      Border.all(
+                    color:
+                        Colors.white24,
+                  ),
+                  image: image == null
+                      ? null
+                      : DecorationImage(
+                          image: image,
+                          fit:
+                              BoxFit.cover,
+                        ),
+                ),
+                child: image == null
+                    ? const Icon(
+                        Icons
+                            .person_rounded,
+                        color:
+                            Colors.white,
+                        size: 34,
+                      )
+                    : null,
+              ),
+
+              Positioned(
+                right: -5,
+                bottom: -5,
+                child: InkWell(
+                  onTap:
+                      _pickPhoto,
+                  borderRadius:
+                      BorderRadius.circular(
+                    9,
+                  ),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    alignment:
+                        Alignment.center,
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          BuyerTheme.gold,
+                      borderRadius:
+                          BorderRadius.circular(
+                        9,
+                      ),
+                      border:
+                          Border.all(
+                        color:
+                            Colors.white,
+                        width: 2,
+                      ),
+                    ),
+                    child:
+                        const Icon(
+                      Icons.edit_rounded,
+                      color:
+                          Colors.white,
+                      size: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            width: 13,
+          ),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'BUYER ACCOUNT',
+                  style:
+                      TextStyle(
+                    color:
+                        Color(
+                      0xFFFFD98A,
+                    ),
+                    fontSize: 7,
+                    letterSpacing:
+                        1,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 4,
+                ),
+
+                Text(
+                  _fullName.isEmpty
+                      ? 'SARI Buyer'
+                      : _fullName,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(
+                    color:
+                        Colors.white,
+                    fontSize: 16,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 3,
+                ),
+
+                Text(
+                  _text(
+                    _profile['email'],
+                  ),
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(
+                    color:
+                        Colors.white70,
+                    fontSize: 8.5,
+                  ),
+                ),
+
+                if (_area.isNotEmpty) ...[
+                  const SizedBox(
+                    height: 4,
+                  ),
+                  Row(
+                    children: <Widget>[
+                      const Icon(
+                        Icons
+                            .location_on_outlined,
+                        color:
+                            Colors.white54,
+                        size: 12,
+                      ),
+                      const SizedBox(
+                        width: 3,
+                      ),
+                      Expanded(
+                        child: Text(
+                          _area,
+                          maxLines: 1,
+                          overflow:
+                              TextOverflow
+                                  .ellipsis,
+                          style:
+                              const TextStyle(
+                            color:
+                                Colors.white60,
+                            fontSize: 7.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _personalInformation() {
+    return _card(
+      title:
+          'Personal Information',
+      subtitle:
+          'Changes are synced directly to your SARI Buyer account.',
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: <Widget>[
+            _field(
+              label:
+                  'First Name',
+              controller:
+                  _firstName,
+              icon:
+                  Icons.person_outline,
+              validator:
+                  _nameValidator,
+            ),
+
+            _field(
+              label:
+                  'Middle Initial',
+              controller:
+                  _middleInitial,
+            ),
+
+            _field(
+              label:
+                  'Last Name',
+              controller:
+                  _lastName,
+              icon:
+                  Icons.person_outline,
+              validator:
+                  _nameValidator,
+            ),
+
+            Padding(
+              padding:
+                  const EdgeInsets.only(
+                bottom: 9,
+              ),
+              child:
+                  InputDecorator(
+                decoration:
+                    const InputDecoration(
+                  labelText:
+                      'Sex',
+                  prefixIcon:
+                      Icon(
+                    Icons.wc_outlined,
+                  ),
+                ),
+                child:
+                    DropdownButtonHideUnderline(
+                  child:
+                      DropdownButton<String>(
+                    isExpanded:
+                        true,
+                    value:
+                        _sex.isEmpty
+                            ? ''
+                            : _sex,
+                    items:
+                        const <DropdownMenuItem<String>>[
+                      DropdownMenuItem(
+                        value: '',
+                        child:
+                            Text(
+                          'Not set',
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Male',
+                        child:
+                            Text(
+                          'Male',
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Female',
+                        child:
+                            Text(
+                          'Female',
+                        ),
+                      ),
+                    ],
+                    onChanged:
+                        (
+                          String? value,
+                        ) {
+                      setState(() {
+                        _sex =
+                            value ??
+                                '';
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ),
+
+            Padding(
+              padding:
+                  const EdgeInsets.only(
+                bottom: 9,
+              ),
+              child:
+                  TextFormField(
+                controller:
+                    _birthday,
+                readOnly:
+                    true,
+                onTap:
+                    _pickBirthday,
+                decoration:
+                    const InputDecoration(
+                  labelText:
+                      'Birthday',
+                  prefixIcon:
+                      Icon(
+                    Icons
+                        .calendar_month_outlined,
+                  ),
+                ),
+                validator:
+                    _required,
+              ),
+            ),
+
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child:
+                      _miniInfo(
+                    'Age',
+                    '${_age ?? '—'}',
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 8,
+                ),
+
+                Expanded(
+                  child:
+                      _miniInfo(
+                    'Account',
+                    'Buyer',
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(
+              height: 9,
+            ),
+
+            _miniInfo(
+              'Email',
+              _text(
+                _profile['email'],
+              ),
+              fullWidth:
+                  true,
+            ),
+
+            const SizedBox(
+              height: 9,
+            ),
+
+            _field(
+              label:
+                  'Contact Number',
+              controller:
+                  _contact,
+              icon:
+                  Icons.phone_outlined,
+              keyboardType:
+                  TextInputType.phone,
+              validator:
+                  _phoneValidator,
+            ),
+
+            _field(
+              label:
+                  'Registered Street Address',
+              controller:
+                  _street,
+              icon:
+                  Icons.home_outlined,
+              validator:
+                  _required,
+              maxLines: 2,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _addressesCard() {
+    return _card(
+      title:
+          'Delivery Addresses',
+      subtitle:
+          'Manage addresses used during checkout.',
+      trailing:
+          _addresses.length < 5
+              ? TextButton.icon(
+                  onPressed:
+                      _addAddress,
+                  icon:
+                      const Icon(
+                    Icons.add_rounded,
+                    size: 16,
+                  ),
+                  label:
+                      const Text(
+                    'Add',
+                  ),
+                )
+              : null,
+      child:
+          _addresses.isEmpty
+              ? const Padding(
+                  padding:
+                      EdgeInsets.symmetric(
+                    vertical: 18,
+                  ),
+                  child: Center(
+                    child: Text(
+                      'No saved delivery addresses.',
+                      style:
+                          TextStyle(
+                        color:
+                            BuyerTheme.muted,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ),
+                )
+              : Column(
+                  children:
+                      _addresses.map(
+                    _addressTile,
+                  ).toList(),
+                ),
+    );
+  }
+
+  Widget _addressTile(
+    Map<String, dynamic> address,
   ) {
-    final name =
-        (value ?? '').trim();
+    final bool active =
+        address['is_default'] ==
+                true ||
+            address['is_default'] ==
+                1;
 
-    if (name.length < 2) {
-      return 'Enter at least 2 characters.';
-    }
+    final String full =
+        <String>[
+      _text(
+        address['street_address'],
+      ),
+      _text(
+        address['barangay_name'],
+      ),
+      _text(
+        address[
+            'municipality_name'],
+      ),
+      _text(
+        address['province_name'],
+      ),
+    ]
+            .where(
+              (
+                String value,
+              ) =>
+                  value.isNotEmpty,
+            )
+            .join(', ');
 
-    if (!RegExp(
-      r"^[A-Za-zÀ-ÖØ-öø-ÿÑñ\s.'-]+$",
-    ).hasMatch(
-      name,
-    )) {
-      return 'Enter a valid name.';
-    }
+    return Container(
+      margin:
+          const EdgeInsets.only(
+        bottom: 8,
+      ),
+      padding:
+          const EdgeInsets.all(
+        11,
+      ),
+      decoration:
+          BoxDecoration(
+        color: active
+            ? BuyerTheme.goldPale
+            : BuyerTheme.canvas,
+        borderRadius:
+            BorderRadius.circular(
+          13,
+        ),
+        border:
+            Border.all(
+          color: active
+              ? const Color(
+                  0xFFE3BE67,
+                )
+              : BuyerTheme.border,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: <Widget>[
+          const Icon(
+            Icons
+                .location_on_outlined,
+            color:
+                BuyerTheme.goldDark,
+            size: 18,
+          ),
 
-    return null;
+          const SizedBox(
+            width: 8,
+          ),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        _text(
+                          address['label'],
+                          'Address',
+                        ),
+                        style:
+                            const TextStyle(
+                          fontSize: 10,
+                          fontWeight:
+                              FontWeight.w800,
+                        ),
+                      ),
+                    ),
+
+                    if (active)
+                      const Text(
+                        'DEFAULT',
+                        style:
+                            TextStyle(
+                          color:
+                              BuyerTheme.goldDark,
+                          fontSize: 6.5,
+                          fontWeight:
+                              FontWeight.w900,
+                        ),
+                      ),
+                  ],
+                ),
+
+                const SizedBox(
+                  height: 4,
+                ),
+
+                Text(
+                  full,
+                  style:
+                      const TextStyle(
+                    color:
+                        BuyerTheme.muted,
+                    fontSize: 8,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          PopupMenuButton<String>(
+            onSelected:
+                (
+                  String value,
+                ) {
+              if (value ==
+                  'default') {
+                _setDefault(
+                  _integer(
+                    address['id'],
+                  ),
+                );
+              } else if (value ==
+                  'delete') {
+                _deleteAddress(
+                  _integer(
+                    address['id'],
+                  ),
+                );
+              }
+            },
+            itemBuilder:
+                (
+                  BuildContext context,
+                ) =>
+                    <PopupMenuEntry<String>>[
+              if (!active)
+                const PopupMenuItem(
+                  value:
+                      'default',
+                  child:
+                      Text(
+                    'Set as Default',
+                  ),
+                ),
+              const PopupMenuItem(
+                value:
+                    'delete',
+                child:
+                    Text(
+                  'Remove',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _field({
+    required String label,
+    required TextEditingController
+        controller,
+    IconData? icon,
+    String? Function(String?)?
+        validator,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+  }) {
+    return Padding(
+      padding:
+          const EdgeInsets.only(
+        bottom: 9,
+      ),
+      child:
+          TextFormField(
+        controller:
+            controller,
+        keyboardType:
+            keyboardType,
+        validator:
+            validator,
+        maxLines:
+            maxLines,
+        style:
+            const TextStyle(
+          fontSize: 10,
+        ),
+        decoration:
+            InputDecoration(
+          isDense: true,
+          labelText:
+              label,
+          prefixIcon:
+              icon == null
+                  ? null
+                  : Icon(
+                      icon,
+                      size: 17,
+                    ),
+          contentPadding:
+              const EdgeInsets.symmetric(
+            horizontal: 11,
+            vertical: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniInfo(
+    String label,
+    String value, {
+    bool fullWidth = false,
+  }) {
+    return Container(
+      width: fullWidth
+          ? double.infinity
+          : null,
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 11,
+        vertical: 9,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            const Color(
+          0xFFF7F8FA,
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          11,
+        ),
+        border:
+            Border.all(
+          color:
+              BuyerTheme.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            label,
+            style:
+                const TextStyle(
+              color:
+                  BuyerTheme.muted,
+              fontSize: 7,
+            ),
+          ),
+          const SizedBox(
+            height: 2,
+          ),
+          Text(
+            value,
+            maxLines: 1,
+            overflow:
+                TextOverflow.ellipsis,
+            style:
+                const TextStyle(
+              color:
+                  BuyerTheme.ink,
+              fontSize: 9.5,
+              fontWeight:
+                  FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _card({
+    required String title,
+    required String subtitle,
+    required Widget child,
+    Widget? trailing,
+  }) {
+    return Container(
+      margin:
+          const EdgeInsets.fromLTRB(
+        11,
+        10,
+        11,
+        0,
+      ),
+      padding:
+          const EdgeInsets.all(
+        13,
+      ),
+      decoration:
+          BuyerTheme.card(
+        radius: 16,
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style:
+                          const TextStyle(
+                        color:
+                            BuyerTheme.ink,
+                        fontSize: 12,
+                        fontWeight:
+                            FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 2,
+                    ),
+                    Text(
+                      subtitle,
+                      style:
+                          const TextStyle(
+                        color:
+                            BuyerTheme.muted,
+                        fontSize: 7.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (trailing != null)
+                trailing,
+            ],
+          ),
+
+          const SizedBox(
+            height: 13,
+          ),
+
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _bottomSave() {
+    return Padding(
+      padding:
+          const EdgeInsets.fromLTRB(
+        11,
+        14,
+        11,
+        28,
+      ),
+      child: Column(
+        children: <Widget>[
+          const Text(
+            'Profile changes will sync with your SARI web account.',
+            textAlign:
+                TextAlign.center,
+            style:
+                TextStyle(
+              color:
+                  BuyerTheme.muted,
+              fontSize: 7.5,
+            ),
+          ),
+
+          const SizedBox(
+            height: 8,
+          ),
+
+          SizedBox(
+            width:
+                double.infinity,
+            height: 45,
+            child:
+                FilledButton.icon(
+              onPressed:
+                  _saving
+                      ? null
+                      : _save,
+              icon:
+                  _saving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child:
+                              CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color:
+                                Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons
+                              .save_outlined,
+                          size: 17,
+                        ),
+              label:
+                  Text(
+                _saving
+                    ? 'Saving...'
+                    : 'Save Account Changes',
+                style:
+                    const TextStyle(
+                  fontSize: 10,
+                  fontWeight:
+                      FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _message(
     String message,
   ) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -1106,1513 +1850,78 @@ final result =
       );
   }
 
-  ImageProvider? _profileImage() {
-    if (_pickedProfileImagePath !=
-        null) {
-      return FileImage(
-        File(
-          _pickedProfileImagePath!,
-        ),
-      );
-    }
-
-    final url =
-        _absoluteUrl(
-      _text(
-        _profile[
-            'profile_image_url'],
-      ),
-    );
-
-    if (url.isNotEmpty) {
-      return NetworkImage(url);
-    }
-
-    return null;
-  }
-
-  String get _initials {
-    final first =
-        _firstNameController.text
-            .trim();
-
-    final last =
-        _lastNameController.text
-            .trim();
-
-    final buffer =
-        StringBuffer();
-
-    if (first.isNotEmpty) {
-      buffer.write(
-        first[0],
-      );
-    }
-
-    if (last.isNotEmpty) {
-      buffer.write(
-        last[0],
-      );
-    }
-
-    final value =
-        buffer.toString()
-            .toUpperCase();
-
-    return value.isEmpty
-        ? 'B'
-        : value;
-  }
-
-  Widget _pageHeading() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: BuyerTheme.heroGradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(children: [
-            Icon(Icons.person_rounded, color: BuyerTheme.goldLight, size: 19),
-            SizedBox(width: 8),
-            Text('MY SARI ACCOUNT', style: TextStyle(color: BuyerTheme.goldLight, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
-          ]),
-          const SizedBox(height: 13),
-          const Text('Your space, your style.', style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900, height: 1.2)),
-          const SizedBox(height: 7),
-          const Text('Manage your profile and delivery addresses in one place.', style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.5)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(color: const Color(0x24FFFFFF), borderRadius: BorderRadius.circular(20)),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.tune_rounded, color: BuyerTheme.goldLight, size: 15),
-              SizedBox(width: 6),
-              Text('More options: top-right settings', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
-            ]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _extraServices() {
-    return Row(children: [
-      Expanded(child: _serviceShortcut(Icons.chat_bubble_outline_rounded, 'Messages', () => widget.onTabChanged?.call(6))),
-      const SizedBox(width: 10),
-      Expanded(child: _serviceShortcut(Icons.local_shipping_outlined, 'Shipping', () => widget.onTabChanged?.call(7))),
-    ]);
-  }
-
-  Widget _serviceShortcut(IconData icon, String title, VoidCallback onTap) {
-    return Material(
-      color: BuyerTheme.surface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
-          decoration: BoxDecoration(border: Border.all(color: BuyerTheme.border), borderRadius: BorderRadius.circular(16)),
-          child: Row(children: [
-            Icon(icon, color: BuyerTheme.goldDark, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: BuyerTheme.ink))),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 11, color: BuyerTheme.muted),
-          ]),
-        ),
-      ),
-    );
-  }
-
-  Widget _profileCard() {
-    final image =
-        _profileImage();
-
-    return _card(
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Profile',
-                  style:
-                      TextStyle(
-                    color:
-                        dark,
-                    fontSize:
-                        14,
-                    fontWeight:
-                        FontWeight
-                            .w800,
-                  ),
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets
-                        .symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration:
-                    BoxDecoration(
-                  color:
-                      const Color(
-                    0xFFF5F6F7,
-                  ),
-                  borderRadius:
-                      BorderRadius
-                          .circular(
-                    20,
-                  ),
-                ),
-                child:
-                    const Text(
-                  'BUYER ACCOUNT',
-                  style:
-                      TextStyle(
-                    color:
-                        muted,
-                    fontSize:
-                        7,
-                    fontWeight:
-                        FontWeight
-                            .w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const Divider(
-            height: 24,
-            color: border,
-          ),
-          Stack(
-            clipBehavior:
-                Clip.none,
-            children: [
-              Container(
-                width: 118,
-                height: 118,
-                alignment:
-                    Alignment.center,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      const Color(
-                    0xFFF4F6F8,
-                  ),
-                  borderRadius:
-                      BorderRadius
-                          .circular(
-                    20,
-                  ),
-                  border:
-                      Border.all(
-                    color:
-                        border,
-                  ),
-                  image: image ==
-                          null
-                      ? null
-                      : DecorationImage(
-                          image:
-                              image,
-                          fit: BoxFit
-                              .cover,
-                        ),
-                ),
-                child: image ==
-                        null
-                    ? Text(
-                        _initials,
-                        style:
-                            const TextStyle(
-                          color:
-                              muted,
-                          fontSize:
-                              30,
-                          fontWeight:
-                              FontWeight
-                                  .w700,
-                        ),
-                      )
-                    : null,
-              ),
-              Positioned(
-                right: -7,
-                bottom: -7,
-                child:
-                    IconButton.filled(
-                  tooltip:
-                      'Change profile photo',
-                  onPressed:
-                      _pickProfilePhoto,
-                  style:
-                      IconButton.styleFrom(
-                    backgroundColor:
-                        gold,
-                    foregroundColor:
-                        Colors.white,
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
-                        11,
-                      ),
-                    ),
-                  ),
-                  icon:
-                      const Icon(
-                    Icons
-                        .edit_outlined,
-                    size: 17,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(
-            height: 22,
-          ),
-          Text(
-            _text(
-              _profile[
-                  'full_name'],
-              'SARI Buyer',
-            ),
-            textAlign:
-                TextAlign.center,
-            style:
-                const TextStyle(
-              color: dark,
-              fontSize: 15,
-              fontWeight:
-                  FontWeight.w800,
-            ),
-          ),
-          const SizedBox(
-            height: 4,
-          ),
-          Text(
-            _text(
-              _profile['email'],
-            ),
-            textAlign:
-                TextAlign.center,
-            style:
-                const TextStyle(
-              color: muted,
-              fontSize: 9,
-            ),
-          ),
-          const SizedBox(
-            height: 8,
-          ),
-          Container(
-            padding:
-                const EdgeInsets
-                    .symmetric(
-              horizontal: 10,
-              vertical: 4,
-            ),
-            decoration:
-                BoxDecoration(
-              color:
-                  const Color(
-                0xFFF8F9FB,
-              ),
-              borderRadius:
-                  BorderRadius.circular(
-                20,
-              ),
-              border:
-                  Border.all(
-                color:
-                    border,
-              ),
-            ),
-            child:
-                const Text(
-              'Buyer',
-              style:
-                  TextStyle(
-                color: muted,
-                fontSize: 8,
-                fontWeight:
-                    FontWeight.w700,
-              ),
-            ),
-          ),
-          if (_pickedProfileImagePath !=
-              null) ...[
-            const SizedBox(
-              height: 12,
-            ),
-            const Text(
-              'New profile photo selected. Save Account Changes to upload it.',
-              textAlign:
-                  TextAlign.center,
-              style:
-                  TextStyle(
-                color:
-                    goldDark,
-                fontSize: 8,
-                height: 1.4,
-              ),
-            ),
-          ],
-          const SizedBox(
-            height: 16,
-          ),
-          const Divider(
-            color: border,
-          ),
-          const SizedBox(
-            height: 12,
-          ),
-          _profileMeta(
-            'Contact',
-            _text(
-              _profile[
-                  'contact_no'],
-              'Not set',
-            ),
-          ),
-          const SizedBox(
-            height: 9,
-          ),
-          _profileMeta(
-            'Area',
-            _activeAddress !=
-                    null
-                ? _text(
-                    _activeAddress![
-                        'municipality_name'],
-                    _text(
-                      _activeAddress![
-                          'province_name'],
-                      'Not set',
-                    ),
-                  )
-                : _profileArea
-                        .isEmpty
-                    ? 'Not set'
-                    : _profileArea,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _profileMeta(
-    String label,
-    String value,
-  ) {
-    return Row(
-      children: [
-        Text(
-          label,
-          style:
-              const TextStyle(
-            color: muted,
-            fontSize: 8.5,
-          ),
-        ),
-        const Spacer(),
-        Flexible(
-          child: Text(
-            value,
-            textAlign:
-                TextAlign.right,
-            overflow:
-                TextOverflow.ellipsis,
-            style:
-                const TextStyle(
-              color: dark,
-              fontSize: 9,
-              fontWeight:
-                  FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _basicInformation() {
-    return _card(
-      child: Form(
-        key:
-            _profileFormKey,
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Basic information',
-              style: TextStyle(
-                color: dark,
-                fontSize: 15,
-                fontWeight:
-                    FontWeight.w800,
-              ),
-            ),
-            const SizedBox(
-              height: 16,
-            ),
-            TextFormField(
-              controller:
-                  _firstNameController,
-              maxLength: 50,
-              decoration:
-                  const InputDecoration(
-                labelText:
-                    'First Name *',
-              ),
-              validator:
-                  _nameValidator,
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            TextFormField(
-              controller:
-                  _lastNameController,
-              maxLength: 50,
-              decoration:
-                  const InputDecoration(
-                labelText:
-                    'Last Name *',
-              ),
-              validator:
-                  _nameValidator,
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            TextFormField(
-              controller:
-                  _middleInitialController,
-              maxLength: 2,
-              textCapitalization:
-                  TextCapitalization
-                      .characters,
-              decoration:
-                  const InputDecoration(
-                labelText:
-                    'Middle Initial',
-                helperText:
-                    'Optional · up to 2 letters.',
-              ),
-              validator: (value) {
-                final text =
-                    (value ?? '')
-                        .trim();
-
-                if (text.isEmpty) {
-                  return null;
-                }
-
-                if (!RegExp(
-                  r'^[A-Za-z]{1,2}$',
-                ).hasMatch(
-                  text,
-                )) {
-                  return 'Use 1–2 letters only.';
-                }
-
-                return null;
-              },
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            InputDecorator(
-              decoration:
-                  const InputDecoration(
-                labelText: 'Sex',
-              ),
-              child:
-                  DropdownButtonHideUnderline(
-                child:
-                    DropdownButton<String>(
-                  value:
-                      _sex.isEmpty
-                          ? ''
-                          : _sex,
-                  isExpanded: true,
-                  items: const [
-                    DropdownMenuItem(
-                      value: '',
-                      child: Text(
-                        'Not set',
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Male',
-                      child: Text(
-                        'Male',
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Female',
-                      child: Text(
-                        'Female',
-                      ),
-                    ),
-                  ],
-                  onChanged:
-                      (value) {
-                    setState(() {
-                      _sex =
-                          value ??
-                              '';
-                    });
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            TextFormField(
-              controller:
-                  _birthdayController,
-              readOnly: true,
-              onTap:
-                  _selectBirthday,
-              decoration:
-                  const InputDecoration(
-                labelText:
-                    'Birthday *',
-                suffixIcon: Icon(
-                  Icons
-                      .calendar_today_outlined,
-                ),
-              ),
-              validator:
-                  _requiredValidator,
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            _readonlyField(
-              label: 'Age',
-              value:
-                  _age?.toString() ??
-                      '—',
-              badge: 'Auto',
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            _readonlyField(
-              label: 'Email',
-              value: _text(
-                _profile['email'],
-                'Not available',
-              ),
-              badge: 'Locked',
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            TextFormField(
-              controller:
-                  _contactController,
-              keyboardType:
-                  TextInputType.phone,
-              decoration:
-                  const InputDecoration(
-                labelText:
-                    'Contact Number *',
-                hintText:
-                    '09XXXXXXXXX or +639XXXXXXXXX',
-                helperText:
-                    'Use 09XXXXXXXXX or +639XXXXXXXXX.',
-              ),
-              validator:
-                  _phoneValidator,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _addressDetails() {
-    final active =
-        _activeAddress;
-
-    return _card(
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Address details',
-            style: TextStyle(
-              color: dark,
-              fontSize: 15,
-              fontWeight:
-                  FontWeight.w800,
-            ),
-          ),
-          const SizedBox(
-            height: 14,
-          ),
-          Row(
-            children: [
-              const Text(
-                'Active address',
-                style:
-                    TextStyle(
-                  color: dark,
-                  fontSize: 9,
-                  fontWeight:
-                      FontWeight.w700,
-                ),
-              ),
-              const SizedBox(
-                width: 8,
-              ),
-              Container(
-                padding:
-                    const EdgeInsets
-                        .symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration:
-                    BoxDecoration(
-                  color:
-                      const Color(
-                    0xFFFFF3DA,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(
-                    20,
-                  ),
-                ),
-                child: Text(
-                  active != null
-                      ? _text(
-                          active[
-                              'label'],
-                          'Saved address',
-                        )
-                      : 'Registered address',
-                  style:
-                      const TextStyle(
-                    color:
-                        goldDark,
-                    fontSize: 8,
-                    fontWeight:
-                        FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(
-            height: 14,
-          ),
-          if (active != null) ...[
-            _readonlyField(
-              label:
-                  'Street / Unit Address',
-              value: _text(
-                active[
-                    'street_address'],
-                'Not set',
-              ),
-              badge: 'Active',
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            _readonlyField(
-              label: 'Barangay',
-              value: _text(
-                active[
-                    'barangay_name'],
-                'Not set',
-              ),
-              badge: 'Active',
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            _readonlyField(
-              label:
-                  'City / Municipality',
-              value: _text(
-                active[
-                    'municipality_name'],
-                'Not set',
-              ),
-              badge: 'Active',
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            _readonlyField(
-              label:
-                  'Province / Area',
-              value: _text(
-                active[
-                    'province_name'],
-                'Not set',
-              ),
-              badge: 'Active',
-            ),
-          ] else ...[
-            TextFormField(
-              controller:
-                  _streetController,
-              minLines: 2,
-              maxLines: 3,
-              maxLength: 500,
-              decoration:
-                  const InputDecoration(
-                labelText:
-                    'Street / Unit Address *',
-                hintText:
-                    'House, unit, building, subdivision, or street',
-              ),
-              validator:
-                  _requiredValidator,
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            _readonlyField(
-              label: 'Barangay',
-              value: _text(
-                _profile[
-                    'barangay_name'],
-                'Not set',
-              ),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            _readonlyField(
-              label:
-                  'City / Municipality',
-              value: _text(
-                _profile[
-                    'municipality_name'],
-                'Not set',
-              ),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            _readonlyField(
-              label:
-                  'Province / Area',
-              value: _text(
-                _profile[
-                    'province_name'],
-                'Not set',
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _addressBook() {
-    return _card(
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Address',
-                  style:
-                      TextStyle(
-                    color:
-                        dark,
-                    fontSize:
-                        15,
-                    fontWeight:
-                        FontWeight
-                            .w800,
-                  ),
-                ),
-              ),
-              if (_addresses.length <
-                  5)
-                OutlinedButton.icon(
-                  onPressed: () =>
-                      _openAddressForm(),
-                  icon:
-                      const Icon(
-                    Icons
-                        .add_rounded,
-                    size: 17,
-                  ),
-                  label:
-                      const Text(
-                    'Add Address',
-                  ),
-                )
-              else
-                const Text(
-                  'Address Limit Reached',
-                  style:
-                      TextStyle(
-                    color:
-                        muted,
-                    fontSize:
-                        8,
-                    fontWeight:
-                        FontWeight
-                            .w700,
-                  ),
-                ),
-            ],
-          ),
-          const Divider(
-            height: 24,
-            color: border,
-          ),
-          if (_addresses.isEmpty)
-            const Padding(
-              padding:
-                  EdgeInsets.symmetric(
-                vertical: 18,
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons
-                        .location_on_outlined,
-                    color: muted,
-                    size: 40,
-                  ),
-                  SizedBox(
-                    height: 9,
-                  ),
-                  Text(
-                    'No saved delivery addresses',
-                    style:
-                        TextStyle(
-                      color:
-                          dark,
-                      fontSize:
-                          12,
-                      fontWeight:
-                          FontWeight
-                              .w700,
-                    ),
-                  ),
-                  SizedBox(
-                    height: 4,
-                  ),
-                  Text(
-                    'Add another address for Home, Office, or any preferred delivery location.',
-                    textAlign:
-                        TextAlign.center,
-                    style:
-                        TextStyle(
-                      color:
-                          muted,
-                      fontSize:
-                          8,
-                      height:
-                          1.4,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            ..._addresses.map(
-              _addressCard,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _addressCard(
-    Map<String, dynamic> address,
-  ) {
-    final active =
-        address['is_default'] ==
-            true;
-
-    return Container(
-      margin:
-          const EdgeInsets.only(
-        bottom: 10,
-      ),
-      padding:
-          const EdgeInsets.all(
-        13,
-      ),
-      decoration:
-          BoxDecoration(
-        color: const Color(
-          0xFFFCFBF8,
-        ),
-        borderRadius:
-            BorderRadius.circular(
-          12,
-        ),
-        border:
-            Border.all(
-          color: active
-              ? const Color(
-                  0xFFE4C17B,
-                )
-              : border,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _text(
-                    address['label'],
-                    'Address',
-                  ),
-                  style:
-                      const TextStyle(
-                    color: dark,
-                    fontSize: 11,
-                    fontWeight:
-                        FontWeight.w800,
-                  ),
-                ),
-              ),
-              if (active)
-                Container(
-                  padding:
-                      const EdgeInsets
-                          .symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration:
-                      BoxDecoration(
-                    color:
-                        const Color(
-                      0xFFFFF3DA,
-                    ),
-                    borderRadius:
-                        BorderRadius.circular(
-                      20,
-                    ),
-                  ),
-                  child:
-                      const Text(
-                    'Active',
-                    style:
-                        TextStyle(
-                      color:
-                          goldDark,
-                      fontSize:
-                          7,
-                      fontWeight:
-                          FontWeight
-                              .w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(
-            height: 8,
-          ),
-          Text(
-            _text(
-              address[
-                  'recipient_name'],
-            ),
-            style:
-                const TextStyle(
-              color: dark,
-              fontSize: 9,
-              fontWeight:
-                  FontWeight.w600,
-            ),
-          ),
-          const SizedBox(
-            height: 3,
-          ),
-          Text(
-            _text(
-              address[
-                  'street_address'],
-            ),
-            style:
-                const TextStyle(
-              color: muted,
-              fontSize: 8.5,
-            ),
-          ),
-          const SizedBox(
-            height: 3,
-          ),
-          Text(
-            [
-              _text(
-                address[
-                    'barangay_name'],
-              ),
-              _text(
-                address[
-                    'municipality_name'],
-              ),
-              _text(
-                address[
-                    'province_name'],
-              ),
-              if (_text(
-                address[
-                    'postal_code'],
-              ).isNotEmpty)
-                _text(
-                  address[
-                      'postal_code'],
-                ),
-              'Philippines',
-            ]
-                .where(
-                  (value) =>
-                      value.isNotEmpty,
-                )
-                .join(', '),
-            style:
-                const TextStyle(
-              color: muted,
-              fontSize: 8.5,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(
-            height: 3,
-          ),
-          Text(
-            _text(
-              address[
-                  'contact_no'],
-            ),
-            style:
-                const TextStyle(
-              color: muted,
-              fontSize: 8.5,
-            ),
-          ),
-          const SizedBox(
-            height: 10,
-          ),
-          Row(
-            children: [
-              if (active)
-                const Icon(
-                  Icons
-                      .check_circle_rounded,
-                  color:
-                      goldDark,
-                  size: 20,
-                )
-              else
-                IconButton(
-                  tooltip:
-                      'Use this address',
-                  onPressed: () =>
-                      _setDefaultAddress(
-                    _integer(
-                      address['id'],
-                    ),
-                  ),
-                  icon:
-                      const Icon(
-                    Icons
-                        .check_circle_outline_rounded,
-                    color:
-                        goldDark,
-                  ),
-                ),
-              const Spacer(),
-              IconButton(
-                tooltip:
-                    'Edit address',
-                onPressed: () =>
-                    _openAddressForm(
-                  address:
-                      address,
-                ),
-                icon:
-                    const Icon(
-                  Icons
-                      .edit_outlined,
-                  color:
-                      goldDark,
-                ),
-              ),
-              IconButton(
-                tooltip:
-                    'Delete address',
-                onPressed: () =>
-                    _deleteAddress(
-                  address,
-                ),
-                icon:
-                    const Icon(
-                  Icons
-                      .delete_outline_rounded,
-                  color: Colors
-                      .redAccent,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _readonlyField({
-    required String label,
-    required String value,
-    String? badge,
-  }) {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style:
-              const TextStyle(
-            color: dark,
-            fontSize: 9.5,
-            fontWeight:
-                FontWeight.w700,
-          ),
-        ),
-        const SizedBox(
-          height: 5,
-        ),
-        Container(
-  width: double.infinity,
-  constraints: const BoxConstraints(
-    minHeight: 45,
-  ),
-  padding: const EdgeInsets.symmetric(
-    horizontal: 12,
-    vertical: 11,
-  ),
-          decoration:
-              BoxDecoration(
-            color:
-                const Color(
-              0xFFF7F9FB,
-            ),
-            borderRadius:
-                BorderRadius.circular(
-              10,
-            ),
-            border:
-                Border.all(
-              color: border,
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  value,
-                  style:
-                      const TextStyle(
-                    color:
-                        dark,
-                    fontSize:
-                        10,
-                    fontWeight:
-                        FontWeight
-                            .w600,
-                  ),
-                ),
-              ),
-              if (badge !=
-                  null)
-                Container(
-                  padding:
-                      const EdgeInsets
-                          .symmetric(
-                    horizontal: 7,
-                    vertical: 3,
-                  ),
-                  decoration:
-                      BoxDecoration(
-                    color:
-                        Colors.white,
-                    borderRadius:
-                        BorderRadius.circular(
-                      20,
-                    ),
-                    border:
-                        Border.all(
-                      color:
-                          border,
-                    ),
-                  ),
-                  child:
-                      Text(
-                    badge,
-                    style:
-                        const TextStyle(
-                      color:
-                          muted,
-                      fontSize:
-                          7,
-                      fontWeight:
-                          FontWeight
-                              .w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _saveButton() {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'Profile changes are saved securely to your Buyer account.',
-          textAlign:
-              TextAlign.center,
-          style: TextStyle(
-            color: muted,
-            fontSize: 8,
-          ),
-        ),
-        const SizedBox(
-          height: 10,
-        ),
-        ElevatedButton.icon(
-          onPressed:
-              _savingProfile
-                  ? null
-                  : _saveProfile,
-          style:
-              ElevatedButton
-                  .styleFrom(
-            backgroundColor:
-                gold,
-            foregroundColor:
-                Colors.white,
-            padding:
-                const EdgeInsets
-                    .symmetric(
-              vertical: 14,
-            ),
-          ),
-          icon:
-              _savingProfile
-                  ? const SizedBox(
-                      width: 17,
-                      height: 17,
-                      child:
-                          CircularProgressIndicator(
-                        strokeWidth:
-                            2,
-                        color:
-                            Colors.white,
-                      ),
-                    )
-                  : const Icon(
-                      Icons
-                          .save_outlined,
-                    ),
-          label:
-              Text(
-            _savingProfile
-                ? 'Saving...'
-                : 'Save Account Changes',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _card({
-    required Widget child,
-  }) {
-    return Container(
-      width:
-          double.infinity,
-      padding:
-          const EdgeInsets.all(
-        16,
-      ),
-      decoration: BuyerTheme.card(radius: 18),
-      child: child,
-    );
-  }
-
-  Widget _errorState() {
-    return ListView(
-      padding:
-          const EdgeInsets.all(
-        24,
-      ),
-      children: [
-        const SizedBox(
-          height: 70,
-        ),
-        const Icon(
-          Icons
-              .error_outline_rounded,
-          color: muted,
-          size: 48,
-        ),
-        const SizedBox(
-          height: 12,
-        ),
-        Text(
-          _error ??
-              'Unable to load account.',
-          textAlign:
-              TextAlign.center,
-          style:
-              const TextStyle(
-            color: muted,
-            fontSize: 10,
-          ),
-        ),
-        const SizedBox(
-          height: 14,
-        ),
-        FilledButton(
-          onPressed: _load,
-          child:
-              const Text(
-            'Try Again',
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(
     BuildContext context,
   ) {
     return Scaffold(
-      backgroundColor: canvas,
+      backgroundColor:
+          BuyerTheme.canvas,
       body: Column(
-        children: [
+        children: <Widget>[
           BuyerHeader(
             pageTitle:
                 'Account',
             cartCount: 0,
             notificationCount: 0,
-            onSearchTap: () =>
-                widget.onTabChanged
-                    ?.call(1),
-            onCartTap: () =>
-                widget.onTabChanged
-                    ?.call(2),
-            onNotificationTap: () =>
-                widget.onTabChanged
-                    ?.call(5),
+            onSearchTap: () {
+              widget.onTabChanged
+                  ?.call(1);
+            },
+            onCartTap: () {
+              widget.onTabChanged
+                  ?.call(2);
+            },
+            onNotificationTap: () {
+              widget.onTabChanged
+                  ?.call(5);
+            },
             onProfileTap: () {},
           ),
+
           Expanded(
-            child:
-                RefreshIndicator(
-              color: gold,
-              onRefresh: _load,
-              child: _loading
-                  ? ListView(
-                      children:
-                          const [
-                        SizedBox(
-                          height:
-                              180,
+            child: _loading
+                ? const Center(
+                    child:
+                        CircularProgressIndicator(),
+                  )
+                : _error != null
+                    ? RefreshIndicator(
+                        onRefresh:
+                            _load,
+                        child:
+                            ListView(
+                          physics:
+                              const AlwaysScrollableScrollPhysics(),
+                          children: <Widget>[
+                            const SizedBox(
+                              height: 80,
+                            ),
+                            Text(
+                              _error!,
+                              textAlign:
+                                  TextAlign.center,
+                            ),
+                          ],
                         ),
-                        Center(
-                          child:
-                              CircularProgressIndicator(
-                            color:
-                                gold,
-                          ),
-                        ),
-                      ],
-                    )
-                  : _error != null
-                      ? _errorState()
-                      : ListView(
+                      )
+                    : RefreshIndicator(
+                        onRefresh:
+                            _load,
+                        child:
+                            ListView(
                           physics:
                               const AlwaysScrollableScrollPhysics(),
                           padding:
-                              const EdgeInsets.fromLTRB(
-                            14,
-                            18,
-                            14,
-                            30,
-                          ),
-                          children: [
-                            _pageHeading(),
-                            const SizedBox(
-                              height:
-                                  16,
-                            ),
-                            _profileCard(),
-                            const SizedBox(height: 12),
-                            _extraServices(),
-                            const SizedBox(height: 12),
-                            _basicInformation(),
-                            const SizedBox(
-                              height:
-                                  12,
-                            ),
-                            _addressDetails(),
-                            const SizedBox(
-                              height:
-                                  12,
-                            ),
-                            _addressBook(),
-                            const SizedBox(
-                              height:
-                                  16,
-                            ),
-                            _saveButton(),
+                              EdgeInsets.zero,
+                          children: <Widget>[
+                            _profileHero(),
+                            _personalInformation(),
+                            _addressesCard(),
+                            _bottomSave(),
                           ],
                         ),
-            ),
+                      ),
           ),
         ],
       ),

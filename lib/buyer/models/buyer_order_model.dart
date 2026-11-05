@@ -110,7 +110,9 @@ class BuyerOrder {
   });
 
   String get statusLabel {
-    if (apiStatusLabel.trim().isNotEmpty) {
+    if (apiStatusLabel
+        .trim()
+        .isNotEmpty) {
       return apiStatusLabel.trim();
     }
 
@@ -154,7 +156,8 @@ class BuyerOrder {
             )
             .map(
               (word) =>
-                  '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}',
+                  '${word[0].toUpperCase()}'
+                  '${word.substring(1).toLowerCase()}',
             )
             .join(' ');
     }
@@ -169,7 +172,7 @@ class BuyerOrder {
       return 'cancelled';
     }
 
-    if (const {
+    if (const <String>{
       'courier_accepted',
       'heading_pickup',
       'arrived_pickup',
@@ -233,7 +236,7 @@ class BuyerOrder {
       );
     }
 
-    final total =
+    final double total =
         totalAmount ?? 0;
 
     if (total > deliveryFee) {

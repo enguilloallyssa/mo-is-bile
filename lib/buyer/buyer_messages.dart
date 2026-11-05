@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../services/sari_live_data.dart';
+import 'buyer_theme.dart';
 import 'models/buyer_message_model.dart';
-import 'services/buyer_message_service.dart';
 import 'widgets/buyer_header.dart';
 
 class BuyerMessages extends StatefulWidget {
@@ -17,534 +18,1205 @@ class BuyerMessages extends StatefulWidget {
   });
 
   @override
-  State<BuyerMessages> createState() => _BuyerMessagesState();
+  State<BuyerMessages> createState() =>
+      _BuyerMessagesState();
 }
 
-class _BuyerMessagesState extends State<BuyerMessages> {
-  static const Color _gold = Color(0xFFC99128);
-  static const Color _pageBg = Color(0xFFFBFAF7);
-  static const Color _border = Color(0xFFEBE4DA);
+class _BuyerMessagesState
+    extends State<BuyerMessages> {
+  final TextEditingController
+      _messageController =
+      TextEditingController();
 
-  final BuyerMessageService _service = BuyerMessageService();
-  final TextEditingController _messageController = TextEditingController();
-  final ScrollController _messageScrollController = ScrollController();
+  final ScrollController
+      _messageScrollController =
+      ScrollController();
 
-  late List<BuyerConversation> _conversations;
+  final List<BuyerConversation>
+      _conversations =
+      <BuyerConversation>[];
+
   int? _selectedSellerId;
+
+  bool _loading = true;
+  bool _loadingThread = false;
+  bool _sending = false;
+
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _conversations = _service.loadDemoConversations();
-    _selectedSellerId = _resolveInitialSeller();
+
+    _loadConversations();
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _messageScrollController.dispose();
+
     super.dispose();
   }
 
-  int? _resolveInitialSeller() {
-    final requested = widget.initialSellerId;
-
-    if (requested != null &&
-        _conversations.any((item) => item.sellerId == requested)) {
-      return requested;
-    }
-
-    if (requested != null) {
-      _conversations = [
-        ..._conversations,
-        BuyerConversation(
-          sellerId: requested,
-          storeName: 'SARI Seller Store',
-          sellerEmail: '',
-        ),
-      ];
-      return requested;
-    }
-
-    if (_conversations.isEmpty) return null;
-    return _conversations.first.sellerId;
+  Map<String, dynamic> _map(
+    dynamic value,
+  ) {
+    return value is Map
+        ? Map<String, dynamic>.from(
+            value,
+          )
+        : <String, dynamic>{};
   }
 
-  BuyerConversation? get _selectedConversation {
-    final sellerId = _selectedSellerId;
-    if (sellerId == null) return null;
+  int _int(
+    dynamic value,
+  ) {
+    return value is num
+        ? value.toInt()
+        : int.tryParse(
+              '$value',
+            ) ??
+            0;
+  }
 
-    for (final conversation in _conversations) {
-      if (conversation.sellerId == sellerId) {
-        return conversation;
+  String _text(
+    dynamic value, [
+    String fallback = '',
+  ]) {
+    final String text =
+        value?.toString().trim() ?? '';
+
+    return text.isEmpty
+        ? fallback
+        : text;
+  }
+
+  String _time(
+    dynamic value,
+  ) {
+    final String raw =
+        _text(value);
+
+    final DateTime? date =
+        DateTime.tryParse(
+      raw,
+    )?.toLocal();
+
+    if (date == null) {
+      return raw;
+    }
+
+    final DateTime now =
+        DateTime.now();
+
+    final bool sameDay =
+        date.year == now.year &&
+            date.month == now.month &&
+            date.day == now.day;
+
+    final int hour =
+        date.hour == 0
+            ? 12
+            : date.hour > 12
+                ? date.hour - 12
+                : date.hour;
+
+    final String minute =
+        date.minute
+            .toString()
+            .padLeft(
+              2,
+              '0',
+            );
+
+    final String suffix =
+        date.hour >= 12
+            ? 'PM'
+            : 'AM';
+
+    if (sameDay) {
+      return 'Today, $hour:$minute $suffix';
+    }
+
+    return '${date.month}/${date.day}/${date.year}, '
+        '$hour:$minute $suffix';
+  }
+
+  Future<void> _loadConversations()
+      async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final Map<String, dynamic>
+          response =
+          await SariLiveData
+              .instance
+              .buyerMessages();
+
+      final dynamic raw =
+          response['data'];
+
+      if (raw is! List) {
+        throw const FormatException(
+          'Invalid seller conversation response.',
+        );
+      }
+
+      final List<BuyerConversation>
+          items = raw
+              .map(
+                (
+                  dynamic entry,
+                ) {
+                  final Map<String,
+                          dynamic>
+                      item =
+                      _map(entry);
+
+                  return BuyerConversation(
+                    sellerId:
+                        _int(
+                      item[
+                          'seller_id'],
+                    ),
+                    storeName:
+                        _text(
+                      item[
+                          'store_name'],
+                      'SARI Seller',
+                    ),
+                    sellerEmail:
+                        '',
+                  );
+                },
+              )
+              .where(
+                (
+                  BuyerConversation
+                      item,
+                ) =>
+                    item.sellerId >
+                    0,
+              )
+              .toList();
+
+      final int? requested =
+          widget.initialSellerId;
+
+      if (requested != null &&
+          requested > 0 &&
+          !items.any(
+            (
+              BuyerConversation
+                  item,
+            ) =>
+                item.sellerId ==
+                requested,
+          )) {
+        items.insert(
+          0,
+          BuyerConversation(
+            sellerId:
+                requested,
+            storeName:
+                'SARI Seller',
+            sellerEmail: '',
+          ),
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _conversations
+          ..clear()
+          ..addAll(items);
+
+        _selectedSellerId =
+            requested ??
+                (_conversations
+                        .isEmpty
+                    ? null
+                    : _conversations
+                        .first
+                        .sellerId);
+
+        _loading = false;
+      });
+
+      if (_selectedSellerId !=
+          null) {
+        await _loadThread(
+          _selectedSellerId!,
+        );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _loading = false;
+        _error =
+            error.toString();
+      });
+    }
+  }
+
+  Future<void> _loadThread(
+    int sellerId,
+  ) async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedSellerId =
+          sellerId;
+
+      _loadingThread =
+          true;
+    });
+
+    try {
+      final Map<String, dynamic>
+          response =
+          await SariLiveData
+              .instance
+              .buyerMessageThread(
+        sellerId,
+      );
+
+      final Map<String, dynamic>
+          data =
+          _map(
+        response['data'],
+      );
+
+      final Map<String, dynamic>
+          seller =
+          _map(
+        data['seller'],
+      );
+
+      final dynamic rawMessages =
+          data['messages'];
+
+      if (rawMessages is! List) {
+        throw const FormatException(
+          'Invalid seller message thread.',
+        );
+      }
+
+      final List<BuyerMessage>
+          messages =
+          rawMessages
+              .map(
+                (
+                  dynamic entry,
+                ) {
+                  final Map<String,
+                          dynamic>
+                      item =
+                      _map(entry);
+
+                  return BuyerMessage(
+                    id: _int(
+                      item['id'],
+                    ),
+                    sellerId:
+                        _int(
+                                  item[
+                                      'seller_id'],
+                                ) ==
+                                0
+                            ? sellerId
+                            : _int(
+                                item[
+                                    'seller_id'],
+                              ),
+                    senderRole:
+                        _text(
+                      item[
+                          'sender_role'],
+                      'seller',
+                    ),
+                    body:
+                        _text(
+                      item['body'],
+                    ),
+                    createdAt:
+                        _time(
+                      item[
+                          'created_at'],
+                    ),
+                  );
+                },
+              )
+              .where(
+                (
+                  BuyerMessage
+                      message,
+                ) =>
+                    message.id >
+                    0,
+              )
+              .toList();
+
+      final int index =
+          _conversations
+              .indexWhere(
+        (
+          BuyerConversation item,
+        ) =>
+            item.sellerId ==
+            sellerId,
+      );
+
+      final BuyerConversation
+          updated =
+          BuyerConversation(
+        sellerId: sellerId,
+        storeName:
+            _text(
+          seller[
+              'store_name'],
+          index >= 0
+              ? _conversations[
+                      index]
+                  .storeName
+              : 'SARI Seller',
+        ),
+        sellerEmail: '',
+        messages: messages,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        if (index >= 0) {
+          _conversations[index] =
+              updated;
+        } else {
+          _conversations.insert(
+            0,
+            updated,
+          );
+        }
+
+        _loadingThread =
+            false;
+      });
+
+      WidgetsBinding.instance
+          .addPostFrameCallback(
+        (_) {
+          _scrollToBottom();
+        },
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _loadingThread =
+            false;
+      });
+
+      _toast(
+        'Unable to load messages: $error',
+      );
+    }
+  }
+
+  BuyerConversation?
+      get _selectedConversation {
+    final int? id =
+        _selectedSellerId;
+
+    if (id == null) {
+      return null;
+    }
+
+    for (final BuyerConversation item
+        in _conversations) {
+      if (item.sellerId == id) {
+        return item;
       }
     }
 
     return null;
   }
 
+  Future<void> _sendMessage(
+    BuyerConversation selected,
+  ) async {
+    final String body =
+        _messageController.text
+            .trim();
+
+    if (body.isEmpty ||
+        _sending) {
+      return;
+    }
+
+    setState(() {
+      _sending = true;
+    });
+
+    try {
+      final Map<String, dynamic>
+          response =
+          await SariLiveData
+              .instance
+              .buyerSendMessage(
+        selected.sellerId,
+        body: body,
+      );
+
+      final Map<String, dynamic>
+          item =
+          _map(
+        response['data'],
+      );
+
+      final BuyerMessage message =
+          BuyerMessage(
+        id: _int(
+          item['id'],
+        ),
+        sellerId:
+            _int(
+                      item[
+                          'seller_id'],
+                    ) ==
+                    0
+                ? selected
+                    .sellerId
+                : _int(
+                    item[
+                        'seller_id'],
+                  ),
+        senderRole:
+            _text(
+          item['sender_role'],
+          'buyer',
+        ),
+        body:
+            _text(
+          item['body'],
+          body,
+        ),
+        createdAt:
+            _time(
+                  item[
+                      'created_at'],
+                )
+                    .isEmpty
+                ? 'Just now'
+                : _time(
+                    item[
+                        'created_at'],
+                  ),
+      );
+
+      final int index =
+          _conversations
+              .indexWhere(
+        (
+          BuyerConversation entry,
+        ) =>
+            entry.sellerId ==
+            selected.sellerId,
+      );
+
+      if (!mounted ||
+          index < 0) {
+        return;
+      }
+
+      setState(() {
+        _conversations[index] =
+            selected.copyWith(
+          messages:
+              <BuyerMessage>[
+            ...selected
+                .messages,
+            message,
+          ],
+        );
+
+        _messageController
+            .clear();
+      });
+
+      WidgetsBinding.instance
+          .addPostFrameCallback(
+        (_) {
+          _scrollToBottom();
+        },
+      );
+    } catch (error) {
+      _toast(
+        'Unable to send message: $error',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _sending = false;
+        });
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
-    final selected = _selectedConversation;
+  Widget build(
+    BuildContext context,
+  ) {
+    final BuyerConversation?
+        selected =
+        _selectedConversation;
 
     return Scaffold(
-      backgroundColor: _pageBg,
+      backgroundColor:
+          BuyerTheme.canvas,
       body: Column(
-        children: [
+        children: <Widget>[
           BuyerHeader(
-            pageTitle: 'Seller Messages',
+            pageTitle:
+                'Seller Messages',
             cartCount: 0,
-            onSearchTap: () => widget.onTabChanged?.call(1),
-            onCartTap: () => widget.onTabChanged?.call(2),
-            onProfileTap: () => widget.onTabChanged?.call(4),
+            onSearchTap: () {
+              widget.onTabChanged
+                  ?.call(1);
+            },
+            onCartTap: () {
+              widget.onTabChanged
+                  ?.call(2);
+            },
+            onProfileTap: () {
+              widget.onTabChanged
+                  ?.call(4);
+            },
           ),
+
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: _border),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final wide = constraints.maxWidth >= 760;
-
-                    if (wide) {
-                      return Row(
-                        children: [
-                          SizedBox(
-                            width: 280,
-                            child: _conversationList(),
-                          ),
-                          const VerticalDivider(
-                            width: 1,
-                            color: Color(0xFFEEE8DF),
-                          ),
-                          Expanded(
-                            child: _chatPanel(selected),
-                          ),
-                        ],
-                      );
-                    }
-
-                    if (selected == null) {
-                      return _conversationList(mobileOnly: true);
-                    }
-
-                    return _mobileChat(selected);
-                  },
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _conversationList({bool mobileOnly = false}) {
-    return Container(
-      color: const Color(0xFFFCFBF8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(14, 14, 14, 10),
-            child: Text(
-              'SELLER CONVERSATIONS',
-              style: TextStyle(
-                color: Color(0xFFA8731F),
-                fontSize: 7.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: .8,
-              ),
-            ),
-          ),
-          Expanded(
-            child: _conversations.isEmpty
-                ? _noConversationListState()
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-                    itemCount: _conversations.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 7),
-                    itemBuilder: (context, index) {
-                      final conversation = _conversations[index];
-                      final selected =
-                          conversation.sellerId == _selectedSellerId;
-
-                      return InkWell(
-                        onTap: () {
-                          setState(() {
-                            _selectedSellerId = conversation.sellerId;
-                          });
-
-                          WidgetsBinding.instance.addPostFrameCallback(
-                            (_) => _scrollToBottom(),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 160),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? const Color(0xFFFFF8EB)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: selected
-                                  ? const Color(0xFFD7B978)
-                                  : const Color(0xFFEBE4DA),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 39,
-                                height: 39,
-                                decoration: BoxDecoration(
-                                  color: selected
-                                      ? const Color(0xFFFFF0CD)
-                                      : const Color(0xFFF5F2ED),
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                child: Icon(
-                                  Icons.storefront_outlined,
-                                  size: 19,
-                                  color: selected
-                                      ? const Color(0xFFB67813)
-                                      : const Color(0xFF8E867D),
-                                ),
-                              ),
-                              const SizedBox(width: 9),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      conversation.storeName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Color(0xFF514A42),
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      conversation.sellerEmail.trim().isEmpty
-                                          ? 'Approved SARI seller'
-                                          : conversation.sellerEmail,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Color(0xFF91887D),
-                                        fontSize: 6.5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              const Icon(
-                                Icons.chevron_right,
-                                size: 17,
-                                color: Color(0xFFB8B0A7),
-                              ),
-                            ],
-                          ),
+            child:
+                RefreshIndicator(
+              onRefresh:
+                  _loadConversations,
+              color:
+                  BuyerTheme.gold,
+              child: _loading
+                  ? ListView(
+                      children:
+                          const <Widget>[
+                        SizedBox(
+                          height: 220,
                         ),
-                      );
-                    },
-                  ),
+                        Center(
+                          child:
+                              CircularProgressIndicator(),
+                        ),
+                      ],
+                    )
+                  : _error !=
+                              null &&
+                          _conversations
+                              .isEmpty
+                      ? _errorState()
+                      : selected ==
+                              null
+                          ? _conversationList()
+                          : _chat(
+                              selected,
+                            ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _mobileChat(BuyerConversation selected) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(8, 7, 12, 7),
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: Color(0xFFEEE8DF)),
-            ),
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedSellerId = null;
-                  });
-                },
-                icon: const Icon(Icons.arrow_back, size: 19),
-              ),
-              const SizedBox(width: 3),
-              Expanded(
-                child: _chatHeaderContent(selected),
-              ),
-            ],
-          ),
+  Widget _errorState() {
+    return ListView(
+      padding:
+          const EdgeInsets.all(
+        24,
+      ),
+      children: <Widget>[
+        const SizedBox(
+          height: 100,
         ),
-        Expanded(child: _messageList(selected)),
-        _messageComposer(selected),
-      ],
-    );
-  }
 
-  Widget _chatPanel(BuyerConversation? selected) {
-    if (selected == null) {
-      return _chooseSellerState();
-    }
-
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 14,
-          ),
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: Color(0xFFEEE8DF)),
-            ),
-          ),
-          child: _chatHeaderContent(selected),
+        const Icon(
+          Icons.cloud_off_rounded,
+          size: 50,
+          color:
+              BuyerTheme.muted,
         ),
-        Expanded(child: _messageList(selected)),
-        _messageComposer(selected),
-      ],
-    );
-  }
 
-  Widget _chatHeaderContent(BuyerConversation selected) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          selected.storeName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Color(0xFF302A24),
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
+        const SizedBox(
+          height: 14,
         ),
-        const SizedBox(height: 3),
+
         const Text(
-          'Direct Buyer ↔ Seller conversation',
+          'Messages are unavailable',
+          textAlign:
+              TextAlign.center,
           style: TextStyle(
-            color: Color(0xFF91887D),
-            fontSize: 7.5,
+            fontSize: 18,
+            fontWeight:
+                FontWeight.w800,
+          ),
+        ),
+
+        const SizedBox(
+          height: 7,
+        ),
+
+        Text(
+          _error ??
+              'Please try again.',
+          textAlign:
+              TextAlign.center,
+          style:
+              const TextStyle(
+            color:
+                BuyerTheme.muted,
+            height: 1.5,
+          ),
+        ),
+
+        const SizedBox(
+          height: 18,
+        ),
+
+        Center(
+          child:
+              FilledButton.icon(
+            onPressed:
+                _loadConversations,
+            icon:
+                const Icon(
+              Icons.refresh_rounded,
+            ),
+            label:
+                const Text(
+              'Retry',
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _messageList(BuyerConversation selected) {
-    final messages = selected.messages;
+  Widget _conversationList() {
+    return ListView(
+      padding:
+          const EdgeInsets
+              .fromLTRB(
+        16,
+        16,
+        16,
+        28,
+      ),
+      children: <Widget>[
+        _hero(),
 
-    if (messages.isEmpty) {
-      return _startConversationState();
-    }
+        const SizedBox(
+          height: 14,
+        ),
 
-    return ListView.builder(
-      controller: _messageScrollController,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
-      itemCount: messages.length,
-      itemBuilder: (context, index) {
-        final message = messages[index];
-
-        return Align(
-          alignment: message.isBuyer
-              ? Alignment.centerRight
-              : Alignment.centerLeft,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 310),
-            margin: const EdgeInsets.only(bottom: 9),
-            padding: const EdgeInsets.fromLTRB(13, 10, 13, 9),
-            decoration: BoxDecoration(
-              color: message.isBuyer
-                  ? _gold
-                  : const Color(0xFFFCFBF8),
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(17),
-                topRight: const Radius.circular(17),
-                bottomLeft: Radius.circular(
-                  message.isBuyer ? 17 : 5,
-                ),
-                bottomRight: Radius.circular(
-                  message.isBuyer ? 5 : 17,
-                ),
-              ),
-              border: message.isBuyer
-                  ? null
-                  : Border.all(
-                      color: const Color(0xFFE7DFD4),
-                    ),
+        if (_conversations
+            .isEmpty)
+          _emptyConversations()
+        else
+          ..._conversations.map(
+            (
+              BuyerConversation
+                  item,
+            ) =>
+                _conversationTile(
+              item,
             ),
+          ),
+      ],
+    );
+  }
+
+  Widget _hero() {
+    return Container(
+      padding:
+          const EdgeInsets.all(
+        20,
+      ),
+      decoration:
+          BoxDecoration(
+        gradient:
+            const LinearGradient(
+          begin:
+              Alignment.topLeft,
+          end:
+              Alignment.bottomRight,
+          colors:
+              BuyerTheme
+                  .heroGradient,
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          24,
+        ),
+        boxShadow:
+            const <BoxShadow>[
+          BoxShadow(
+            color:
+                Color(0x22000000),
+            blurRadius: 24,
+            offset:
+                Offset(
+              0,
+              10,
+            ),
+          ),
+        ],
+      ),
+      child:
+          const Row(
+        children: <Widget>[
+          Expanded(
             child: Column(
-              crossAxisAlignment: message.isBuyer
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              children: [
+              crossAxisAlignment:
+                  CrossAxisAlignment
+                      .start,
+              children: <Widget>[
                 Text(
-                  message.body,
-                  style: TextStyle(
-                    color: message.isBuyer
-                        ? Colors.white
-                        : const Color(0xFF514A42),
-                    fontSize: 9,
-                    height: 1.55,
+                  'SARI CHAT',
+                  style:
+                      TextStyle(
+                    color:
+                        Color(
+                      0xFFFFD889,
+                    ),
+                    fontSize: 10,
+                    fontWeight:
+                        FontWeight
+                            .w800,
+                    letterSpacing:
+                        1.2,
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(
+                  height: 7,
+                ),
                 Text(
-                  message.createdAt,
-                  style: TextStyle(
-                    color: message.isBuyer
-                        ? Colors.white.withOpacity(.72)
-                        : const Color(0xFF9B9289),
-                    fontSize: 6.5,
+                  'Talk directly to your sellers',
+                  style:
+                      TextStyle(
+                    color:
+                        Colors.white,
+                    fontSize: 20,
+                    fontWeight:
+                        FontWeight
+                            .w900,
+                    height: 1.1,
+                  ),
+                ),
+                SizedBox(
+                  height: 8,
+                ),
+                Text(
+                  'Your conversations are synced with the same SARI account used on the web.',
+                  style:
+                      TextStyle(
+                    color:
+                        Colors.white70,
+                    fontSize: 11,
+                    height: 1.45,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _messageComposer(BuyerConversation selected) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFEEE8DF)),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              minLines: 2,
-              maxLines: 4,
-              maxLength: 3000,
-              style: const TextStyle(
-                color: Color(0xFF514A42),
-                fontSize: 9,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Message the seller...',
-                hintStyle: const TextStyle(
-                  color: Color(0xFFAAA198),
-                  fontSize: 9,
-                ),
-                counterText: '',
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 11,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFE4DDD3),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFE4DDD3),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: _gold),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
           SizedBox(
-            width: 88,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: () => _sendMessage(selected),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _gold,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.send_outlined, size: 15),
-                  SizedBox(width: 5),
-                  Text(
-                    'Send',
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            width: 14,
+          ),
+          Icon(
+            Icons.forum_rounded,
+            color:
+                Colors.white,
+            size: 42,
           ),
         ],
       ),
     );
   }
 
-  Widget _chooseSellerState() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.forum_outlined,
-              color: Color(0xFFC99128),
-              size: 43,
+  Widget _conversationTile(
+    BuyerConversation item,
+  ) {
+    return Container(
+      margin:
+          const EdgeInsets.only(
+        bottom: 10,
+      ),
+      decoration:
+          BuyerTheme.card(
+        radius: 18,
+      ),
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets
+                .symmetric(
+          horizontal: 14,
+          vertical: 6,
+        ),
+        onTap: () {
+          _loadThread(
+            item.sellerId,
+          );
+        },
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration:
+              BoxDecoration(
+            color:
+                BuyerTheme
+                    .goldPale,
+            borderRadius:
+                BorderRadius
+                    .circular(
+              14,
             ),
-            SizedBox(height: 12),
-            Text(
-              'Choose a seller',
-              style: TextStyle(
-                color: Color(0xFF403A33),
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
+          ),
+          child:
+              const Icon(
+            Icons
+                .storefront_rounded,
+            color:
+                BuyerTheme
+                    .goldDark,
+          ),
+        ),
+        title: Text(
+          item.storeName,
+          maxLines: 1,
+          overflow:
+              TextOverflow
+                  .ellipsis,
+          style:
+              const TextStyle(
+            fontWeight:
+                FontWeight.w800,
+            fontSize: 13,
+          ),
+        ),
+        subtitle:
+            const Padding(
+          padding:
+              EdgeInsets.only(
+            top: 3,
+          ),
+          child: Text(
+            'Open synced conversation',
+            style:
+                TextStyle(
+              color:
+                  BuyerTheme
+                      .muted,
+              fontSize: 10,
+            ),
+          ),
+        ),
+        trailing:
+            const Icon(
+          Icons
+              .chevron_right_rounded,
+          color:
+              BuyerTheme.muted,
+        ),
+      ),
+    );
+  }
+
+  Widget _chat(
+    BuyerConversation selected,
+  ) {
+    return Column(
+      children: <Widget>[
+        Container(
+          color:
+              BuyerTheme.surface,
+          padding:
+              const EdgeInsets
+                  .fromLTRB(
+            8,
+            8,
+            14,
+            10,
+          ),
+          child: Row(
+            children: <Widget>[
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedSellerId =
+                        null;
+                  });
+                },
+                icon:
+                    const Icon(
+                  Icons
+                      .arrow_back_rounded,
+                ),
+              ),
+
+              Container(
+                width: 40,
+                height: 40,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      BuyerTheme
+                          .goldPale,
+                  borderRadius:
+                      BorderRadius
+                          .circular(
+                    13,
+                  ),
+                ),
+                child:
+                    const Icon(
+                  Icons
+                      .storefront_rounded,
+                  color:
+                      BuyerTheme
+                          .goldDark,
+                  size: 21,
+                ),
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
+                  children: <Widget>[
+                    Text(
+                      selected
+                          .storeName,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      style:
+                          const TextStyle(
+                        fontSize: 13,
+                        fontWeight:
+                            FontWeight
+                                .w800,
+                      ),
+                    ),
+                    const Text(
+                      'Synced Buyer ↔ Seller conversation',
+                      style:
+                          TextStyle(
+                        color:
+                            BuyerTheme
+                                .muted,
+                        fontSize: 9.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              IconButton(
+                onPressed: () {
+                  _loadThread(
+                    selected
+                        .sellerId,
+                  );
+                },
+                icon:
+                    const Icon(
+                  Icons
+                      .refresh_rounded,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const Divider(
+          height: 1,
+        ),
+
+        Expanded(
+          child: _loadingThread
+              ? const Center(
+                  child:
+                      CircularProgressIndicator(),
+                )
+              : selected
+                      .messages
+                      .isEmpty
+                  ? _emptyThread()
+                  : ListView.builder(
+                      controller:
+                          _messageScrollController,
+                      padding:
+                          const EdgeInsets
+                              .fromLTRB(
+                        16,
+                        18,
+                        16,
+                        18,
+                      ),
+                      itemCount:
+                          selected
+                              .messages
+                              .length,
+                      itemBuilder:
+                          (
+                        BuildContext
+                            context,
+                        int index,
+                      ) {
+                        return _bubble(
+                          selected
+                              .messages[
+                                  index],
+                        );
+                      },
+                    ),
+        ),
+
+        _composer(
+          selected,
+        ),
+      ],
+    );
+  }
+
+  Widget _bubble(
+    BuyerMessage message,
+  ) {
+    final bool mine =
+        message.isBuyer;
+
+    return Align(
+      alignment: mine
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
+      child: Container(
+        constraints:
+            const BoxConstraints(
+          maxWidth: 315,
+        ),
+        margin:
+            const EdgeInsets.only(
+          bottom: 10,
+        ),
+        padding:
+            const EdgeInsets
+                .fromLTRB(
+          14,
+          11,
+          14,
+          9,
+        ),
+        decoration:
+            BoxDecoration(
+          color: mine
+              ? BuyerTheme.goldDark
+              : BuyerTheme.surface,
+          borderRadius:
+              BorderRadius.only(
+            topLeft:
+                const Radius.circular(
+              18,
+            ),
+            topRight:
+                const Radius.circular(
+              18,
+            ),
+            bottomLeft:
+                Radius.circular(
+              mine ? 18 : 5,
+            ),
+            bottomRight:
+                Radius.circular(
+              mine ? 5 : 18,
+            ),
+          ),
+          border: mine
+              ? null
+              : Border.all(
+                  color:
+                      BuyerTheme
+                          .border,
+                ),
+          boxShadow:
+              const <BoxShadow>[
+            BoxShadow(
+              color:
+                  Color(0x08000000),
+              blurRadius: 12,
+              offset:
+                  Offset(
+                0,
+                4,
               ),
             ),
-            SizedBox(height: 5),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: mine
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: <Widget>[
             Text(
-              'Approved shops appear here automatically.',
-              textAlign: TextAlign.center,
+              message.body,
               style: TextStyle(
-                color: Color(0xFF91887D),
-                fontSize: 8,
+                color: mine
+                    ? Colors.white
+                    : BuyerTheme.ink,
+                fontSize: 12,
+                height: 1.45,
+              ),
+            ),
+
+            const SizedBox(
+              height: 5,
+            ),
+
+            Text(
+              message.createdAt,
+              style: TextStyle(
+                color: mine
+                    ? Colors.white70
+                    : BuyerTheme
+                        .muted,
+                fontSize: 8.5,
               ),
             ),
           ],
@@ -553,116 +1225,241 @@ class _BuyerMessagesState extends State<BuyerMessages> {
     );
   }
 
-  Widget _noConversationListState() {
-    return Center(
+  Widget _composer(
+    BuyerConversation selected,
+  ) {
+    return SafeArea(
+      top: false,
       child: Container(
-        margin: const EdgeInsets.all(14),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFFDED5C9),
+        padding:
+            const EdgeInsets
+                .fromLTRB(
+          12,
+          10,
+          12,
+          10,
+        ),
+        decoration:
+            const BoxDecoration(
+          color:
+              BuyerTheme.surface,
+          border: Border(
+            top: BorderSide(
+              color:
+                  BuyerTheme.border,
+            ),
           ),
         ),
-        child: const Text(
-          'No seller conversation is available yet.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Color(0xFF91887D),
-            fontSize: 8,
-            height: 1.45,
-          ),
+        child: Row(
+          crossAxisAlignment:
+              CrossAxisAlignment.end,
+          children: <Widget>[
+            Expanded(
+              child: TextField(
+                controller:
+                    _messageController,
+                minLines: 1,
+                maxLines: 4,
+                maxLength: 3000,
+                decoration:
+                    const InputDecoration(
+                  hintText:
+                      'Message the seller…',
+                  counterText: '',
+                ),
+              ),
+            ),
+
+            const SizedBox(
+              width: 8,
+            ),
+
+            SizedBox(
+              width: 50,
+              height: 50,
+              child: FilledButton(
+                onPressed: _sending
+                    ? null
+                    : () {
+                        _sendMessage(
+                          selected,
+                        );
+                      },
+                style:
+                    FilledButton
+                        .styleFrom(
+                  padding:
+                      EdgeInsets.zero,
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius
+                            .circular(
+                      15,
+                    ),
+                  ),
+                ),
+                child: _sending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child:
+                            CircularProgressIndicator(
+                          strokeWidth:
+                              2,
+                          color:
+                              Colors.white,
+                        ),
+                      )
+                    : const Icon(
+                        Icons
+                            .send_rounded,
+                      ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _startConversationState() {
+  Widget _emptyConversations() {
+    return Container(
+      padding:
+          const EdgeInsets.all(
+        28,
+      ),
+      decoration:
+          BuyerTheme.card(
+        radius: 20,
+      ),
+      child:
+          const Column(
+        children: <Widget>[
+          Icon(
+            Icons
+                .chat_bubble_outline_rounded,
+            size: 42,
+            color:
+                BuyerTheme
+                    .goldDark,
+          ),
+          SizedBox(
+            height: 12,
+          ),
+          Text(
+            'No seller conversations yet',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight:
+                  FontWeight.w800,
+            ),
+          ),
+          SizedBox(
+            height: 6,
+          ),
+          Text(
+            'Start from a product or order and your real conversation will appear here.',
+            textAlign:
+                TextAlign.center,
+            style:
+                TextStyle(
+              color:
+                  BuyerTheme.muted,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyThread() {
     return const Center(
       child: Padding(
-        padding: EdgeInsets.all(24),
+        padding:
+            EdgeInsets.all(
+          28,
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+          mainAxisSize:
+              MainAxisSize.min,
+          children: <Widget>[
             Icon(
-              Icons.chat_bubble_outline,
-              color: Color(0xFFC99128),
-              size: 39,
+              Icons
+                  .waving_hand_outlined,
+              size: 40,
+              color:
+                  BuyerTheme
+                      .goldDark,
             ),
-            SizedBox(height: 11),
+            SizedBox(
+              height: 12,
+            ),
             Text(
               'Start the conversation',
               style: TextStyle(
-                color: Color(0xFF514A42),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
-            SizedBox(height: 4),
+            SizedBox(
+              height: 5,
+            ),
             Text(
-              'Ask about a product or your order.',
-              style: TextStyle(
-                color: Color(0xFF91887D),
-                fontSize: 8,
+              'Ask the seller about a product or your order.',
+              textAlign:
+                  TextAlign.center,
+              style:
+                  TextStyle(
+                color:
+                    BuyerTheme.muted,
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  void _sendMessage(BuyerConversation selected) {
-    final body = _messageController.text.trim();
-
-    if (body.isEmpty) {
-      _toast('Type a message first.');
-      return;
-    }
-
-    final newMessage = _service.createBuyerMessage(
-      sellerId: selected.sellerId,
-      body: body,
-    );
-
-    final index = _conversations.indexWhere(
-      (item) => item.sellerId == selected.sellerId,
-    );
-
-    if (index < 0) return;
-
-    setState(() {
-      _conversations[index] = selected.copyWith(
-        messages: [
-          ...selected.messages,
-          newMessage,
-        ],
-      );
-
-      _messageController.clear();
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _scrollToBottom(),
     );
   }
 
   void _scrollToBottom() {
-    if (!_messageScrollController.hasClients) return;
+    if (!_messageScrollController
+        .hasClients) {
+      return;
+    }
 
-    _messageScrollController.animateTo(
-      _messageScrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 240),
-      curve: Curves.easeOut,
+    _messageScrollController
+        .animateTo(
+      _messageScrollController
+          .position
+          .maxScrollExtent,
+      duration:
+          const Duration(
+        milliseconds: 240,
+      ),
+      curve:
+          Curves.easeOut,
     );
   }
 
-  void _toast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  void _toast(
+    String message,
+  ) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content:
+              Text(message),
+          behavior:
+              SnackBarBehavior
+                  .floating,
+        ),
+      );
   }
 }

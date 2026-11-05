@@ -21,6 +21,10 @@ class SariLiveData {
 
   final SariApi _api;
 
+  // ============================================================
+  // SHARED / AUTH
+  // ============================================================
+
   Future<SariJson> checkConnection() =>
       _api.health();
 
@@ -46,6 +50,10 @@ class SariLiveData {
         key: 'sari_access_token',
       );
 
+  // ============================================================
+  // PRODUCTS
+  // ============================================================
+
   Future<SariJson> products({
     int page = 1,
     int perPage = 15,
@@ -64,7 +72,10 @@ class SariLiveData {
   Future<SariJson> productDetails(int id) =>
       _api.product(id);
 
-  // Buyer registration
+  // ============================================================
+  // BUYER REGISTRATION
+  // ============================================================
+
   Future<SariJson> buyerRegister(
     Map<String, String> fields,
     File profileImage,
@@ -105,7 +116,10 @@ class SariLiveData {
         },
       );
 
-  // Buyer orders/actions/tracking
+  // ============================================================
+  // BUYER ORDERS
+  // ============================================================
+
   Future<SariJson> buyerOrders({
     int page = 1,
     int perPage = 15,
@@ -164,7 +178,10 @@ class SariLiveData {
         'buyer/orders/$id/tracking',
       );
 
-  // Buyer cart/checkout
+  // ============================================================
+  // BUYER CART / CHECKOUT
+  // ============================================================
+
   Future<SariJson> buyerCart() =>
       _api.request(
         'GET',
@@ -242,33 +259,35 @@ class SariLiveData {
           'buyer_address': address,
           'payment_method': 'COD',
           'checkout_item_ids': itemIds,
-          if (voucherCode?.trim().isNotEmpty ==
-              true)
-            'voucher_code':
-                voucherCode!.trim(),
+          if (voucherCode?.trim().isNotEmpty == true)
+            'voucher_code': voucherCode!.trim(),
         },
       );
 
-  // Buyer profile/addresses
+  // ============================================================
+  // BUYER PROFILE
+  // ============================================================
+
   Future<SariJson> buyerProfile() =>
       _api.request(
         'GET',
         'buyer/profile',
       );
-      Future<SariJson> buyerUpdateProfileForm({
-  required Map<String, String> fields,
-  File? profileImage,
-}) =>
-    _api.multipart(
-      'POST',
-      'buyer/profile',
-      fields: fields,
-      files: profileImage == null
-          ? null
-          : {
-              'profile_image': profileImage,
-            },
-    );
+
+  Future<SariJson> buyerUpdateProfileForm({
+    required Map<String, String> fields,
+    File? profileImage,
+  }) =>
+      _api.multipart(
+        'POST',
+        'buyer/profile',
+        fields: fields,
+        files: profileImage == null
+            ? null
+            : {
+                'profile_image': profileImage,
+              },
+      );
 
   Future<SariJson> buyerUpdateProfile(
     Map<String, dynamic> body,
@@ -294,6 +313,10 @@ class SariLiveData {
               confirmation,
         },
       );
+
+  // ============================================================
+  // BUYER ADDRESSES
+  // ============================================================
 
   Future<SariJson> buyerAddresses() =>
       _api.request(
@@ -336,22 +359,24 @@ class SariLiveData {
         'buyer/addresses/$id',
       );
 
-  // Buyer notifications/shipping/messages
-Future<SariJson> buyerNotifications({
-  int page = 1,
-  int perPage = 20,
-  bool archived = false,
-}) =>
-    _api.request(
-      'GET',
-      'buyer/notifications',
-      query: {
-        'page': '$page',
-        'per_page': '$perPage',
-        'archived':
-            archived ? '1' : '0',
-      },
-    );
+  // ============================================================
+  // BUYER NOTIFICATIONS
+  // ============================================================
+
+  Future<SariJson> buyerNotifications({
+    int page = 1,
+    int perPage = 20,
+    bool archived = false,
+  }) =>
+      _api.request(
+        'GET',
+        'buyer/notifications',
+        query: {
+          'page': '$page',
+          'per_page': '$perPage',
+          'archived': archived ? '1' : '0',
+        },
+      );
 
   Future<SariJson> buyerNotificationSummary() =>
       _api.request(
@@ -373,6 +398,10 @@ Future<SariJson> buyerNotifications({
         'buyer/notifications/read-all',
       );
 
+  // ============================================================
+  // BUYER SHIPPING
+  // ============================================================
+
   Future<SariJson> buyerShipping({
     int page = 1,
   }) =>
@@ -383,6 +412,10 @@ Future<SariJson> buyerNotifications({
           'page': '$page',
         },
       );
+
+  // ============================================================
+  // BUYER MESSAGES
+  // ============================================================
 
   Future<SariJson> buyerMessages() =>
       _api.request(
@@ -430,17 +463,22 @@ Future<SariJson> buyerNotifications({
     );
   }
 
-  // Rider dashboard/assignments
-  // Only the initial Rider shell requests use a shorter timeout.
-  // All other API calls keep the normal timeout (uploads are unchanged).
-  Future<SariJson> riderDashboard({Duration? timeout}) =>
+  // ============================================================
+  // RIDER DASHBOARD / ASSIGNMENTS
+  // ============================================================
+
+  Future<SariJson> riderDashboard({
+    Duration? timeout,
+  }) =>
       _api.request(
         'GET',
         'rider/dashboard',
         requestTimeout: timeout,
       );
 
-  Future<SariJson> riderAssignments({Duration? timeout}) =>
+  Future<SariJson> riderAssignments({
+    Duration? timeout,
+  }) =>
       _api.request(
         'GET',
         'rider/assignments',
@@ -467,6 +505,10 @@ Future<SariJson> buyerNotifications({
         'rider/assignments/$orderId',
       );
 
+  // ============================================================
+  // RIDER PICKUP FLOW
+  // ============================================================
+
   Future<SariJson> riderProceedPickup(
     int orderId,
   ) =>
@@ -491,6 +533,10 @@ Future<SariJson> buyerNotifications({
         'rider/orders/$orderId/confirm-pickup',
       );
 
+  // ============================================================
+  // RIDER DIRECT DELIVERY FLOW
+  // ============================================================
+
   Future<SariJson> riderArrivedBuyer(
     int orderId,
   ) =>
@@ -507,12 +553,16 @@ Future<SariJson> buyerNotifications({
         'rider/orders/$orderId/complete',
       );
 
-  // Rider last mile/scanner/proof
+  // ============================================================
+  // RIDER LAST MILE
+  // ============================================================
+
   Future<SariJson> riderLastMile() =>
       _api.request(
         'GET',
         'rider/last-mile',
-        requestTimeout: const Duration(seconds: 12),
+        requestTimeout:
+            const Duration(seconds: 12),
       );
 
   Future<SariJson> riderLastMileDetails(
@@ -521,7 +571,8 @@ Future<SariJson> buyerNotifications({
       _api.request(
         'GET',
         'rider/last-mile/$assignmentId',
-        requestTimeout: const Duration(seconds: 12),
+        requestTimeout:
+            const Duration(seconds: 12),
       );
 
   Future<SariJson> riderStartLastMile(
@@ -538,7 +589,8 @@ Future<SariJson> buyerNotifications({
   ) =>
       _api.request(
         'POST',
-        'rider/last-mile/$assignmentId/orders/$orderId/arrived',
+        'rider/last-mile/'
+        '$assignmentId/orders/$orderId/arrived',
       );
 
   Future<SariJson> riderLastMileDelivered(
@@ -547,8 +599,13 @@ Future<SariJson> buyerNotifications({
   ) =>
       _api.request(
         'POST',
-        'rider/last-mile/$assignmentId/orders/$orderId/delivered',
+        'rider/last-mile/'
+        '$assignmentId/orders/$orderId/delivered',
       );
+
+  // ============================================================
+  // RIDER SCANNER / QR
+  // ============================================================
 
   Future<SariJson> riderScanVerify(
     String payload,
@@ -560,6 +617,24 @@ Future<SariJson> buyerNotifications({
           'payload': payload,
         },
       );
+
+  Future<SariJson> riderConfirmCodCash({
+    required int orderId,
+    required String paymentToken,
+  }) =>
+      _api.request(
+        'POST',
+        'rider/scanner/confirm-cod',
+        jsonBody: {
+          'order_id': orderId,
+          'payment_token': paymentToken,
+          'cash_received': true,
+        },
+      );
+
+  // ============================================================
+  // RIDER PROOF OF DELIVERY
+  // ============================================================
 
   Future<SariJson> riderProof({
     required int orderId,
@@ -577,8 +652,7 @@ Future<SariJson> buyerNotifications({
               true)
             'recipient_name':
                 recipientName!.trim(),
-          if (notes?.trim().isNotEmpty ==
-              true)
+          if (notes?.trim().isNotEmpty == true)
             'notes': notes!.trim(),
           if (latitude != null)
             'latitude': '$latitude',
@@ -590,12 +664,16 @@ Future<SariJson> buyerNotifications({
         },
       );
 
-  // Rider finance
+  // ============================================================
+  // RIDER EARNINGS
+  // ============================================================
+
   Future<SariJson> riderEarnings() =>
       _api.request(
         'GET',
         'rider/earnings',
-        requestTimeout: const Duration(seconds: 12),
+        requestTimeout:
+            const Duration(seconds: 12),
       );
 
   Future<SariJson> riderTransactions({
@@ -605,12 +683,17 @@ Future<SariJson> buyerNotifications({
       _api.request(
         'GET',
         'rider/earnings/transactions',
-        requestTimeout: const Duration(seconds: 12),
+        requestTimeout:
+            const Duration(seconds: 12),
         query: {
           'page': '$page',
           'per_page': '$perPage',
         },
       );
+
+  // ============================================================
+  // RIDER PAYOUTS
+  // ============================================================
 
   Future<SariJson> riderPayouts() =>
       _api.request(
@@ -636,22 +719,32 @@ Future<SariJson> buyerNotifications({
         },
       );
 
+  // ============================================================
+  // RIDER COD REMITTANCE
+  // ============================================================
+
   Future<SariJson> riderRemittanceHubs() =>
-      _api.request('GET', 'rider/remittances/hubs',
-          requestTimeout: const Duration(seconds: 9));
+      _api.request(
+        'GET',
+        'rider/remittances/hubs',
+        requestTimeout:
+            const Duration(seconds: 9),
+      );
 
   Future<SariJson> riderEligibleRemittances() =>
       _api.request(
         'GET',
         'rider/remittances/eligible',
-        requestTimeout: const Duration(seconds: 12),
+        requestTimeout:
+            const Duration(seconds: 12),
       );
 
   Future<SariJson> riderRemittances() =>
       _api.request(
         'GET',
         'rider/remittances',
-        requestTimeout: const Duration(seconds: 12),
+        requestTimeout:
+            const Duration(seconds: 12),
       );
 
   Future<SariJson> riderRemittance(
@@ -673,11 +766,16 @@ Future<SariJson> buyerNotifications({
         jsonBody: {
           'order_ids': orderIds,
           if (facilityId != null)
-            'logistics_facility_id': facilityId,
+            'logistics_facility_id':
+                facilityId,
           if (note?.trim().isNotEmpty == true)
             'note': note!.trim(),
         },
       );
+
+  // ============================================================
+  // RIDER HISTORY
+  // ============================================================
 
   Future<SariJson> riderHistory({
     String? query,
@@ -699,27 +797,50 @@ Future<SariJson> buyerNotifications({
         },
       );
 
-  // Rider notifications (same real courier_notifications feed as Laravel web).
+  // ============================================================
+  // RIDER NOTIFICATIONS
+  // ============================================================
+
   Future<SariJson> riderNotifications() =>
-      _api.request('GET', 'rider/notifications',
-          requestTimeout: const Duration(seconds: 12));
+      _api.request(
+        'GET',
+        'rider/notifications',
+        requestTimeout:
+            const Duration(seconds: 12),
+      );
 
   Future<SariJson> riderNotificationSummary() =>
-      _api.request('GET', 'rider/notifications/summary',
-          requestTimeout: const Duration(seconds: 12));
+      _api.request(
+        'GET',
+        'rider/notifications/summary',
+        requestTimeout:
+            const Duration(seconds: 12),
+      );
 
-  Future<SariJson> riderReadNotification(int id) =>
-      _api.request('POST', 'rider/notifications/$id/read');
+  Future<SariJson> riderReadNotification(
+    int id,
+  ) =>
+      _api.request(
+        'POST',
+        'rider/notifications/$id/read',
+      );
 
   Future<SariJson> riderReadAllNotifications() =>
-      _api.request('POST', 'rider/notifications/read-all');
+      _api.request(
+        'POST',
+        'rider/notifications/read-all',
+      );
 
-  // Rider messages/profile
+  // ============================================================
+  // RIDER MESSAGES
+  // ============================================================
+
   Future<SariJson> riderMessages() =>
       _api.request(
         'GET',
         'rider/messages',
-        requestTimeout: const Duration(seconds: 12),
+        requestTimeout:
+            const Duration(seconds: 12),
       );
 
   Future<SariJson> riderSendMessage(
@@ -733,7 +854,13 @@ Future<SariJson> buyerNotifications({
         },
       );
 
-  Future<SariJson> riderProfile({Duration? timeout}) =>
+  // ============================================================
+  // RIDER PROFILE
+  // ============================================================
+
+  Future<SariJson> riderProfile({
+    Duration? timeout,
+  }) =>
       _api.request(
         'GET',
         'rider/profile',
@@ -769,7 +896,8 @@ Future<SariJson> buyerNotifications({
         'PATCH',
         'rider/profile/password',
         jsonBody: {
-          'current_password': currentPassword,
+          'current_password':
+              currentPassword,
           'password': password,
           'password_confirmation':
               confirmation,

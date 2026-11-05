@@ -4,233 +4,405 @@ import 'account_registration_screen.dart';
 import 'rider_logistics_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({
+    super.key,
+  });
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() =>
+      _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
-  static const Color sariYellow = Color(0xFFD48F08);
-  static const Color sariYellowDark = Color(0xFFBD7D05);
-  static const Color sariBackground = Color(0xFFF7F4EE);
-  static const Color sariText = Color(0xFF1F1B16);
-  static const Color sariMuted = Color(0xFF81786C);
-  static const Color sariBorder = Color(0xFFE4DDD3);
+class _RegisterScreenState
+    extends State<RegisterScreen> {
+  static const Color _background =
+      Color(0xFF0B0B0D);
 
-  String? selectedRole;
+  static const Color _surface =
+      Color(0xFF18181C);
 
-  final List<_RegistrationRole> roles = const [
-    _RegistrationRole(
+  static const Color _surfaceLight =
+      Color(0xFF222226);
+
+  static const Color _border =
+      Color(0xFF37373D);
+
+  static const Color _gold =
+      Color(0xFFD4A62A);
+
+  static const Color _muted =
+      Color(0xFFA7A7AF);
+
+  String? _selectedRole;
+
+  static const List<_RoleOption> _roles =
+      <_RoleOption>[
+    _RoleOption(
       keyName: 'buyer',
       title: 'Buyer',
-      description: 'Shop, track orders, and manage purchases.',
-      icon: Icons.person_outline,
+      subtitle:
+          'Shop products, manage your cart, track orders and message sellers.',
+      icon:
+          Icons.shopping_bag_outlined,
+      available: true,
     ),
-    _RegistrationRole(
-      keyName: 'logistics',
-      title: 'Logistics',
-      description: 'Operate a Logistics team and manage Riders.',
-      icon: Icons.warehouse_outlined,
-    ),
-    _RegistrationRole(
+
+    _RoleOption(
       keyName: 'rider',
       title: 'Rider',
-      description:
-          'Choose a Logistics provider first, then apply directly to their team.',
-      icon: Icons.delivery_dining_outlined,
+      subtitle:
+          'Apply to a Logistics provider and manage pickup and delivery work.',
+      icon:
+          Icons.delivery_dining_outlined,
+      available: true,
+    ),
+
+    _RoleOption(
+      keyName: 'logistics',
+      title: 'Logistics',
+      subtitle:
+          'Logistics mobile registration API is not available yet.',
+      icon:
+          Icons.hub_outlined,
+      available: false,
     ),
   ];
 
-  void _continueRegistration() {
-    if (selectedRole == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an account type first.')),
+  void _continue() {
+    final String? role =
+        _selectedRole;
+
+    if (role == null) {
+      _show(
+        'Select an account type first.',
       );
+
       return;
     }
 
-    if (selectedRole == 'rider') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const RiderLogisticsScreen(),
+    if (role == 'buyer') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              const AccountRegistrationScreen(
+            role: 'buyer',
+          ),
         ),
       );
+
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AccountRegistrationScreen(
-          role: selectedRole!,
+    if (role == 'rider') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              const RiderLogisticsScreen(),
         ),
-      ),
+      );
+
+      return;
+    }
+
+    _show(
+      'Logistics registration is not connected to the mobile API yet.',
     );
+  }
+
+  void _show(
+    String message,
+  ) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content:
+              Text(message),
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
-      backgroundColor: sariBackground,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                'assets/images/login-bg.jpg',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    const ColoredBox(color: sariBackground),
+      backgroundColor:
+          _background,
+      body: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          const DecoratedBox(
+            decoration:
+                BoxDecoration(
+              gradient:
+                  RadialGradient(
+                center:
+                    Alignment(
+                  0,
+                  -.8,
+                ),
+                radius: 1.15,
+                colors: <Color>[
+                  Color(
+                    0xFF343129,
+                  ),
+                  Color(
+                    0xFF171719,
+                  ),
+                  Color(
+                    0xFF09090B,
+                  ),
+                ],
               ),
             ),
-            Positioned.fill(
-              child: ColoredBox(
-                color: Colors.white.withOpacity(.87),
+          ),
+
+          Positioned(
+            top: -105,
+            right: -90,
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration:
+                  BoxDecoration(
+                shape:
+                    BoxShape.circle,
+                border:
+                    Border.all(
+                  color:
+                      _gold.withOpacity(
+                    .07,
+                  ),
+                ),
               ),
             ),
-            SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 26),
+          ),
+
+          SafeArea(
+            child:
+                SingleChildScrollView(
+              padding:
+                  const EdgeInsets.fromLTRB(
+                17,
+                8,
+                17,
+                30,
+              ),
               child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
+                child:
+                    ConstrainedBox(
+                  constraints:
+                      const BoxConstraints(
+                    maxWidth: 560,
+                  ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
+                    crossAxisAlignment:
+                        CrossAxisAlignment
+                            .stretch,
+                    children: <Widget>[
                       Row(
-                        children: [
+                        children: <Widget>[
                           IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.arrow_back),
-                            tooltip: 'Back',
+                            onPressed: () {
+                              Navigator.pop(
+                                context,
+                              );
+                            },
+                            icon:
+                                const Icon(
+                              Icons
+                                  .arrow_back_rounded,
+                              color:
+                                  Colors.white,
+                            ),
                           ),
                           const Expanded(
                             child: Text(
-                              'Create your SARI account',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: sariText,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
+                              'Create Account',
+                              textAlign:
+                                  TextAlign.center,
+                              style:
+                                  TextStyle(
+                                color:
+                                    Colors.white,
+                                fontSize:
+                                    17,
+                                fontWeight:
+                                    FontWeight.w800,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 48),
+                          const SizedBox(
+                            width: 48,
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+
+                      const SizedBox(
+                        height: 20,
+                      ),
+
                       Container(
-                        padding: const EdgeInsets.fromLTRB(18, 21, 18, 20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: sariBorder),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(.055),
-                              blurRadius: 22,
-                              offset: const Offset(0, 7),
-                            ),
-                          ],
+                        width: 72,
+                        height: 72,
+                        alignment:
+                            Alignment.center,
+                        margin:
+                            const EdgeInsets.symmetric(
+                          horizontal:
+                              220,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
+                        decoration:
+                            BoxDecoration(
+                          color: _gold,
+                          borderRadius:
+                              BorderRadius.circular(
+                            22,
+                          ),
+                        ),
+                        child:
                             const Text(
-                              'GET STARTED',
-                              style: TextStyle(
-                                color: sariYellow,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.35,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            const Text(
-                              'Choose your account type',
-                              style: TextStyle(
-                                color: sariText,
-                                fontSize: 24,
-                                height: 1.15,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -.45,
-                              ),
-                            ),
-                            const SizedBox(height: 7),
-                            const Text(
-                              'Mobile registration is available for Buyers, Logistics teams, and Riders.',
-                              style: TextStyle(
-                                color: sariMuted,
-                                fontSize: 11.5,
-                                height: 1.55,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            ...roles.map(_buildRoleOption),
-                            if (selectedRole != null) ...[
-                              const SizedBox(height: 5),
-                              _buildSelectedRolePreview(),
-                            ],
-                            const SizedBox(height: 20),
-                            SizedBox(
-                              height: 49,
-                              child: ElevatedButton(
-                                onPressed: _continueRegistration,
-                                style: ElevatedButton.styleFrom(
-                                  elevation: 0,
-                                  backgroundColor: sariYellow,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(11),
-                                  ),
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Continue',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    SizedBox(width: 7),
-                                    Icon(Icons.arrow_forward, size: 17),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                          'S',
+                          style:
+                              TextStyle(
+                            color:
+                                Colors.black,
+                            fontSize:
+                                33,
+                            fontWeight:
+                                FontWeight.w900,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 15),
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          const Text(
-                            'Already have an account?',
-                            style: TextStyle(
-                              color: sariMuted,
-                              fontSize: 11.5,
+
+                      const SizedBox(
+                        height: 22,
+                      ),
+
+                      const Text(
+                        'Join SARI',
+                        textAlign:
+                            TextAlign.center,
+                        style:
+                            TextStyle(
+                          color:
+                              Colors.white,
+                          fontSize: 27,
+                          fontWeight:
+                              FontWeight.w900,
+                          letterSpacing:
+                              -.7,
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 7,
+                      ),
+
+                      const Text(
+                        'Choose how you want to use the SARI mobile app.',
+                        textAlign:
+                            TextAlign.center,
+                        style:
+                            TextStyle(
+                          color: _muted,
+                          fontSize: 11,
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 28,
+                      ),
+
+                      ..._roles.map(
+                        _roleCard,
+                      ),
+
+                      const SizedBox(
+                        height: 15,
+                      ),
+
+                      SizedBox(
+                        height: 53,
+                        child:
+                            FilledButton(
+                          onPressed:
+                              _continue,
+                          style:
+                              FilledButton.styleFrom(
+                            backgroundColor:
+                                _gold,
+                            foregroundColor:
+                                Colors.black,
+                            shape:
+                                RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(
+                                15,
+                              ),
                             ),
                           ),
+                          child:
+                              const Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.center,
+                            children: <Widget>[
+                              Text(
+                                'Continue',
+                                style:
+                                    TextStyle(
+                                  fontWeight:
+                                      FontWeight.w900,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 7,
+                              ),
+                              Icon(
+                                Icons
+                                    .arrow_forward_rounded,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 15,
+                      ),
+
+                      Row(
+                        mainAxisAlignment:
+                            MainAxisAlignment.center,
+                        children: <Widget>[
+                          const Text(
+                            'Already registered?',
+                            style:
+                                TextStyle(
+                              color: _muted,
+                              fontSize: 10,
+                            ),
+                          ),
+
                           TextButton(
                             onPressed: () {
-                              Navigator.pushNamedAndRemoveUntil(
+                              Navigator.of(
                                 context,
+                              ).pushNamedAndRemoveUntil(
                                 '/login',
-                                (route) => false,
+                                (
+                                  Route<dynamic>
+                                      route,
+                                ) =>
+                                    false,
                               );
                             },
-                            child: const Text(
-                              'Sign in',
-                              style: TextStyle(
-                                color: Color(0xFFA96F06),
-                                fontWeight: FontWeight.w700,
-                              ),
+                            child:
+                                const Text(
+                              'Sign In',
                             ),
                           ),
                         ],
@@ -240,107 +412,215 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildRoleOption(_RegistrationRole role) {
-    final selected = selectedRole == role.keyName;
+  Widget _roleCard(
+    _RoleOption role,
+  ) {
+    final bool selected =
+        _selectedRole ==
+            role.keyName;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+      padding:
+          const EdgeInsets.only(
+        bottom: 11,
+      ),
       child: Material(
-        color: Colors.transparent,
+        color:
+            Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(13),
-          onTap: () => setState(() => selectedRole = role.keyName),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-            decoration: BoxDecoration(
-              color: selected ? const Color(0xFFFFFCF6) : Colors.white,
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(
-                color: selected ? sariYellow : sariBorder,
-                width: selected ? 1.4 : 1,
+          onTap: () {
+            if (!role.available) {
+              _show(
+                'Logistics registration is not connected to the mobile API yet.',
+              );
+
+              return;
+            }
+
+            setState(() {
+              _selectedRole =
+                  role.keyName;
+            });
+          },
+          borderRadius:
+              BorderRadius.circular(
+            18,
+          ),
+          child:
+              AnimatedContainer(
+            duration:
+                const Duration(
+              milliseconds: 180,
+            ),
+            padding:
+                const EdgeInsets.all(
+              15,
+            ),
+            decoration:
+                BoxDecoration(
+              color: selected
+                  ? const Color(
+                      0xFF2D291C,
+                    )
+                  : _surface,
+              borderRadius:
+                  BorderRadius.circular(
+                18,
+              ),
+              border:
+                  Border.all(
+                color: selected
+                    ? _gold
+                    : _border,
+                width: selected
+                    ? 1.5
+                    : 1,
               ),
             ),
             child: Row(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  width: 23,
-                  height: 23,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: selected ? sariYellow : Colors.white,
-                    border: Border.all(
-                      color: selected
-                          ? sariYellow
-                          : const Color(0xFFC9C2B8),
-                      width: 1.4,
-                    ),
-                  ),
-                  child: selected
-                      ? const Icon(
-                          Icons.check,
-                          size: 14,
-                          color: Colors.white,
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 12),
+              children: <Widget>[
                 Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: role.keyName == 'rider'
-                        ? const Color(0xFFF5F7F6)
-                        : const Color(0xFFFBF8F3),
-                    borderRadius: BorderRadius.circular(11),
+                  width: 50,
+                  height: 50,
+                  alignment:
+                      Alignment.center,
+                  decoration:
+                      BoxDecoration(
+                    color: role.available
+                        ? _surfaceLight
+                        : const Color(
+                            0xFF202024,
+                          ),
+                    borderRadius:
+                        BorderRadius.circular(
+                      15,
+                    ),
                   ),
                   child: Icon(
                     role.icon,
-                    size: 21,
-                    color: role.keyName == 'rider'
-                        ? const Color(0xFF387B5B)
-                        : const Color(0xFFB47A0D),
+                    color: role.available
+                        ? selected
+                            ? _gold
+                            : Colors.white70
+                        : Colors.white30,
+                    size: 25,
                   ),
                 ),
-                const SizedBox(width: 12),
+
+                const SizedBox(
+                  width: 13,
+                ),
+
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        role.title,
-                        style: const TextStyle(
-                          color: sariText,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              role.title,
+                              style:
+                                  TextStyle(
+                                color: role
+                                        .available
+                                    ? Colors
+                                        .white
+                                    : Colors
+                                        .white38,
+                                fontSize:
+                                    14,
+                                fontWeight:
+                                    FontWeight
+                                        .w800,
+                              ),
+                            ),
+                          ),
+
+                          if (!role
+                              .available)
+                            Container(
+                              padding:
+                                  const EdgeInsets
+                                      .symmetric(
+                                horizontal:
+                                    8,
+                                vertical:
+                                    4,
+                              ),
+                              decoration:
+                                  BoxDecoration(
+                                color:
+                                    Colors
+                                        .white
+                                        .withOpacity(
+                                  .06,
+                                ),
+                                borderRadius:
+                                    BorderRadius.circular(
+                                  20,
+                                ),
+                              ),
+                              child:
+                                  const Text(
+                                'API PENDING',
+                                style:
+                                    TextStyle(
+                                  color:
+                                      Colors.white38,
+                                  fontSize:
+                                      7,
+                                  fontWeight:
+                                      FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
+
+                      const SizedBox(
+                        height: 4,
+                      ),
+
                       Text(
-                        role.description,
-                        style: const TextStyle(
-                          color: sariMuted,
-                          fontSize: 10.2,
-                          height: 1.45,
+                        role.subtitle,
+                        style:
+                            TextStyle(
+                          color: role
+                                  .available
+                              ? _muted
+                              : Colors
+                                  .white30,
+                          fontSize: 9,
+                          height: 1.4,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 7),
-                Icon(
-                  Icons.chevron_right,
-                  color: selected
-                      ? sariYellowDark
-                      : const Color(0xFF9A9186),
+
+                const SizedBox(
+                  width: 7,
                 ),
+
+                if (role.available)
+                  Icon(
+                    selected
+                        ? Icons
+                            .check_circle_rounded
+                        : Icons
+                            .chevron_right_rounded,
+                    color: selected
+                        ? _gold
+                        : _muted,
+                  ),
               ],
             ),
           ),
@@ -348,76 +628,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
-
-  Widget _buildSelectedRolePreview() {
-    final role = roles.firstWhere((item) => item.keyName == selectedRole);
-
-    return Container(
-      padding: const EdgeInsets.only(top: 14),
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: Color(0xFFECE7DF)),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 33,
-            height: 33,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFAF0),
-              borderRadius: BorderRadius.circular(9),
-              border: Border.all(color: const Color(0xFFEADFC9)),
-            ),
-            child: Icon(
-              role.icon,
-              color: const Color(0xFFB97805),
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 9),
-          const Text(
-            'SELECTED ROLE',
-            style: TextStyle(
-              color: Color(0xFFA49B90),
-              fontSize: 8,
-              fontWeight: FontWeight.w700,
-              letterSpacing: .9,
-            ),
-          ),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Text(
-              role.title,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF38332D),
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const Icon(
-            Icons.check_circle,
-            color: sariYellow,
-            size: 20,
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-class _RegistrationRole {
+class _RoleOption {
   final String keyName;
   final String title;
-  final String description;
+  final String subtitle;
   final IconData icon;
+  final bool available;
 
-  const _RegistrationRole({
+  const _RoleOption({
     required this.keyName,
     required this.title,
-    required this.description,
+    required this.subtitle,
     required this.icon,
+    required this.available,
   });
 }

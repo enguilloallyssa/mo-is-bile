@@ -29,13 +29,12 @@ class RiderDelivery {
 
   final String? failureReason;
 
-  /// True when this assignment is a
-  /// Seller -> Origin Hub logistics pickup.
+  /// True kapag Seller -> Origin Hub pickup ito.
   final bool isLogisticsPickup;
 
-  /// Exact actions currently allowed by Laravel.
+  /// Exact actions na pinapayagan ngayon ng Laravel.
   ///
-  /// Examples:
+  /// Halimbawa:
   /// proceed_pickup
   /// arrived_pickup
   /// confirm_pickup
@@ -198,7 +197,7 @@ class RiderDelivery {
       case 'returning_to_sorting':
         return 'Returning to Sorting Center';
 
-      // Current Laravel mobile API statuses.
+      // Current Laravel mobile API.
       case 'courier_accepted':
         return 'Pickup Accepted';
 
@@ -278,15 +277,18 @@ class RiderDelivery {
   }
 
   bool get isFailed {
-    return status == 'delivery_failed';
+    return status ==
+        'delivery_failed';
   }
 
   bool get isAtCustomer {
-    return status == 'arrived_buyer';
+    return status ==
+        'arrived_buyer';
   }
 
   bool get waitingForBuyerConfirmation {
-    return status == 'delivered';
+    return status ==
+        'delivered';
   }
 
   // ============================================================
@@ -477,7 +479,10 @@ class RiderDelivery {
         return 'Order flow is complete.';
 
       case 'delivery_failed':
-        return failureReason?.trim().isNotEmpty == true
+        return failureReason
+                    ?.trim()
+                    .isNotEmpty ==
+                true
             ? failureReason!
             : 'Delivery was not completed.';
 
@@ -537,8 +542,6 @@ class RiderDelivery {
       }
     }
 
-    // Logistics pickup ends at the origin hub.
-    // Do not show a Buyer-delivery action.
     if (allowedActions.isEmpty &&
         isLogisticsPickup &&
         status == 'in_transit') {
@@ -588,7 +591,6 @@ class RiderDelivery {
       case 'returning_to_sorting':
         return 'Returned to Sorting Center';
 
-      // Current Laravel mobile API.
       case 'courier_accepted':
         return 'Proceed to Pickup';
 
@@ -659,7 +661,6 @@ class RiderDelivery {
       case 'returning_to_sorting':
         return 'sorting_received';
 
-      // Current Laravel API.
       case 'courier_accepted':
         return 'heading_seller';
 
@@ -702,7 +703,8 @@ class RiderDelivery {
       'completed',
     ];
 
-    if (status == 'delivery_failed') {
+    if (status ==
+        'delivery_failed') {
       return 12 /
           (sequence.length - 1);
     }
@@ -713,8 +715,6 @@ class RiderDelivery {
           (sequence.length - 1);
     }
 
-    // Current API statuses mapped to roughly
-    // the same visual workflow.
     switch (status) {
       case 'courier_accepted':
         return .15;
@@ -766,4 +766,4 @@ class RiderDelivery {
         )
         .join(' ');
   }
-} 
+}

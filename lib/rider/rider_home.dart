@@ -6,30 +6,22 @@ import 'widgets/rider_ui.dart';
 
 class RiderHome extends StatelessWidget {
   final RiderDelivery? currentDelivery;
-
   final List<RiderDelivery> assignments;
-
   final RiderProfile profile;
 
   final bool isDarkMode;
+  final ValueChanged<bool> onDarkModeChanged;
 
-  final ValueChanged<bool>
-      onDarkModeChanged;
-
-  final ValueChanged<int>?
-      onTabChanged;
+  final ValueChanged<int>? onTabChanged;
 
   final ValueChanged<RiderDelivery>
       onAdvanceDelivery;
 
   final VoidCallback onOpenMessages;
-
   final VoidCallback onOpenHistory;
-
   final VoidCallback onOpenPickups;
 
-  final Future<void> Function()?
-      onRefresh;
+  final Future<void> Function()? onRefresh;
 
   final Map<String, dynamic>
       dashboardSummary;
@@ -54,7 +46,7 @@ class RiderHome extends StatelessWidget {
   int _serverInt(
     String key,
   ) {
-    final value =
+    final dynamic value =
         dashboardSummary[key];
 
     if (value is num) {
@@ -70,7 +62,7 @@ class RiderHome extends StatelessWidget {
   double _serverDouble(
     String key,
   ) {
-    final value =
+    final dynamic value =
         dashboardSummary[key];
 
     if (value is num) {
@@ -89,27 +81,67 @@ class RiderHome extends StatelessWidget {
     return '₱${value.toStringAsFixed(2)}';
   }
 
-  String get _riderName {
-    final name = [
-      profile.firstName,
-      profile.lastName,
-    ]
-        .where(
-          (value) =>
-              value.trim().isNotEmpty,
-        )
-        .join(' ');
+  String get _name {
+    final String value =
+        profile.fullName.trim();
 
-    return name.isEmpty
+    return value.isEmpty
         ? 'SARI Rider'
-        : name;
+        : value;
   }
 
-  String _todayLabel() {
-    final now =
+  String get _firstName {
+    final String value =
+        profile.firstName.trim();
+
+    return value.isEmpty
+        ? 'Rider'
+        : value;
+  }
+
+  bool get _online {
+    final String value =
+        profile.availabilityStatus
+            .trim()
+            .toLowerCase();
+
+    return value == 'online' ||
+        value == 'available' ||
+        value == 'active';
+  }
+
+  String _greeting() {
+    final int hour =
+        DateTime.now().hour;
+
+    if (hour < 12) {
+      return 'Good morning';
+    }
+
+    if (hour < 18) {
+      return 'Good afternoon';
+    }
+
+    return 'Good evening';
+  }
+
+  String _date() {
+    final DateTime now =
         DateTime.now();
 
-    const months = [
+    const List<String> days =
+        <String>[
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ];
+
+    const List<String> months =
+        <String>[
       'Jan',
       'Feb',
       'Mar',
@@ -124,50 +156,87 @@ class RiderHome extends StatelessWidget {
       'Dec',
     ];
 
-    return '${months[now.month - 1]} '
-        '${now.day}, ${now.year}';
+    return '${days[now.weekday - 1]}, '
+        '${months[now.month - 1]} '
+        '${now.day}';
+  }
+
+  Color _statusColor(
+    RiderDelivery delivery,
+  ) {
+    if (delivery.isComplete) {
+      return RiderColors.green;
+    }
+
+    if (delivery.isFailed) {
+      return RiderColors.red;
+    }
+
+    if (delivery.isDeliveryFlow) {
+      return RiderColors.blue;
+    }
+
+    return RiderColors.goldDark;
+  }
+
+  Color _statusSoft(
+    RiderDelivery delivery,
+  ) {
+    if (delivery.isComplete) {
+      return RiderColors.greenSoft;
+    }
+
+    if (delivery.isFailed) {
+      return RiderColors.redSoft;
+    }
+
+    if (delivery.isDeliveryFlow) {
+      return RiderColors.blueSoft;
+    }
+
+    return RiderColors.goldSoft;
   }
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    final pickupActive =
+    final int pickupActive =
         _serverInt(
       'pickup_active',
     );
 
-    final directActive =
+    final int deliveryActive =
         _serverInt(
       'direct_delivery_active',
     );
 
-    final lastMileActive =
+    final int lastMileActive =
         _serverInt(
       'last_mile_active',
     );
 
-    final completedToday =
+    final int completedToday =
         _serverInt(
       'completed_today',
     );
 
-    final earningsToday =
+    final double earningsToday =
         _serverDouble(
       'earnings_today',
     );
 
-    final unreadMessages =
+    final int unreadMessages =
         _serverInt(
       'unread_messages',
     );
 
-    final activeWork =
+    final int activeWork =
         pickupActive +
-            directActive +
+            deliveryActive +
             lastMileActive;
 
-    final current =
+    final RiderDelivery? current =
         currentDelivery ??
             (assignments.isEmpty
                 ? null
@@ -176,21 +245,26 @@ class RiderHome extends StatelessWidget {
     return Scaffold(
       backgroundColor:
           RiderColors.bg,
+
+      // ========================================================
+      // HEADER
+      // ========================================================
+
       appBar: AppBar(
         automaticallyImplyLeading:
             false,
-        leading: const RiderMenuButton(),
         backgroundColor:
             RiderColors.surface,
         surfaceTintColor:
             Colors.transparent,
         elevation: 0,
-        titleSpacing: 15,
+        titleSpacing: 13,
+
         title: Row(
-          children: [
+          children: <Widget>[
             Container(
-              width: 39,
-              height: 39,
+              width: 38,
+              height: 38,
               alignment:
                   Alignment.center,
               decoration:
@@ -207,46 +281,49 @@ class RiderHome extends StatelessWidget {
                     .delivery_dining_rounded,
                 color:
                     RiderColors.gold,
-                size: 21,
+                size: 20,
               ),
             ),
+
             const SizedBox(
-              width: 10,
+              width: 9,
             ),
+
             Expanded(
               child: Column(
                 crossAxisAlignment:
                     CrossAxisAlignment
                         .start,
-                children: [
+                children: <Widget>[
                   Text(
                     'Rider Dashboard',
+                    maxLines: 1,
+                    overflow:
+                        TextOverflow.ellipsis,
                     style:
                         TextStyle(
                       color:
                           RiderColors.text,
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight:
-                          FontWeight.w800,
+                          FontWeight.w900,
+                      letterSpacing:
+                          -.25,
                     ),
                   ),
-                  const SizedBox(
-                    height: 1,
-                  ),
+
                   Text(
-                    profile.availabilityStatus ==
-                            'online'
+                    _online
                         ? 'Online • Ready for assignments'
-                        : 'Offline • Not accepting new assignments',
+                        : 'Offline • New jobs paused',
                     maxLines: 1,
                     overflow:
-                        TextOverflow
-                            .ellipsis,
+                        TextOverflow.ellipsis,
                     style:
                         TextStyle(
                       color:
                           RiderColors.muted,
-                      fontSize: 9,
+                      fontSize: 7.5,
                     ),
                   ),
                 ],
@@ -254,14 +331,16 @@ class RiderHome extends StatelessWidget {
             ),
           ],
         ),
-        actions: [
+
+        actions: <Widget>[
+          // Messages moved one slot LEFT.
           Stack(
             clipBehavior:
                 Clip.none,
-            children: [
+            children: <Widget>[
               IconButton(
                 tooltip:
-                    'Chat / Messaging',
+                    'Messages',
                 onPressed:
                     onOpenMessages,
                 icon: Icon(
@@ -269,8 +348,10 @@ class RiderHome extends StatelessWidget {
                       .chat_bubble_outline_rounded,
                   color:
                       RiderColors.text,
+                  size: 21,
                 ),
               ),
+
               if (unreadMessages > 0)
                 Positioned(
                   right: 5,
@@ -278,15 +359,15 @@ class RiderHome extends StatelessWidget {
                   child: Container(
                     constraints:
                         const BoxConstraints(
-                      minWidth: 17,
+                      minWidth: 16,
                     ),
-                    height: 17,
-                    alignment:
-                        Alignment.center,
+                    height: 16,
                     padding:
                         const EdgeInsets.symmetric(
                       horizontal: 4,
                     ),
+                    alignment:
+                        Alignment.center,
                     decoration:
                         BoxDecoration(
                       color:
@@ -304,17 +385,40 @@ class RiderHome extends StatelessWidget {
                           const TextStyle(
                         color:
                             Colors.white,
-                        fontSize: 7,
+                        fontSize: 6.5,
                         fontWeight:
-                            FontWeight.w800,
+                            FontWeight.w900,
                       ),
                     ),
                   ),
                 ),
             ],
           ),
+
+          // Hamburger moved to far RIGHT.
+          IconButton(
+            tooltip:
+                'Rider Menu',
+            onPressed:
+                RiderMenuController.open,
+            icon: Icon(
+              Icons.menu_rounded,
+              color:
+                  RiderColors.text,
+              size: 23,
+            ),
+          ),
+
+          const SizedBox(
+            width: 3,
+          ),
         ],
       ),
+
+      // ========================================================
+      // BODY
+      // ========================================================
+
       body: RefreshIndicator(
         color:
             RiderColors.gold,
@@ -326,54 +430,56 @@ class RiderHome extends StatelessWidget {
               const AlwaysScrollableScrollPhysics(),
           padding:
               const EdgeInsets.fromLTRB(
-            14,
-            18,
-            14,
-            32,
+            12,
+            12,
+            12,
+            30,
           ),
-          children: [
-            _welcomeCard(),
+          children: <Widget>[
+            _hero(
+              activeWork:
+                  activeWork,
+              completedToday:
+                  completedToday,
+              earningsToday:
+                  earningsToday,
+            ),
 
             const SizedBox(
-              height: 18,
+              height: 11,
             ),
 
             _metrics(
               pickupActive:
                   pickupActive,
-              activeWork:
-                  activeWork,
+              deliveryActive:
+                  deliveryActive,
               lastMileActive:
                   lastMileActive,
-              earningsToday:
-                  earningsToday,
               completedToday:
                   completedToday,
             ),
 
             const SizedBox(
-              height: 22,
+              height: 21,
             ),
 
             _sectionHeader(
               title:
                   'My Assignments',
               subtitle:
-                  'Your current pickup and delivery work',
-              trailing:
-                  TextButton(
-                onPressed: () =>
-                    onTabChanged
-                        ?.call(1),
-                child:
-                    const Text(
-                  'View All',
-                ),
-              ),
+                  'Your current pickup and delivery work.',
+              action:
+                  'View all',
+              onAction: () {
+                onTabChanged?.call(
+                  1,
+                );
+              },
             ),
 
             const SizedBox(
-              height: 11,
+              height: 10,
             ),
 
             current == null
@@ -383,78 +489,44 @@ class RiderHome extends StatelessWidget {
                   ),
 
             const SizedBox(
-              height: 22,
+              height: 21,
             ),
 
             _sectionHeader(
               title:
-                  'Rider Operations',
+                  'Quick Actions',
               subtitle:
-                  'Quick access to active workflows',
+                  'Jump directly to Rider tools.',
             ),
 
             const SizedBox(
-              height: 11,
+              height: 10,
             ),
 
-            _operations(),
+            _quickActions(),
 
             const SizedBox(
-              height: 22,
+              height: 21,
             ),
 
-            _sectionHeader(
-              title:
-                  'Today at a Glance',
-              subtitle:
-                  'Your latest operational totals',
-              trailing:
-                  TextButton(
-                onPressed: () =>
-                    onTabChanged
-                        ?.call(3),
-                child:
-                    const Text(
-                  'Earnings',
-                ),
-              ),
-            ),
+            _statusCard(),
 
             const SizedBox(
-              height: 11,
-            ),
-
-            _todayGrid(
-              completedToday:
-                  completedToday,
-              pickupActive:
-                  pickupActive,
-              lastMileActive:
-                  lastMileActive,
-              earningsToday:
-                  earningsToday,
-            ),
-
-            const SizedBox(
-              height: 22,
-            ),
-
-            _riderStatus(),
-
-            const SizedBox(
-              height: 20,
+              height: 18,
             ),
 
             Center(
               child: Text(
-                'SARI Rider • Elevated Everyday',
+                'SARI RIDER • ELEVATED EVERYDAY',
                 style:
                     TextStyle(
                   color:
                       RiderColors.muted,
-                  fontSize: 9,
+                  fontSize: 6.8,
+                  letterSpacing:
+                      .9,
                   fontWeight:
-                      FontWeight.w600,
+                      FontWeight.w700,
                 ),
               ),
             ),
@@ -464,352 +536,1000 @@ class RiderHome extends StatelessWidget {
     );
   }
 
-  Widget _welcomeCard() {
-    final online =
-        profile.availabilityStatus ==
-            'online';
+  // ============================================================
+  // HERO
+  // ============================================================
 
-    return RiderSurface(
-      elevated: true,
-      radius: 17,
-      padding:
-          const EdgeInsets.all(
-        18,
-      ),
-      child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
-              children: [
-                Text(
-                  'RIDER OPERATIONS',
-                  style:
-                      TextStyle(
-                    color:
-                        RiderColors.gold,
-                    fontSize: 9,
-                    fontWeight:
-                        FontWeight.w800,
-                    letterSpacing:
-                        1.2,
-                  ),
-                ),
-                const SizedBox(
-                  height: 6,
-                ),
-                Text(
-                  'Welcome back,\n$_riderName',
-                  style:
-                      TextStyle(
-                    color:
-                        RiderColors.text,
-                    fontSize: 23,
-                    height: 1.15,
-                    fontWeight:
-                        FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(
-                  height: 9,
-                ),
-                Text(
-                  'Manage your assigned pickups and deliveries from one place.',
-                  style:
-                      TextStyle(
-                    color:
-                        RiderColors.muted,
-                    fontSize: 10,
-                    height: 1.5,
-                  ),
-                ),
-              ],
+  Widget _hero({
+    required int activeWork,
+    required int completedToday,
+    required double earningsToday,
+  }) {
+    return LayoutBuilder(
+      builder:
+          (
+            BuildContext context,
+            BoxConstraints constraints,
+          ) {
+        final bool compact =
+            constraints.maxWidth <
+                350;
+
+        return Container(
+          padding:
+              EdgeInsets.fromLTRB(
+            compact ? 16 : 18,
+            16,
+            compact ? 16 : 18,
+            16,
+          ),
+          decoration:
+              BoxDecoration(
+            gradient:
+                LinearGradient(
+              begin:
+                  Alignment.topLeft,
+              end:
+                  Alignment.bottomRight,
+              colors:
+                  RiderColors
+                      .heroGradient,
             ),
-          ),
-          const SizedBox(
-            width: 12,
-          ),
-          Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.end,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 6,
+            borderRadius:
+                BorderRadius.circular(
+              20,
+            ),
+            boxShadow:
+                <BoxShadow>[
+              BoxShadow(
+                color:
+                    Colors.black.withValues(
+                  alpha:
+                      RiderColors.isDark
+                          ? .20
+                          : .11,
                 ),
-                decoration:
-                    BoxDecoration(
-                  color: online
-                      ? RiderColors
-                          .greenSoft
-                      : RiderColors
-                          .surfaceSoft,
-                  borderRadius:
-                      BorderRadius.circular(
-                    20,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize:
-                      MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration:
-                          BoxDecoration(
-                        color: online
-                            ? RiderColors
-                                .green
-                            : RiderColors
-                                .muted,
-                        shape:
-                            BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(
-                      width: 5,
-                    ),
-                    Text(
-                      online
-                          ? 'Online'
-                          : 'Offline',
-                      style:
-                          TextStyle(
-                        color: online
-                            ? RiderColors
-                                .green
-                            : RiderColors
-                                .muted,
-                        fontSize: 8,
-                        fontWeight:
-                            FontWeight.w800,
-                      ),
-                    ),
-                  ],
+                blurRadius: 20,
+                offset:
+                    const Offset(
+                  0,
+                  8,
                 ),
               ),
-              const SizedBox(
-                height: 10,
-              ),
-              Row(
-                children: [
-                  Icon(
-                    Icons
-                        .calendar_today_outlined,
-                    size: 13,
+            ],
+          ),
+          child: Stack(
+            children: <Widget>[
+              Positioned(
+                right: -35,
+                top: -45,
+                child: Container(
+                  width: 145,
+                  height: 145,
+                  decoration:
+                      BoxDecoration(
+                    shape:
+                        BoxShape.circle,
                     color:
-                        RiderColors.gold,
+                        Colors.white
+                            .withValues(
+                      alpha: .055,
+                    ),
                   ),
+                ),
+              ),
+
+              Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment
+                        .start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment
+                                  .start,
+                          children: <Widget>[
+                            Text(
+                              _greeting(),
+                              style:
+                                  const TextStyle(
+                                color:
+                                    Colors.white60,
+                                fontSize: 8,
+                                fontWeight:
+                                    FontWeight.w600,
+                              ),
+                            ),
+
+                            const SizedBox(
+                              height: 2,
+                            ),
+
+                            Text(
+                              _firstName,
+                              maxLines: 1,
+                              overflow:
+                                  TextOverflow
+                                      .ellipsis,
+                              style:
+                                  TextStyle(
+                                color:
+                                    Colors.white,
+                                fontSize:
+                                    compact
+                                        ? 20
+                                        : 22,
+                                fontWeight:
+                                    FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              Colors.white
+                                  .withValues(
+                            alpha: .10,
+                          ),
+                          borderRadius:
+                              BorderRadius.circular(
+                            20,
+                          ),
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration:
+                                  BoxDecoration(
+                                color:
+                                    _online
+                                        ? const Color(
+                                            0xFF7DDEA0,
+                                          )
+                                        : Colors.white54,
+                                shape:
+                                    BoxShape.circle,
+                              ),
+                            ),
+
+                            const SizedBox(
+                              width: 5,
+                            ),
+
+                            Text(
+                              _online
+                                  ? 'ONLINE'
+                                  : 'OFFLINE',
+                              style:
+                                  const TextStyle(
+                                color:
+                                    Colors.white,
+                                fontSize: 6.5,
+                                fontWeight:
+                                    FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
                   const SizedBox(
-                    width: 5,
+                    height: 16,
                   ),
+
                   Text(
-                    _todayLabel(),
+                    'Ready for today\'s\nroute?',
                     style:
                         TextStyle(
                       color:
-                          RiderColors.muted,
-                      fontSize: 8,
+                          Colors.white,
+                      fontSize:
+                          compact
+                              ? 23
+                              : 26,
+                      height: 1.02,
                       fontWeight:
-                          FontWeight.w600,
+                          FontWeight.w900,
+                      letterSpacing:
+                          -.7,
                     ),
+                  ),
+
+                  const SizedBox(
+                    height: 7,
+                  ),
+
+                  Row(
+                    children: <Widget>[
+                      const Icon(
+                        Icons
+                            .calendar_today_outlined,
+                        color:
+                            Colors.white60,
+                        size: 12,
+                      ),
+
+                      const SizedBox(
+                        width: 5,
+                      ),
+
+                      Text(
+                        _date(),
+                        style:
+                            const TextStyle(
+                          color:
+                              Colors.white60,
+                          fontSize: 8,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(
+                    height: 16,
+                  ),
+
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child:
+                            _heroStat(
+                          '$activeWork',
+                          'Active',
+                        ),
+                      ),
+
+                      const SizedBox(
+                        width: 7,
+                      ),
+
+                      Expanded(
+                        child:
+                            _heroStat(
+                          '$completedToday',
+                          'Completed',
+                        ),
+                      ),
+
+                      const SizedBox(
+                        width: 7,
+                      ),
+
+                      Expanded(
+                        child:
+                            _heroStat(
+                          _money(
+                            earningsToday,
+                          ),
+                          'Today',
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _metrics({
-    required int pickupActive,
-    required int activeWork,
-    required int lastMileActive,
-    required double earningsToday,
-    required int completedToday,
-  }) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child:
-                  _metricCard(
-                label:
-                    'Pickup Active',
-                value:
-                    '$pickupActive',
-                note:
-                    'Seller pickup jobs',
-                icon: Icons
-                    .inventory_2_outlined,
-                accent:
-                    RiderColors.gold,
-                background:
-                    RiderColors.goldSoft,
-              ),
-            ),
-            const SizedBox(
-              width: 10,
-            ),
-            Expanded(
-              child:
-                  _metricCard(
-                label:
-                    'Active Work',
-                value:
-                    '$activeWork',
-                note:
-                    'Pickups & deliveries',
-                icon: Icons
-                    .route_outlined,
-                accent:
-                    RiderColors.green,
-                background:
-                    RiderColors.greenSoft,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(
-          height: 10,
-        ),
-        Row(
-          children: [
-            Expanded(
-              child:
-                  _metricCard(
-                label:
-                    'Last-Mile Batches',
-                value:
-                    '$lastMileActive',
-                note:
-                    'Assigned batches',
-                icon: Icons
-                    .local_shipping_outlined,
-                accent:
-                    RiderColors.blue,
-                background:
-                    RiderColors.blueSoft,
-              ),
-            ),
-            const SizedBox(
-              width: 10,
-            ),
-            Expanded(
-              child:
-                  _metricCard(
-                label:
-                    'Today\'s Earnings',
-                value:
-                    _money(
-                  earningsToday,
-                ),
-                note:
-                    '$completedToday completed today',
-                icon: Icons
-                    .payments_outlined,
-                accent:
-                    RiderColors.gold,
-                background:
-                    RiderColors.goldSoft,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _metricCard({
-    required String label,
-    required String value,
-    required String note,
-    required IconData icon,
-    required Color accent,
-    required Color background,
-  }) {
-    return RiderSurface(
-      elevated: true,
-      radius: 16,
+  Widget _heroStat(
+    String value,
+    String label,
+  ) {
+    return Container(
       padding:
-          const EdgeInsets.all(
-        13,
+          const EdgeInsets.symmetric(
+        vertical: 9,
+        horizontal: 5,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            Colors.white.withValues(
+          alpha: .09,
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          11,
+        ),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            alignment:
-                Alignment.center,
-            decoration:
-                BoxDecoration(
-              color: background,
-              borderRadius:
-                  BorderRadius.circular(
-                10,
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: accent,
-              size: 19,
-            ),
-          ),
-          const SizedBox(
-            height: 11,
-          ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow:
-                TextOverflow.ellipsis,
-            style:
-                TextStyle(
-              color:
-                  RiderColors.muted,
-              fontSize: 9,
-              fontWeight:
-                  FontWeight.w600,
-            ),
-          ),
-          const SizedBox(
-            height: 3,
-          ),
+        children: <Widget>[
           Text(
             value,
             maxLines: 1,
             overflow:
                 TextOverflow.ellipsis,
             style:
+                const TextStyle(
+              color: Colors.white,
+              fontSize: 10.5,
+              fontWeight:
+                  FontWeight.w900,
+            ),
+          ),
+
+          const SizedBox(
+            height: 2,
+          ),
+
+          Text(
+            label,
+            maxLines: 1,
+            style:
+                const TextStyle(
+              color:
+                  Colors.white54,
+              fontSize: 6.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // METRICS
+  // ============================================================
+
+  Widget _metrics({
+    required int pickupActive,
+    required int deliveryActive,
+    required int lastMileActive,
+    required int completedToday,
+  }) {
+    final List<
+        ({
+          String value,
+          String label,
+          String note,
+          IconData icon,
+          Color color,
+          Color soft,
+        })> items = [
+      (
+        value:
+            '$pickupActive',
+        label:
+            'Pickups',
+        note:
+            'Seller pickup',
+        icon:
+            Icons.inventory_2_outlined,
+        color:
+            RiderColors.goldDark,
+        soft:
+            RiderColors.goldSoft,
+      ),
+      (
+        value:
+            '$deliveryActive',
+        label:
+            'Deliveries',
+        note:
+            'Active routes',
+        icon:
+            Icons.local_shipping_outlined,
+        color:
+            RiderColors.blue,
+        soft:
+            RiderColors.blueSoft,
+      ),
+      (
+        value:
+            '$lastMileActive',
+        label:
+            'Last Mile',
+        note:
+            'Assigned batches',
+        icon:
+            Icons.route_outlined,
+        color:
+            RiderColors.purple,
+        soft:
+            RiderColors.purpleSoft,
+      ),
+      (
+        value:
+            '$completedToday',
+        label:
+            'Completed',
+        note:
+            'Today',
+        icon:
+            Icons.verified_outlined,
+        color:
+            RiderColors.green,
+        soft:
+            RiderColors.greenSoft,
+      ),
+    ];
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics:
+          const NeverScrollableScrollPhysics(),
+      itemCount:
+          items.length,
+      gridDelegate:
+          const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        mainAxisExtent: 91,
+      ),
+      itemBuilder:
+          (
+            BuildContext context,
+            int index,
+          ) {
+        final item =
+            items[index];
+
+        return Container(
+          padding:
+              const EdgeInsets.all(
+            11,
+          ),
+          decoration:
+              BoxDecoration(
+            color:
+                RiderColors.surface,
+            borderRadius:
+                BorderRadius.circular(
+              15,
+            ),
+            border:
+                Border.all(
+              color:
+                  RiderColors.border,
+            ),
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 38,
+                height: 38,
+                alignment:
+                    Alignment.center,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      item.soft,
+                  borderRadius:
+                      BorderRadius.circular(
+                    11,
+                  ),
+                ),
+                child: Icon(
+                  item.icon,
+                  color:
+                      item.color,
+                  size: 18,
+                ),
+              ),
+
+              const SizedBox(
+                width: 8,
+              ),
+
+              Expanded(
+                child: Column(
+                  mainAxisAlignment:
+                      MainAxisAlignment
+                          .center,
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
+                  children: <Widget>[
+                    Text(
+                      item.value,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      style:
+                          TextStyle(
+                        color:
+                            RiderColors.text,
+                        fontSize: 17,
+                        fontWeight:
+                            FontWeight.w900,
+                      ),
+                    ),
+
+                    Text(
+                      item.label,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      style:
+                          TextStyle(
+                        color:
+                            RiderColors.text,
+                        fontSize: 8,
+                        fontWeight:
+                            FontWeight.w800,
+                      ),
+                    ),
+
+                    Text(
+                      item.note,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      style:
+                          TextStyle(
+                        color:
+                            RiderColors.muted,
+                        fontSize: 6.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // SECTION
+  // ============================================================
+
+  Widget _sectionHeader({
+    required String title,
+    required String subtitle,
+    String? action,
+    VoidCallback? onAction,
+  }) {
+    return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.end,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment
+                    .start,
+            children: <Widget>[
+              Text(
+                title,
+                style:
+                    TextStyle(
+                  color:
+                      RiderColors.text,
+                  fontSize: 14,
+                  fontWeight:
+                      FontWeight.w900,
+                ),
+              ),
+
+              const SizedBox(
+                height: 2,
+              ),
+
+              Text(
+                subtitle,
+                style:
+                    TextStyle(
+                  color:
+                      RiderColors.muted,
+                  fontSize: 7.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        if (action != null)
+          TextButton(
+            onPressed:
+                onAction,
+            child:
+                Text(
+              action,
+              style:
+                  const TextStyle(
+                fontSize: 8,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // ASSIGNMENT
+  // ============================================================
+
+  Widget _assignmentCard(
+    RiderDelivery delivery,
+  ) {
+    final Color status =
+        _statusColor(
+      delivery,
+    );
+
+    return Container(
+      padding:
+          const EdgeInsets.all(
+        13,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+        borderRadius:
+            BorderRadius.circular(
+          17,
+        ),
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 40,
+                height: 40,
+                alignment:
+                    Alignment.center,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      _statusSoft(
+                    delivery,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(
+                    12,
+                  ),
+                ),
+                child: Icon(
+                  delivery
+                          .isLogisticsPickup
+                      ? Icons
+                          .inventory_2_outlined
+                      : Icons
+                          .local_shipping_outlined,
+                  color:
+                      status,
+                  size: 19,
+                ),
+              ),
+
+              const SizedBox(
+                width: 9,
+              ),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
+                  children: <Widget>[
+                    Text(
+                      delivery
+                              .orderNumber
+                              .trim()
+                              .isEmpty
+                          ? 'Rider Assignment'
+                          : delivery
+                              .orderNumber,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      style:
+                          TextStyle(
+                        color:
+                            RiderColors.text,
+                        fontSize: 11,
+                        fontWeight:
+                            FontWeight.w900,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 2,
+                    ),
+
+                    Text(
+                      delivery
+                          .sellerName,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      style:
+                          TextStyle(
+                        color:
+                            RiderColors.muted,
+                        fontSize: 7.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 4,
+                ),
+                decoration:
+                    BoxDecoration(
+                  color:
+                      _statusSoft(
+                    delivery,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(
+                    20,
+                  ),
+                ),
+                child: Text(
+                  delivery.statusLabel,
+                  style:
+                      TextStyle(
+                    color:
+                        status,
+                    fontSize: 6.5,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          Container(
+            width:
+                double.infinity,
+            padding:
+                const EdgeInsets.all(
+              10,
+            ),
+            decoration:
+                BoxDecoration(
+              color:
+                  RiderColors.surfaceSoft,
+              borderRadius:
+                  BorderRadius.circular(
+                12,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment
+                      .start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons
+                          .location_on_outlined,
+                      color:
+                          RiderColors.gold,
+                      size: 14,
+                    ),
+
+                    const SizedBox(
+                      width: 6,
+                    ),
+
+                    Expanded(
+                      child: Text(
+                        delivery
+                                .destinationAddress
+                                .trim()
+                                .isEmpty
+                            ? delivery
+                                .destinationName
+                            : delivery
+                                .destinationAddress,
+                        maxLines: 2,
+                        overflow:
+                            TextOverflow
+                                .ellipsis,
+                        style:
+                            TextStyle(
+                          color:
+                              RiderColors.text,
+                          fontSize: 8,
+                          height: 1.3,
+                          fontWeight:
+                              FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(
+                  height: 8,
+                ),
+
+                Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.route_outlined,
+                      color:
+                          RiderColors.blue,
+                      size: 14,
+                    ),
+
+                    const SizedBox(
+                      width: 6,
+                    ),
+
+                    Expanded(
+                      child: Text(
+                        delivery
+                            .actionMessage,
+                        maxLines: 2,
+                        overflow:
+                            TextOverflow
+                                .ellipsis,
+                        style:
+                            TextStyle(
+                          color:
+                              RiderColors.muted,
+                          fontSize: 7.5,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(
+            height: 11,
+          ),
+
+          SizedBox(
+            width:
+                double.infinity,
+            height: 39,
+            child:
+                FilledButton.icon(
+              onPressed: () {
+                onAdvanceDelivery(
+                  delivery,
+                );
+              },
+              icon:
+                  const Icon(
+                Icons
+                    .arrow_forward_rounded,
+                size: 15,
+              ),
+              label:
+                  Text(
+                delivery.actionLabel,
+                maxLines: 1,
+                overflow:
+                    TextOverflow
+                        .ellipsis,
+                style:
+                    const TextStyle(
+                  fontSize: 8.5,
+                  fontWeight:
+                      FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyAssignment() {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        vertical: 25,
+        horizontal: 18,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+        borderRadius:
+            BorderRadius.circular(
+          17,
+        ),
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
+        ),
+      ),
+      child: Column(
+        children: <Widget>[
+          Container(
+            width: 48,
+            height: 48,
+            alignment:
+                Alignment.center,
+            decoration:
+                BoxDecoration(
+              color:
+                  RiderColors.goldSoft,
+              shape:
+                  BoxShape.circle,
+            ),
+            child: Icon(
+              Icons
+                  .inventory_2_outlined,
+              color:
+                  RiderColors.gold,
+            ),
+          ),
+
+          const SizedBox(
+            height: 10,
+          ),
+
+          Text(
+            'No active assignment',
+            style:
                 TextStyle(
               color:
                   RiderColors.text,
-              fontSize: 20,
+              fontSize: 11,
               fontWeight:
                   FontWeight.w800,
             ),
           ),
+
           const SizedBox(
-            height: 3,
+            height: 4,
           ),
+
           Text(
-            note,
-            maxLines: 1,
-            overflow:
-                TextOverflow.ellipsis,
+            'New jobs will appear here once assigned.',
+            textAlign:
+                TextAlign.center,
             style:
                 TextStyle(
               color:
@@ -822,783 +1542,280 @@ class RiderHome extends StatelessWidget {
     );
   }
 
-  Widget _sectionHeader({
-    required String title,
-    required String subtitle,
-    Widget? trailing,
-  }) {
-    return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
-            children: [
-              Text(
-                title,
-                style:
-                    TextStyle(
-                  color:
-                      RiderColors.text,
-                  fontSize: 16,
-                  fontWeight:
-                      FontWeight.w800,
-                ),
-              ),
-              const SizedBox(
-                height: 3,
-              ),
-              Text(
-                subtitle,
-                style:
-                    TextStyle(
-                  color:
-                      RiderColors.muted,
-                  fontSize: 9,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (trailing != null)
-          trailing,
-      ],
-    );
-  }
+  // ============================================================
+  // QUICK ACTIONS
+  // ============================================================
 
-  Widget _emptyAssignment() {
-    return RiderSurface(
-      radius: 15,
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 18,
-        vertical: 28,
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons
-                .assignment_turned_in_outlined,
-            size: 43,
-            color:
-                RiderColors.muted,
-          ),
-          const SizedBox(
-            height: 10,
-          ),
-          Text(
-            'No active assignment',
-            style:
-                TextStyle(
-              color:
-                  RiderColors.text,
-              fontSize: 13,
-              fontWeight:
-                  FontWeight.w800,
-            ),
-          ),
-          const SizedBox(
-            height: 5,
-          ),
-          Text(
-            'Your current pickup or delivery assignment will appear here.',
-            textAlign:
-                TextAlign.center,
-            style:
-                TextStyle(
-              color:
-                  RiderColors.muted,
-              fontSize: 9,
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(
-            height: 13,
-          ),
-          OutlinedButton(
-            onPressed: () =>
-                onTabChanged
-                    ?.call(1),
-            child:
-                const Text(
-              'View Assignments',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _assignmentCard(
-    RiderDelivery order,
-  ) {
-    final hasAction =
-        order.actionLabel
-            .trim()
-            .isNotEmpty;
-
-    return RiderSurface(
-      elevated: true,
-      radius: 16,
-      padding:
-          const EdgeInsets.all(
-        15,
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
-                  children: [
-                    Text(
-                      order.orderNumber,
-                      style:
-                          TextStyle(
-                        color:
-                            RiderColors.text,
-                        fontSize: 14,
-                        fontWeight:
-                            FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 3,
-                    ),
-                    Text(
-                      order.sellerName,
-                      maxLines: 1,
-                      overflow:
-                          TextOverflow
-                              .ellipsis,
-                      style:
-                          TextStyle(
-                        color:
-                            RiderColors.muted,
-                        fontSize: 9,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 5,
-                ),
-                decoration:
-                    BoxDecoration(
-                  color:
-                      RiderColors.goldSoft,
-                  borderRadius:
-                      BorderRadius.circular(
-                    20,
-                  ),
-                ),
-                child: Text(
-                  order.statusLabel,
-                  style:
-                      TextStyle(
-                    color:
-                        RiderColors.goldDark,
-                    fontSize: 8,
-                    fontWeight:
-                        FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(
-            height: 13,
-          ),
-
-          const Divider(),
-
-          const SizedBox(
-            height: 10,
-          ),
-
-          _assignmentDetail(
-            icon:
-                Icons.storefront_outlined,
-            label:
-                'Pickup',
-            value:
-                order.pickupAddress
-                        .trim()
-                        .isNotEmpty
-                    ? order
-                        .pickupAddress
-                    : order
-                        .pickupName,
-          ),
-
-          const SizedBox(
-            height: 10,
-          ),
-
-          if (!order
-              .isLogisticsPickup)
-            _assignmentDetail(
-              icon:
-                  Icons.location_on_outlined,
-              label:
-                  'Buyer',
-              value:
-                  order.buyerAddress
-                          .trim()
-                          .isNotEmpty
-                      ? order
-                          .buyerAddress
-                      : order
-                          .buyerName,
-            )
-          else
-            _assignmentDetail(
-              icon:
-                  Icons.hub_outlined,
-              label:
-                  'Workflow',
-              value:
-                  'Seller pickup and origin-hub handoff',
-            ),
-
-          const SizedBox(
-            height: 12,
-          ),
-
-          Text(
-            order.actionMessage,
-            style:
-                TextStyle(
-              color:
-                  RiderColors.muted,
-              fontSize: 9,
-              height: 1.45,
-            ),
-          ),
-
-          const SizedBox(
-            height: 14,
-          ),
-
-          Row(
-            children: [
-              Expanded(
-                child:
-                    OutlinedButton.icon(
-                  onPressed: () =>
-                      onTabChanged
-                          ?.call(1),
-                  icon:
-                      const Icon(
-                    Icons
-                        .visibility_outlined,
-                    size: 16,
-                  ),
-                  label:
-                      const Text(
-                    'Details',
-                  ),
-                ),
-              ),
-              if (hasAction) ...[
-                const SizedBox(
-                  width: 8,
-                ),
-                Expanded(
-                  child:
-                      ElevatedButton(
-                    onPressed: () =>
-                        onAdvanceDelivery(
-                      order,
-                    ),
-                    style:
-                        ElevatedButton
-                            .styleFrom(
-                      backgroundColor:
-                          RiderColors.gold,
-                      foregroundColor:
-                          Colors.white,
-                    ),
-                    child: Text(
-                      order.actionLabel,
-                      maxLines: 1,
-                      overflow:
-                          TextOverflow
-                              .ellipsis,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _assignmentDetail({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Icon(
-          icon,
-          color:
-              RiderColors.gold,
-          size: 18,
-        ),
-        const SizedBox(
-          width: 8,
-        ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
-            children: [
-              Text(
-                label,
-                style:
-                    TextStyle(
-                  color:
-                      RiderColors.muted,
-                  fontSize: 8,
-                ),
-              ),
-              const SizedBox(
-                height: 2,
-              ),
-              Text(
-                value.isEmpty
-                    ? 'Not available'
-                    : value,
-                style:
-                    TextStyle(
-                  color:
-                      RiderColors.text,
-                  fontSize: 9.5,
-                  height: 1.4,
-                  fontWeight:
-                      FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _operations() {
-    return RiderSurface(
-      radius: 16,
-      padding:
-          const EdgeInsets.all(
-        10,
-      ),
-      child: Column(
-        children: [
-          _operationRow(
-            icon: Icons
-                .assignment_outlined,
-            title:
-                'Pickup Assignments',
-            subtitle:
-                'Review your current assigned work',
-            onTap: () =>
-                onTabChanged
-                    ?.call(1),
-          ),
-          _divider(),
-          _operationRow(
-            icon:
-                Icons.storefront_outlined,
-            title:
-                'Seller Pickups',
-            subtitle:
-                'Seller collection and hub handoff',
-            onTap:
-                onOpenPickups,
-          ),
-          _divider(),
-          _operationRow(
-            icon: Icons
-                .local_shipping_outlined,
-            title:
-                'Active Deliveries',
-            subtitle:
-                'Direct deliveries to buyers',
-            onTap: () =>
-                onTabChanged
-                    ?.call(2),
-          ),
-          _divider(),
-          _operationRow(
-            icon:
-                Icons.history_rounded,
-            title:
-                'Delivery History',
-            subtitle:
-                'Completed rider transactions',
-            onTap:
-                onOpenHistory,
-          ),
-          _divider(),
-          _operationRow(
-            icon: Icons
-                .chat_bubble_outline_rounded,
-            title:
-                'Chat / Messaging',
-            subtitle:
-                'Messages from Logistics',
-            onTap:
-                onOpenMessages,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _operationRow({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(
-        horizontal: 5,
-        vertical: 2,
-      ),
-      leading: Container(
-        width: 38,
-        height: 38,
-        alignment:
-            Alignment.center,
-        decoration:
-            BoxDecoration(
-          color:
-              RiderColors.goldSoft,
-          borderRadius:
-              BorderRadius.circular(
-            10,
-          ),
-        ),
-        child: Icon(
-          icon,
-          color:
-              RiderColors.goldDark,
-          size: 19,
-        ),
-      ),
-      title: Text(
-        title,
-        style:
-            TextStyle(
-          color:
-              RiderColors.text,
-          fontSize: 10.5,
-          fontWeight:
-              FontWeight.w700,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style:
-            TextStyle(
-          color:
-              RiderColors.muted,
-          fontSize: 8,
-        ),
-      ),
-      trailing: Icon(
-        Icons
-            .chevron_right_rounded,
+  Widget _quickActions() {
+    final actions = [
+      (
+        icon:
+            Icons.inventory_2_outlined,
+        label:
+            'Pickups',
         color:
-            RiderColors.muted,
+            RiderColors.gold,
+        soft:
+            RiderColors.goldSoft,
+        tap:
+            onOpenPickups,
       ),
-      onTap: onTap,
-    );
-  }
+      (
+        icon:
+            Icons.assignment_outlined,
+        label:
+            'Jobs',
+        color:
+            RiderColors.green,
+        soft:
+            RiderColors.greenSoft,
+        tap: () {
+          onTabChanged?.call(
+            1,
+          );
+        },
+      ),
+      (
+        icon:
+            Icons.local_shipping_outlined,
+        label:
+            'Deliveries',
+        color:
+            RiderColors.blue,
+        soft:
+            RiderColors.blueSoft,
+        tap: () {
+          onTabChanged?.call(
+            2,
+          );
+        },
+      ),
+      (
+        icon:
+            Icons.history_rounded,
+        label:
+            'History',
+        color:
+            RiderColors.purple,
+        soft:
+            RiderColors.purpleSoft,
+        tap:
+            onOpenHistory,
+      ),
+    ];
 
-  Widget _divider() {
-    return Divider(
-      height: 1,
-      color:
-          RiderColors.border,
-    );
-  }
+    return Row(
+      children:
+          List<Widget>.generate(
+        actions.length,
+        (
+          int index,
+        ) {
+          final item =
+              actions[index];
 
-  Widget _todayGrid({
-    required int completedToday,
-    required int pickupActive,
-    required int lastMileActive,
-    required double earningsToday,
-  }) {
-    return RiderSurface(
-      radius: 16,
-      padding:
-          EdgeInsets.zero,
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child:
-                    _todayCell(
-                  icon: Icons
-                      .check_circle_outline,
-                  label:
-                      'Completed Jobs',
-                  value:
-                      '$completedToday',
-                ),
+          return Expanded(
+            child: Padding(
+              padding:
+                  EdgeInsets.only(
+                right:
+                    index ==
+                            actions.length -
+                                1
+                        ? 0
+                        : 7,
               ),
-              _verticalDivider(),
-              Expanded(
-                child:
-                    _todayCell(
-                  icon: Icons
-                      .inventory_2_outlined,
-                  label:
-                      'Pickup Active',
-                  value:
-                      '$pickupActive',
+              child: InkWell(
+                onTap:
+                    item.tap,
+                borderRadius:
+                    BorderRadius.circular(
+                  14,
                 ),
-              ),
-            ],
-          ),
-          Divider(
-            height: 1,
-            color:
-                RiderColors.border,
-          ),
-          Row(
-            children: [
-              Expanded(
-                child:
-                    _todayCell(
-                  icon: Icons
-                      .local_shipping_outlined,
-                  label:
-                      'Last-Mile Active',
-                  value:
-                      '$lastMileActive',
-                ),
-              ),
-              _verticalDivider(),
-              Expanded(
-                child:
-                    _todayCell(
-                  icon: Icons
-                      .payments_outlined,
-                  label:
-                      'Earned Today',
-                  value:
-                      _money(
-                    earningsToday,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 4,
                   ),
-                  highlight:
-                      true,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _verticalDivider() {
-    return Container(
-      width: 1,
-      height: 102,
-      color:
-          RiderColors.border,
-    );
-  }
-
-  Widget _todayCell({
-    required IconData icon,
-    required String label,
-    required String value,
-    bool highlight = false,
-  }) {
-    return Padding(
-      padding:
-          const EdgeInsets.all(
-        15,
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                color:
-                    RiderColors.gold,
-                size: 18,
-              ),
-              const SizedBox(
-                width: 6,
-              ),
-              Expanded(
-                child: Text(
-                  label,
-                  style:
-                      TextStyle(
+                  decoration:
+                      BoxDecoration(
                     color:
-                        RiderColors.muted,
-                    fontSize: 8.5,
-                    fontWeight:
-                        FontWeight.w600,
+                        RiderColors.surface,
+                    borderRadius:
+                        BorderRadius.circular(
+                      14,
+                    ),
+                    border:
+                        Border.all(
+                      color:
+                          RiderColors.border,
+                    ),
+                  ),
+                  child: Column(
+                    children: <Widget>[
+                      Container(
+                        width: 34,
+                        height: 34,
+                        alignment:
+                            Alignment.center,
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              item.soft,
+                          borderRadius:
+                              BorderRadius.circular(
+                            10,
+                          ),
+                        ),
+                        child: Icon(
+                          item.icon,
+                          color:
+                              item.color,
+                          size: 17,
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 6,
+                      ),
+
+                      Text(
+                        item.label,
+                        maxLines: 1,
+                        overflow:
+                            TextOverflow
+                                .ellipsis,
+                        style:
+                            TextStyle(
+                          color:
+                              RiderColors.text,
+                          fontSize: 7.2,
+                          fontWeight:
+                              FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(
-            height: 11,
-          ),
-          Text(
-            value,
-            maxLines: 1,
-            overflow:
-                TextOverflow.ellipsis,
-            style:
-                TextStyle(
-              color: highlight
-                  ? RiderColors
-                      .goldDark
-                  : RiderColors
-                      .text,
-              fontSize: 19,
-              fontWeight:
-                  FontWeight.w800,
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  Widget _riderStatus() {
-    final online =
-        profile.availabilityStatus ==
-            'online';
+  // ============================================================
+  // STATUS
+  // ============================================================
 
-    return RiderSurface(
-      radius: 16,
+  Widget _statusCard() {
+    return Container(
       padding:
           const EdgeInsets.all(
-        15,
+        13,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+        borderRadius:
+            BorderRadius.circular(
+          16,
+        ),
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
+        ),
       ),
       child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor:
-                RiderColors.blueSoft,
-            child: Icon(
-              Icons.person_rounded,
+        children: <Widget>[
+          Container(
+            width: 42,
+            height: 42,
+            alignment:
+                Alignment.center,
+            decoration:
+                BoxDecoration(
               color:
-                  RiderColors.blue,
+                  _online
+                      ? RiderColors
+                          .greenSoft
+                      : RiderColors
+                          .surfaceSoft,
+              borderRadius:
+                  BorderRadius.circular(
+                12,
+              ),
+            ),
+            child: Icon(
+              Icons
+                  .person_outline_rounded,
+              color:
+                  _online
+                      ? RiderColors.green
+                      : RiderColors.muted,
+              size: 20,
             ),
           ),
+
           const SizedBox(
-            width: 11,
+            width: 10,
           ),
+
           Expanded(
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
-              children: [
+                  CrossAxisAlignment.start,
+              children: <Widget>[
                 Text(
-                  _riderName,
+                  _name,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow
+                          .ellipsis,
                   style:
                       TextStyle(
                     color:
                         RiderColors.text,
-                    fontSize: 12,
+                    fontSize: 10.5,
                     fontWeight:
                         FontWeight.w800,
                   ),
                 ),
+
                 const SizedBox(
-                  height: 3,
+                  height: 2,
                 ),
+
                 Text(
-                  'Rider • '
-                  '${online ? 'Online' : 'Offline'}',
+                  _online
+                      ? 'Available for Rider assignments'
+                      : 'Currently offline',
                   style:
                       TextStyle(
                     color:
                         RiderColors.muted,
-                    fontSize: 8.5,
+                    fontSize: 7.5,
                   ),
-                ),
-                const SizedBox(
-                  height: 5,
-                ),
-                Row(
-                  children: [
-                    Icon(
-                      Icons
-                          .star_rounded,
-                      size: 14,
-                      color:
-                          RiderColors.gold,
-                    ),
-                    const SizedBox(
-                      width: 4,
-                    ),
-                    Text(
-                      profile.rating
-                          .toStringAsFixed(
-                        1,
-                      ),
-                      style:
-                          TextStyle(
-                        color:
-                            RiderColors.text,
-                        fontSize: 8.5,
-                        fontWeight:
-                            FontWeight.w700,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
           ),
-          TextButton(
-            onPressed: () =>
-                onTabChanged
-                    ?.call(4),
-            child:
-                const Text(
-              'Manage',
+
+          Container(
+            width: 8,
+            height: 8,
+            decoration:
+                BoxDecoration(
+              color:
+                  _online
+                      ? RiderColors.green
+                      : RiderColors.muted,
+              shape:
+                  BoxShape.circle,
             ),
           ),
         ],

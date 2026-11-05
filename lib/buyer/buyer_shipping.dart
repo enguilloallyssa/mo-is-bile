@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../services/sari_live_data.dart';
-import 'models/buyer_order_model.dart';
+import 'buyer_theme.dart';
 
 class BuyerShipping extends StatefulWidget {
-  final List<BuyerOrder>? shipments;
-
   const BuyerShipping({
     super.key,
-    this.shipments,
   });
 
   @override
@@ -18,22 +15,11 @@ class BuyerShipping extends StatefulWidget {
 
 class _BuyerShippingState
     extends State<BuyerShipping> {
-  static const Color gold =
-      Color(0xFFD9950B);
-  static const Color dark =
-      Color(0xFF24201C);
-  static const Color muted =
-      Color(0xFF7F776E);
-  static const Color bg =
-      Color(0xFFF4F5F7);
-  static const Color border =
-      Color(0xFFE6E8EC);
-
   final List<Map<String, dynamic>>
-      _shipments = [];
+      _shipments =
+      <Map<String, dynamic>>[];
 
   bool _loading = true;
-
   String? _error;
 
   @override
@@ -46,20 +32,18 @@ class _BuyerShippingState
   Map<String, dynamic> _map(
     dynamic value,
   ) {
-    if (value is Map) {
-      return Map<String, dynamic>.from(
-        value,
-      );
-    }
-
-    return {};
+    return value is Map
+        ? Map<String, dynamic>.from(
+            value,
+          )
+        : <String, dynamic>{};
   }
 
   String _text(
     dynamic value, [
     String fallback = '',
   ]) {
-    final text =
+    final String text =
         value?.toString().trim() ?? '';
 
     return text.isEmpty
@@ -70,55 +54,156 @@ class _BuyerShippingState
   int _integer(
     dynamic value,
   ) {
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse('$value') ?? 0;
+    return value is num
+        ? value.toInt()
+        : int.tryParse(
+              '$value',
+            ) ??
+            0;
   }
 
+  String _dateTime(
+    dynamic raw,
+  ) {
+    final String value =
+        _text(raw);
+
+    final DateTime? date =
+        DateTime.tryParse(
+      value,
+    )?.toLocal();
+
+    if (date == null) {
+      return value;
+    }
+
+    const List<String> months =
+        <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    final int hour =
+        date.hour == 0
+            ? 12
+            : date.hour > 12
+                ? date.hour - 12
+                : date.hour;
+
+    final String minute =
+        date.minute
+            .toString()
+            .padLeft(
+              2,
+              '0',
+            );
+
+    final String period =
+        date.hour >= 12
+            ? 'PM'
+            : 'AM';
+
+    return '${months[date.month - 1]} '
+        '${date.day} • '
+        '$hour:$minute $period';
+  }
+
+  // ============================================================
+  // LOAD
+  // ============================================================
+
   Future<void> _load() async {
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
-      final response =
-          await SariLiveData.instance
-              .buyerShipping();
+      final List<Map<String, dynamic>>
+          all =
+          <Map<String, dynamic>>[];
 
-      final raw =
-          response['data'];
+      int page = 1;
 
-      final shipments = raw is List
-          ? raw.map(_map).toList()
-          : <Map<String, dynamic>>[];
+      while (true) {
+        final Map<String, dynamic> response =
+            await SariLiveData.instance
+                .buyerShipping(
+          page: page,
+        );
 
-      if (!mounted) return;
+        final dynamic raw =
+            response['data'];
+
+        if (raw is List) {
+          all.addAll(
+            raw.map(_map),
+          );
+        }
+
+        final Map<String, dynamic> meta =
+            _map(
+          response['meta'],
+        );
+
+        final int lastPage =
+            _integer(
+          meta['last_page'],
+        );
+
+        if (lastPage <= page ||
+            lastPage <= 0) {
+          break;
+        }
+
+        page++;
+      }
+
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _shipments
           ..clear()
-          ..addAll(shipments);
+          ..addAll(all);
 
         _loading = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _loading = false;
-        _error =
-            error.toString();
+        _error = error.toString();
       });
     }
   }
 
+  // ============================================================
+  // TRACKING
+  // ============================================================
+
   Future<void> _openTracking(
     Map<String, dynamic> shipment,
   ) async {
-    final id =
+    final int id =
         _integer(
       shipment['id'],
     );
@@ -127,170 +212,305 @@ class _BuyerShippingState
       return;
     }
 
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (
+            BuildContext context,
+          ) =>
+              const Center(
+        child:
+            CircularProgressIndicator(),
+      ),
+    );
+
     try {
-      final response =
+      final Map<String, dynamic> response =
           await SariLiveData.instance
               .buyerTracking(id);
 
-      final data =
+      final Map<String, dynamic> data =
           _map(
         response['data'],
       );
 
-      final rawEvents =
-          data['events'];
-
-      final events =
-          rawEvents is List
-              ? rawEvents
+      final List<Map<String, dynamic>>
+          events =
+          data['events'] is List
+              ? (data['events']
+                      as List)
                   .map(_map)
                   .toList()
               : <Map<String, dynamic>>[];
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop();
 
       await showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,
         isScrollControlled: true,
-        builder: (context) {
+        backgroundColor:
+            BuyerTheme.canvas,
+        builder:
+            (
+              BuildContext context,
+            ) {
           return DraggableScrollableSheet(
             expand: false,
-            initialChildSize: .75,
+            initialChildSize: .80,
+            minChildSize: .50,
             maxChildSize: .95,
             builder:
-                (context, controller) {
+                (
+              BuildContext context,
+              ScrollController controller,
+            ) {
               return ListView(
-                controller:
-                    controller,
+                controller: controller,
                 padding:
                     const EdgeInsets.fromLTRB(
                   18,
                   4,
                   18,
-                  30,
+                  35,
                 ),
-                children: [
-                  Text(
-                    _text(
-                      data['order_number'],
-                      'Order Tracking',
-                    ),
-                    style:
-                        const TextStyle(
-                      color: dark,
-                      fontSize: 19,
-                      fontWeight:
-                          FontWeight.w900,
-                    ),
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Container(
+                        width: 48,
+                        height: 48,
+                        alignment:
+                            Alignment.center,
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              BuyerTheme
+                                  .goldPale,
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            15,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons
+                              .local_shipping_rounded,
+                          color:
+                              BuyerTheme
+                                  .goldDark,
+                        ),
+                      ),
+
+                      const SizedBox(
+                        width: 12,
+                      ),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment
+                                  .start,
+                          children: <Widget>[
+                            Text(
+                              _text(
+                                data[
+                                    'order_number'],
+                                'Order Tracking',
+                              ),
+                              style:
+                                  const TextStyle(
+                                color:
+                                    BuyerTheme
+                                        .ink,
+                                fontSize: 18,
+                                fontWeight:
+                                    FontWeight
+                                        .w900,
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 3,
+                            ),
+                            Text(
+                              _text(
+                                data[
+                                    'status_label'],
+                              ),
+                              style:
+                                  const TextStyle(
+                                color:
+                                    BuyerTheme
+                                        .goldDark,
+                                fontSize: 10,
+                                fontWeight:
+                                    FontWeight
+                                        .w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(
-                    height: 5,
-                  ),
-                  Text(
-                    _text(
-                      data['status_label'],
-                    ),
-                    style:
-                        const TextStyle(
-                      color: gold,
-                      fontWeight:
-                          FontWeight.w700,
-                    ),
-                  ),
+
                   if (_text(
                     data[
                         'courier_name'],
                   ).isNotEmpty) ...[
                     const SizedBox(
-                      height: 7,
+                      height: 18,
                     ),
-                    Text(
-                      'Courier: '
-                      '${_text(data['courier_name'])}',
+
+                    Container(
+                      padding:
+                          const EdgeInsets.all(
+                        13,
+                      ),
+                      decoration:
+                          BuyerTheme.card(
+                        radius: 15,
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(
+                            Icons
+                                .delivery_dining_rounded,
+                            color:
+                                BuyerTheme
+                                    .goldDark,
+                          ),
+                          const SizedBox(
+                            width: 10,
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment
+                                      .start,
+                              children: <Widget>[
+                                const Text(
+                                  'Assigned Rider',
+                                  style:
+                                      TextStyle(
+                                    color:
+                                        BuyerTheme
+                                            .muted,
+                                    fontSize:
+                                        8,
+                                    fontWeight:
+                                        FontWeight
+                                            .w700,
+                                  ),
+                                ),
+                                const SizedBox(
+                                  height: 3,
+                                ),
+                                Text(
+                                  _text(
+                                    data[
+                                        'courier_name'],
+                                  ),
+                                  style:
+                                      const TextStyle(
+                                    color:
+                                        BuyerTheme
+                                            .ink,
+                                    fontWeight:
+                                        FontWeight
+                                            .w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
+
                   const SizedBox(
-                    height: 18,
+                    height: 23,
                   ),
+
                   const Text(
-                    'Tracking Events',
+                    'Tracking Timeline',
                     style: TextStyle(
-                      color: dark,
-                      fontSize: 15,
+                      color:
+                          BuyerTheme.ink,
+                      fontSize: 16,
                       fontWeight:
-                          FontWeight.w800,
+                          FontWeight.w900,
                     ),
                   ),
+
                   const SizedBox(
-                    height: 10,
+                    height: 12,
                   ),
+
                   if (events.isEmpty)
-                    const Text(
-                      'No tracking events yet.',
-                      style: TextStyle(
-                        color: muted,
+                    Container(
+                      padding:
+                          const EdgeInsets.all(
+                        22,
+                      ),
+                      decoration:
+                          BuyerTheme.card(),
+                      child:
+                          const Column(
+                        children: <Widget>[
+                          Icon(
+                            Icons
+                                .hourglass_empty_rounded,
+                            color:
+                                BuyerTheme
+                                    .muted,
+                            size: 38,
+                          ),
+                          SizedBox(
+                            height: 10,
+                          ),
+                          Text(
+                            'No tracking events yet.',
+                            style:
+                                TextStyle(
+                              color:
+                                  BuyerTheme
+                                      .muted,
+                            ),
+                          ),
+                        ],
                       ),
                     )
                   else
-                    ...events.map(
-                      (event) =>
-                          ListTile(
-                        contentPadding:
-                            EdgeInsets.zero,
-                        leading:
-                            const CircleAvatar(
-                          radius: 16,
-                          backgroundColor:
-                              Color(
-                            0xFFFFE9BE,
-                          ),
-                          child: Icon(
-                            Icons
-                                .check_rounded,
-                            color: gold,
-                            size: 17,
-                          ),
-                        ),
-                        title: Text(
-                          _text(
-                            event['title'],
-                            _text(
-                              event[
-                                  'status'],
-                              'Order Update',
-                            ),
-                          ),
-                          style:
-                              const TextStyle(
-                            fontSize: 12,
-                            fontWeight:
-                                FontWeight.w700,
-                          ),
-                        ),
-                        subtitle: Text(
-                          [
-                            _text(
-                              event[
-                                  'message'],
-                            ),
-                            _text(
-                              event[
-                                  'created_at'],
-                            ),
-                          ]
-                              .where(
-                                (value) =>
-                                    value
-                                        .isNotEmpty,
-                              )
-                              .join('\n'),
-                          style:
-                              const TextStyle(
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
+                    ...List<Widget>.generate(
+                      events.length,
+                      (
+                        int index,
+                      ) {
+                        final Map<String,
+                                dynamic>
+                            event =
+                            events[index];
+
+                        final bool last =
+                            index ==
+                                events.length -
+                                    1;
+
+                        return _trackingEvent(
+                          event,
+                          last: last,
+                        );
+                      },
                     ),
                 ],
               );
@@ -299,136 +519,711 @@ class _BuyerShippingState
         },
       );
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content:
-                Text('$error'),
-            behavior:
-                SnackBarBehavior.floating,
-          ),
-        );
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop();
+
+      _show(
+        'Unable to load tracking: $error',
+      );
     }
   }
+
+  Widget _trackingEvent(
+    Map<String, dynamic> event, {
+    required bool last,
+  }) {
+    return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: <Widget>[
+        Column(
+          children: <Widget>[
+            Container(
+              width: 31,
+              height: 31,
+              alignment:
+                  Alignment.center,
+              decoration:
+                  const BoxDecoration(
+                color:
+                    BuyerTheme
+                        .successSoft,
+                shape:
+                    BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons
+                    .check_rounded,
+                color:
+                    BuyerTheme.success,
+                size: 17,
+              ),
+            ),
+
+            if (!last)
+              Container(
+                width: 2,
+                height: 54,
+                color:
+                    BuyerTheme.border,
+              ),
+          ],
+        ),
+
+        const SizedBox(
+          width: 12,
+        ),
+
+        Expanded(
+          child: Padding(
+            padding:
+                const EdgeInsets.only(
+              top: 2,
+              bottom: 19,
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment
+                      .start,
+              children: <Widget>[
+                Text(
+                  _text(
+                    event['title'],
+                    _text(
+                      event['status'],
+                      'Order Update',
+                    ),
+                  ),
+                  style:
+                      const TextStyle(
+                    color:
+                        BuyerTheme.ink,
+                    fontSize: 12,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+                ),
+
+                if (_text(
+                  event['message'],
+                ).isNotEmpty) ...[
+                  const SizedBox(
+                    height: 4,
+                  ),
+                  Text(
+                    _text(
+                      event['message'],
+                    ),
+                    style:
+                        const TextStyle(
+                      color:
+                          BuyerTheme.muted,
+                      fontSize: 9.5,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+
+                if (_text(
+                  event['created_at'],
+                ).isNotEmpty) ...[
+                  const SizedBox(
+                    height: 5,
+                  ),
+                  Text(
+                    _dateTime(
+                      event['created_at'],
+                    ),
+                    style:
+                        const TextStyle(
+                      color:
+                          BuyerTheme.muted,
+                      fontSize: 8,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // STATUS DESIGN
+  // ============================================================
 
   Color _statusColor(
     String status,
   ) {
     if (status == 'delivered') {
-      return const Color(
-        0xFF4F8065,
-      );
+      return BuyerTheme.success;
+    }
+
+    if (status == 'cancelled') {
+      return BuyerTheme.danger;
+    }
+
+    if (<String>{
+      'courier_accepted',
+      'heading_pickup',
+      'arrived_pickup',
+      'in_transit',
+      'arrived_buyer',
+    }.contains(status)) {
+      return BuyerTheme.blue;
+    }
+
+    return BuyerTheme.goldDark;
+  }
+
+  Color _statusBackground(
+    String status,
+  ) {
+    if (status == 'delivered') {
+      return BuyerTheme.successSoft;
     }
 
     if (status == 'cancelled') {
       return const Color(
-        0xFFB25555,
+        0xFFFFECEB,
       );
     }
 
-    return gold;
+    if (<String>{
+      'courier_accepted',
+      'heading_pickup',
+      'arrived_pickup',
+      'in_transit',
+      'arrived_buyer',
+    }.contains(status)) {
+      return BuyerTheme.blueSoft;
+    }
+
+    return BuyerTheme.goldPale;
   }
+
+  double _progress(
+    String status,
+  ) {
+    switch (status) {
+      case 'ready_for_pickup':
+        return .15;
+
+      case 'courier_accepted':
+        return .28;
+
+      case 'heading_pickup':
+        return .40;
+
+      case 'arrived_pickup':
+        return .50;
+
+      case 'in_transit':
+        return .72;
+
+      case 'arrived_buyer':
+        return .90;
+
+      case 'delivered':
+        return 1;
+
+      default:
+        return .08;
+    }
+  }
+
+  void _show(
+    String message,
+  ) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content:
+              Text(message),
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  // ============================================================
+  // SHIPMENT CARD
+  // ============================================================
+
+  Widget _shipmentCard(
+    Map<String, dynamic> shipment,
+  ) {
+    final String status =
+        _text(
+      shipment['status'],
+    );
+
+    final String label =
+        _text(
+      shipment['status_label'],
+      status
+          .replaceAll('_', ' '),
+    );
+
+    final Color color =
+        _statusColor(status);
+
+    return Container(
+      margin:
+          const EdgeInsets.only(
+        bottom: 12,
+      ),
+      padding:
+          const EdgeInsets.all(
+        16,
+      ),
+      decoration:
+          BuyerTheme.card(
+        radius: 19,
+      ),
+      child: Column(
+        children: <Widget>[
+          Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                width: 47,
+                height: 47,
+                alignment:
+                    Alignment.center,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      _statusBackground(
+                    status,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(
+                    14,
+                  ),
+                ),
+                child: Icon(
+                  status == 'delivered'
+                      ? Icons
+                          .task_alt_rounded
+                      : Icons
+                          .local_shipping_outlined,
+                  color: color,
+                  size: 23,
+                ),
+              ),
+
+              const SizedBox(
+                width: 12,
+              ),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      _text(
+                        shipment[
+                            'order_number'],
+                        'SARI Order',
+                      ),
+                      style:
+                          const TextStyle(
+                        color:
+                            BuyerTheme.ink,
+                        fontSize: 13,
+                        fontWeight:
+                            FontWeight.w900,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 4,
+                    ),
+
+                    Text(
+                      _text(
+                        shipment[
+                            'store_name'],
+                        'SARI Seller',
+                      ),
+                      style:
+                          const TextStyle(
+                        color:
+                            BuyerTheme.muted,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 6,
+                ),
+                decoration:
+                    BoxDecoration(
+                  color:
+                      _statusBackground(
+                    status,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(
+                    20,
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style:
+                      TextStyle(
+                    color: color,
+                    fontSize: 8,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 16,
+          ),
+
+          ClipRRect(
+            borderRadius:
+                BorderRadius.circular(
+              10,
+            ),
+            child:
+                LinearProgressIndicator(
+              minHeight: 6,
+              value:
+                  _progress(status),
+              backgroundColor:
+                  BuyerTheme.border,
+              color: color,
+            ),
+          ),
+
+          const SizedBox(
+            height: 13,
+          ),
+
+          Row(
+            children: <Widget>[
+              Icon(
+                Icons
+                    .schedule_rounded,
+                size: 15,
+                color:
+                    BuyerTheme.muted,
+              ),
+
+              const SizedBox(
+                width: 5,
+              ),
+
+              Expanded(
+                child: Text(
+                  _dateTime(
+                    shipment[
+                        'updated_at'],
+                  ),
+                  style:
+                      const TextStyle(
+                    color:
+                        BuyerTheme.muted,
+                    fontSize: 9,
+                  ),
+                ),
+              ),
+
+              if (_text(
+                shipment[
+                    'courier_name'],
+              ).isNotEmpty)
+                Text(
+                  _text(
+                    shipment[
+                        'courier_name'],
+                  ),
+                  style:
+                      const TextStyle(
+                    color:
+                        BuyerTheme.ink,
+                    fontSize: 9,
+                    fontWeight:
+                        FontWeight.w700,
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 13,
+          ),
+
+          SizedBox(
+            width: double.infinity,
+            child:
+                OutlinedButton.icon(
+              onPressed: () {
+                _openTracking(
+                  shipment,
+                );
+              },
+              icon:
+                  const Icon(
+                Icons
+                    .route_outlined,
+                size: 18,
+              ),
+              label:
+                  const Text(
+                'View Tracking',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hero() {
+    final int active =
+        _shipments.where(
+      (
+        Map<String, dynamic>
+            item,
+      ) =>
+          _text(
+            item['status'],
+          ) !=
+          'delivered',
+    ).length;
+
+    return Container(
+      margin:
+          const EdgeInsets.only(
+        bottom: 18,
+      ),
+      padding:
+          const EdgeInsets.all(
+        20,
+      ),
+      decoration:
+          BoxDecoration(
+        gradient:
+            const LinearGradient(
+          colors:
+              BuyerTheme.heroGradient,
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          23,
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'SHIPPING CENTER',
+                  style: TextStyle(
+                    color:
+                        Color(
+                      0xFFFFD98A,
+                    ),
+                    fontSize: 9,
+                    fontWeight:
+                        FontWeight.w900,
+                    letterSpacing:
+                        1.2,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 6,
+                ),
+
+                const Text(
+                  'Track every\nparcel journey.',
+                  style: TextStyle(
+                    color:
+                        Colors.white,
+                    fontSize: 23,
+                    height: 1.05,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 8,
+                ),
+
+                Text(
+                  '$active active shipment${active == 1 ? '' : 's'}',
+                  style:
+                      const TextStyle(
+                    color:
+                        Colors.white70,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Icon(
+            Icons
+                .local_shipping_rounded,
+            color:
+                Colors.white,
+            size: 45,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
     BuildContext context,
   ) {
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor:
+          BuyerTheme.canvas,
       appBar: AppBar(
-        title: const Text(
-          'Shipping',
+        title:
+            const Text(
+          'Shipping & Tracking',
+          style: TextStyle(
+            fontWeight:
+                FontWeight.w900,
+          ),
         ),
-        backgroundColor:
-            Colors.white,
-        foregroundColor: dark,
-        surfaceTintColor:
-            Colors.white,
       ),
       body: RefreshIndicator(
-        color: gold,
+        color:
+            BuyerTheme.gold,
         onRefresh: _load,
         child: _loading
             ? ListView(
-                children: const [
+                children:
+                    const <Widget>[
                   SizedBox(
-                    height: 170,
+                    height: 200,
                   ),
                   Center(
                     child:
-                        CircularProgressIndicator(
-                      color: gold,
-                    ),
+                        CircularProgressIndicator(),
                   ),
                 ],
               )
-            : _error != null
+            : _error != null &&
+                    _shipments.isEmpty
                 ? ListView(
+                    physics:
+                        const AlwaysScrollableScrollPhysics(),
                     padding:
                         const EdgeInsets.all(
-                      24,
+                      30,
                     ),
-                    children: [
+                    children: <Widget>[
                       const SizedBox(
                         height: 70,
                       ),
                       const Icon(
                         Icons
                             .wifi_off_rounded,
-                        size: 48,
-                        color: muted,
-                      ),
-                      const SizedBox(
-                        height: 12,
-                      ),
-                      Text(
-                        _error!,
-                        textAlign:
-                            TextAlign.center,
-                        style:
-                            const TextStyle(
-                          color: muted,
-                        ),
+                        size: 50,
+                        color:
+                            BuyerTheme
+                                .muted,
                       ),
                       const SizedBox(
                         height: 14,
                       ),
-                      FilledButton(
+                      Text(
+                        _error!,
+                        textAlign:
+                            TextAlign
+                                .center,
+                        style:
+                            const TextStyle(
+                          color:
+                              BuyerTheme
+                                  .muted,
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 17,
+                      ),
+                      FilledButton.icon(
                         onPressed:
                             _load,
-                        child:
+                        icon:
+                            const Icon(
+                          Icons
+                              .refresh_rounded,
+                        ),
+                        label:
                             const Text(
-                          'Try Again',
+                          'Retry',
                         ),
                       ),
                     ],
                   )
                 : _shipments.isEmpty
                     ? ListView(
+                        physics:
+                            const AlwaysScrollableScrollPhysics(),
                         padding:
                             const EdgeInsets.all(
-                          40,
+                          30,
                         ),
                         children:
-                            const [
+                            const <Widget>[
                           SizedBox(
-                            height:
-                                60,
+                            height: 80,
                           ),
                           Icon(
                             Icons
                                 .local_shipping_outlined,
-                            size:
-                                60,
+                            size: 60,
                             color:
-                                muted,
+                                BuyerTheme
+                                    .muted,
                           ),
                           SizedBox(
-                            height:
-                                12,
+                            height: 15,
                           ),
                           Text(
                             'No active shipments',
@@ -437,216 +1232,46 @@ class _BuyerShippingState
                             style:
                                 TextStyle(
                               color:
-                                  dark,
+                                  BuyerTheme
+                                      .ink,
+                              fontSize: 17,
                               fontWeight:
                                   FontWeight
-                                      .w800,
+                                      .w900,
+                            ),
+                          ),
+                          SizedBox(
+                            height: 6,
+                          ),
+                          Text(
+                            'Orders released for shipping will appear here.',
+                            textAlign:
+                                TextAlign.center,
+                            style:
+                                TextStyle(
+                              color:
+                                  BuyerTheme
+                                      .muted,
                             ),
                           ),
                         ],
                       )
-                    : ListView.separated(
+                    : ListView(
+                        physics:
+                            const AlwaysScrollableScrollPhysics(),
                         padding:
-                            const EdgeInsets.all(
+                            const EdgeInsets.fromLTRB(
                           14,
+                          16,
+                          14,
+                          30,
                         ),
-                        itemCount:
-                            _shipments.length,
-                        separatorBuilder:
-                            (context, index) =>
-                                const SizedBox(
-                          height: 10,
-                        ),
-                        itemBuilder:
-                            (
-                          context,
-                          index,
-                        ) {
-                          final shipment =
-                              _shipments[
-                                  index];
-
-                          final status =
-                              _text(
-                            shipment[
-                                'status'],
-                          );
-
-                          final color =
-                              _statusColor(
-                            status,
-                          );
-
-                          return Container(
-                            padding:
-                                const EdgeInsets.all(
-                              15,
-                            ),
-                            decoration:
-                                BoxDecoration(
-                              color:
-                                  Colors.white,
-                              borderRadius:
-                                  BorderRadius.circular(
-                                14,
-                              ),
-                              border:
-                                  Border.all(
-                                color:
-                                    border,
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment
-                                      .start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child:
-                                          Text(
-                                        _text(
-                                          shipment[
-                                              'store_name'],
-                                          'SARI Seller',
-                                        ),
-                                        style:
-                                            const TextStyle(
-                                          color:
-                                              dark,
-                                          fontWeight:
-                                              FontWeight.w800,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding:
-                                          const EdgeInsets.symmetric(
-                                        horizontal:
-                                            8,
-                                        vertical:
-                                            5,
-                                      ),
-                                      decoration:
-                                          BoxDecoration(
-                                        color: color
-                                            .withValues(
-                                          alpha:
-                                              .10,
-                                        ),
-                                        borderRadius:
-                                            BorderRadius.circular(
-                                          20,
-                                        ),
-                                      ),
-                                      child:
-                                          Text(
-                                        _text(
-                                          shipment[
-                                              'status_label'],
-                                          status,
-                                        ),
-                                        style:
-                                            TextStyle(
-                                          color:
-                                              color,
-                                          fontSize:
-                                              9,
-                                          fontWeight:
-                                              FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(
-                                  height:
-                                      10,
-                                ),
-                                Text(
-                                  _text(
-                                    shipment[
-                                        'order_number'],
-                                  ),
-                                  style:
-                                      const TextStyle(
-                                    color:
-                                        dark,
-                                    fontSize:
-                                        16,
-                                    fontWeight:
-                                        FontWeight.w900,
-                                  ),
-                                ),
-                                if (_text(
-                                  shipment[
-                                      'parcel_status'],
-                                ).isNotEmpty) ...[
-                                  const SizedBox(
-                                    height:
-                                        5,
-                                  ),
-                                  Text(
-                                    'Parcel: '
-                                    '${_text(shipment['parcel_status'])}',
-                                    style:
-                                        const TextStyle(
-                                      color:
-                                          muted,
-                                      fontSize:
-                                          10,
-                                    ),
-                                  ),
-                                ],
-                                if (_text(
-                                  shipment[
-                                      'courier_name'],
-                                ).isNotEmpty) ...[
-                                  const SizedBox(
-                                    height:
-                                        5,
-                                  ),
-                                  Text(
-                                    'Courier: '
-                                    '${_text(shipment['courier_name'])}',
-                                    style:
-                                        const TextStyle(
-                                      color:
-                                          muted,
-                                      fontSize:
-                                          10,
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(
-                                  height:
-                                      12,
-                                ),
-                                SizedBox(
-                                  width:
-                                      double.infinity,
-                                  child:
-                                      OutlinedButton.icon(
-                                    onPressed: () =>
-                                        _openTracking(
-                                      shipment,
-                                    ),
-                                    icon:
-                                        const Icon(
-                                      Icons
-                                          .route_outlined,
-                                    ),
-                                    label:
-                                        const Text(
-                                      'Track Order',
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                        children: <Widget>[
+                          _hero(),
+                          ..._shipments.map(
+                            _shipmentCard,
+                          ),
+                        ],
                       ),
       ),
     );

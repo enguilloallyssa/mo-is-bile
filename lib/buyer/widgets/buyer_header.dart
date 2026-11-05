@@ -69,8 +69,6 @@ class _BuyerHeaderState
       oldWidget,
     );
 
-    // Cart page can immediately provide its current
-    // local item count after add/remove/update.
     if (oldWidget.cartCount !=
             widget.cartCount &&
         widget.cartCount > 0) {
@@ -126,9 +124,9 @@ class _BuyerHeaderState
       int? cartCount;
       int? notificationCount;
 
-      // -----------------------------------
-      // REAL CART COUNT
-      // -----------------------------------
+      // ========================================================
+      // LIVE CART COUNT
+      // ========================================================
 
       try {
         final response =
@@ -168,13 +166,13 @@ class _BuyerHeaderState
           );
         }
       } catch (_) {
-        // Header remains usable even if cart
-        // count cannot be refreshed.
+        // Keep fallback cart count when
+        // Laravel is temporarily unavailable.
       }
 
-      // -----------------------------------
-      // REAL UNREAD NOTIFICATION COUNT
-      // -----------------------------------
+      // ========================================================
+      // LIVE NOTIFICATION COUNT
+      // ========================================================
 
       try {
         final response =
@@ -217,8 +215,7 @@ class _BuyerHeaderState
           );
         }
       } catch (_) {
-        // Header remains usable even when
-        // notification summary is unavailable.
+        // Keep fallback notification count.
       }
 
       if (!mounted) {
@@ -238,10 +235,9 @@ class _BuyerHeaderState
         }
       });
     } catch (_) {
-      // Guests and expired sessions simply keep
-      // the fallback counts without breaking UI.
+      // Guests / expired sessions simply use fallback values.
     }
-  } 
+  }
 
   @override
   Widget build(
@@ -272,7 +268,7 @@ class _BuyerHeaderState
             ),
           ),
           child: Row(
-            children: [
+            children: <Widget>[
               Expanded(
                 child: InkWell(
                   onTap:
@@ -303,7 +299,7 @@ class _BuyerHeaderState
                       ),
                     ),
                     child: Row(
-                      children: [
+                      children: <Widget>[
                         const Icon(
                           Icons
                               .search_rounded,
@@ -313,9 +309,11 @@ class _BuyerHeaderState
                             0xFF69717D,
                           ),
                         ),
+
                         const SizedBox(
                           width: 9,
                         ),
+
                         Expanded(
                           child: Column(
                             mainAxisAlignment:
@@ -324,7 +322,7 @@ class _BuyerHeaderState
                             crossAxisAlignment:
                                 CrossAxisAlignment
                                     .start,
-                            children: [
+                            children: <Widget>[
                               Text(
                                 widget.pageTitle ==
                                         'Home'
@@ -346,9 +344,11 @@ class _BuyerHeaderState
                                           .w700,
                                 ),
                               ),
+
                               const SizedBox(
                                 height: 1,
                               ),
+
                               const Text(
                                 'Products, shops, brands...',
                                 maxLines: 1,
@@ -407,17 +407,29 @@ class _BuyerHeaderState
                 width: 6,
               ),
 
-              if (widget.pageTitle == 'Account')
+              if (widget.pageTitle ==
+                  'Account')
                 _HeaderButton(
-                  icon: Icons.tune_rounded,
-                  tooltip: 'Account settings',
-                  onTap: () => BuyerNavigationScope.maybeOf(context)?.openSettings(),
+                  icon:
+                      Icons.tune_rounded,
+                  tooltip:
+                      'Account settings',
+                  onTap: () {
+                    BuyerNavigationScope
+                        .maybeOf(
+                          context,
+                        )
+                        ?.openSettings();
+                  },
                 )
               else
                 _HeaderButton(
-                  icon: Icons.person_outline_rounded,
-                  tooltip: 'Account',
-                  onTap: widget.onProfileTap,
+                  icon: Icons
+                      .person_outline_rounded,
+                  tooltip:
+                      'Account',
+                  onTap:
+                      widget.onProfileTap,
                 ),
             ],
           ),
@@ -459,7 +471,8 @@ class _HeaderButton
           height: 40,
           decoration:
               BoxDecoration(
-            color: BuyerTheme.surface,
+            color:
+                BuyerTheme.surface,
             borderRadius:
                 BorderRadius.circular(
               12,
@@ -477,7 +490,7 @@ class _HeaderButton
                 Alignment.center,
             clipBehavior:
                 Clip.none,
-            children: [
+            children: <Widget>[
               Icon(
                 icon,
                 size: 20,

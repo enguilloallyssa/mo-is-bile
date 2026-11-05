@@ -122,18 +122,24 @@ class _RiderRequestsState
 
     return Scaffold(
       backgroundColor: RiderColors.bg,
+
       appBar: AppBar(
         automaticallyImplyLeading:
             false,
-        leading: const RiderMenuButton(),
+
         backgroundColor:
             RiderColors.surface,
+
         foregroundColor:
             RiderColors.text,
+
         surfaceTintColor:
             Colors.transparent,
+
         elevation: 0,
+
         titleSpacing: 16,
+
         title:
             const RiderHeaderTitle(
           title:
@@ -141,6 +147,7 @@ class _RiderRequestsState
           subtitle:
               'Dispatched by SARI Logistics',
         ),
+
         actions: [
           IconButton(
             tooltip:
@@ -152,8 +159,15 @@ class _RiderRequestsState
                   .local_shipping_outlined,
             ),
           ),
+
+          const RiderMenuButton(),
+
+          const SizedBox(
+            width: 3,
+          ),
         ],
       ),
+
       body: ListView(
         padding:
             const EdgeInsets.fromLTRB(
@@ -259,8 +273,6 @@ class _RiderRequestsState
           const SizedBox(
             height: 16,
           ),
-
-          _apiNotice(),
         ],
       ),
     );
@@ -269,17 +281,24 @@ class _RiderRequestsState
   Widget _hero() {
     return Container(
       padding:
-          const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
+          const EdgeInsets.all(
+        20,
+      ),
+      decoration:
+          BoxDecoration(
+        gradient:
+            LinearGradient(
+          begin:
+              Alignment.topLeft,
           end:
               Alignment.bottomRight,
           colors:
               RiderColors.heroGradient,
         ),
         borderRadius:
-            BorderRadius.circular(22),
+            BorderRadius.circular(
+          22,
+        ),
       ),
       child: Column(
         crossAxisAlignment:
@@ -294,14 +313,20 @@ class _RiderRequestsState
                     Colors.white70,
                 size: 16,
               ),
-              SizedBox(width: 8),
+
+              SizedBox(
+                width: 8,
+              ),
+
               Text(
                 'SELLER PICKUP DISPATCH',
-                style: TextStyle(
+                style:
+                    TextStyle(
                   color:
                       Colors.white70,
                   fontSize: 10,
-                  letterSpacing: 1.4,
+                  letterSpacing:
+                      1.4,
                   fontWeight:
                       FontWeight.w800,
                 ),
@@ -315,8 +340,10 @@ class _RiderRequestsState
 
           const Text(
             'Pickup Assignments',
-            style: TextStyle(
-              color: Colors.white,
+            style:
+                TextStyle(
+              color:
+                  Colors.white,
               fontSize: 25,
               fontWeight:
                   FontWeight.w900,
@@ -329,8 +356,10 @@ class _RiderRequestsState
 
           const Text(
             'Collect assigned Seller orders and continue to the next handoff.',
-            style: TextStyle(
-              color: Colors.white70,
+            style:
+                TextStyle(
+              color:
+                  Colors.white70,
               fontSize: 12,
               height: 1.5,
             ),
@@ -343,26 +372,38 @@ class _RiderRequestsState
           OutlinedButton.icon(
             onPressed:
                 widget.onOpenDelivery,
-            icon: const Icon(
-              Icons.route_outlined,
+
+            icon:
+                const Icon(
+              Icons
+                  .route_outlined,
               size: 18,
             ),
-            label: const Text(
+
+            label:
+                const Text(
               'Last-Mile Deliveries',
             ),
+
             style:
-                OutlinedButton.styleFrom(
+                OutlinedButton
+                    .styleFrom(
               foregroundColor:
                   Colors.white,
+
               side:
                   const BorderSide(
-                color: Colors.white38,
+                color:
+                    Colors.white38,
               ),
+
               padding:
-                  const EdgeInsets.symmetric(
+                  const EdgeInsets
+                      .symmetric(
                 horizontal: 16,
                 vertical: 12,
               ),
+
               shape:
                   RoundedRectangleBorder(
                 borderRadius:
@@ -385,7 +426,8 @@ class _RiderRequestsState
     return Row(
       children: [
         Expanded(
-          child: _statCard(
+          child:
+              _statCard(
             'Total',
             total,
             Icons
@@ -393,9 +435,14 @@ class _RiderRequestsState
             RiderColors.blue,
           ),
         ),
-        const SizedBox(width: 9),
+
+        const SizedBox(
+          width: 9,
+        ),
+
         Expanded(
-          child: _statCard(
+          child:
+              _statCard(
             'Assigned',
             assigned,
             Icons
@@ -403,9 +450,14 @@ class _RiderRequestsState
             RiderColors.gold,
           ),
         ),
-        const SizedBox(width: 9),
+
+        const SizedBox(
+          width: 9,
+        ),
+
         Expanded(
-          child: _statCard(
+          child:
+              _statCard(
             'Ongoing',
             inProgress,
             Icons
@@ -429,14 +481,24 @@ class _RiderRequestsState
         vertical: 17,
         horizontal: 8,
       ),
-      decoration: BoxDecoration(
-        color: RiderColors.surface,
+
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+
         borderRadius:
-            BorderRadius.circular(17),
-        border: Border.all(
-          color: RiderColors.border,
+            BorderRadius.circular(
+          17,
+        ),
+
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
         ),
       ),
+
       child: Column(
         children: [
           Icon(
@@ -444,24 +506,31 @@ class _RiderRequestsState
             color: color,
             size: 22,
           ),
+
           const SizedBox(
             height: 10,
           ),
+
           Text(
             '$value',
-            style: TextStyle(
-              color: RiderColors.text,
+            style:
+                TextStyle(
+              color:
+                  RiderColors.text,
               fontSize: 23,
               fontWeight:
                   FontWeight.w900,
             ),
           ),
+
           const SizedBox(
             height: 3,
           ),
+
           Text(
             label,
-            style: TextStyle(
+            style:
+                TextStyle(
               color:
                   RiderColors.muted,
               fontSize: 10,
@@ -484,14 +553,18 @@ class _RiderRequestsState
         Container(
           height: 43,
           width: 43,
-          decoration: BoxDecoration(
+
+          decoration:
+              BoxDecoration(
             color:
                 RiderColors.blueSoft,
+
             borderRadius:
                 BorderRadius.circular(
               12,
             ),
           ),
+
           child: Icon(
             icon,
             color:
@@ -499,18 +572,20 @@ class _RiderRequestsState
             size: 21,
           ),
         ),
+
         const SizedBox(
           width: 11,
         ),
+
         Expanded(
           child: Column(
             crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
+                CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: TextStyle(
+                style:
+                    TextStyle(
                   color:
                       RiderColors.text,
                   fontSize: 16,
@@ -518,12 +593,15 @@ class _RiderRequestsState
                       FontWeight.w800,
                 ),
               ),
+
               const SizedBox(
                 height: 3,
               ),
+
               Text(
                 subtitle,
-                style: TextStyle(
+                style:
+                    TextStyle(
                   color:
                       RiderColors.muted,
                   fontSize: 11,
@@ -542,29 +620,48 @@ class _RiderRequestsState
   ) {
     return Container(
       padding:
-          const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: RiderColors.surface,
+          const EdgeInsets.all(
+        17,
+      ),
+
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+
         borderRadius:
-            BorderRadius.circular(20),
-        border: Border.all(
-          color: RiderColors.blue
-              .withValues(
+            BorderRadius.circular(
+          20,
+        ),
+
+        border:
+            Border.all(
+          color:
+              RiderColors.blue
+                  .withValues(
             alpha: .35,
           ),
         ),
+
         boxShadow: [
           BoxShadow(
             color:
-                Colors.black.withValues(
+                Colors.black
+                    .withValues(
               alpha: .06,
             ),
+
             blurRadius: 14,
+
             offset:
-                const Offset(0, 5),
+                const Offset(
+              0,
+              5,
+            ),
           ),
         ],
       ),
+
       child: Column(
         crossAxisAlignment:
             CrossAxisAlignment.start,
@@ -574,7 +671,12 @@ class _RiderRequestsState
               Expanded(
                 child: Text(
                   order.orderNumber,
-                  style: TextStyle(
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow
+                          .ellipsis,
+                  style:
+                      TextStyle(
                     color:
                         RiderColors.text,
                     fontSize: 18,
@@ -583,10 +685,18 @@ class _RiderRequestsState
                   ),
                 ),
               ),
-              _badge(
-                order.statusLabel,
-                RiderColors.blueSoft,
-                RiderColors.blue,
+
+              const SizedBox(
+                width: 8,
+              ),
+
+              Flexible(
+                child:
+                    _badge(
+                  order.statusLabel,
+                  RiderColors.blueSoft,
+                  RiderColors.blue,
+                ),
               ),
             ],
           ),
@@ -597,7 +707,8 @@ class _RiderRequestsState
 
           Text(
             'Seller pickup • Handoff at origin hub',
-            style: TextStyle(
+            style:
+                TextStyle(
               color:
                   RiderColors.muted,
               fontSize: 12,
@@ -619,6 +730,7 @@ class _RiderRequestsState
             const SizedBox(
               height: 13,
             ),
+
             _infoBox(
               'Pickup completed. Bring the parcel to the assigned origin hub for physical intake by SARI Logistics.',
             ),
@@ -639,7 +751,8 @@ class _RiderRequestsState
 
           Text(
             'Review the current stage before continuing.',
-            style: TextStyle(
+            style:
+                TextStyle(
               color:
                   RiderColors.muted,
               fontSize: 11,
@@ -651,33 +764,46 @@ class _RiderRequestsState
           ),
 
           SizedBox(
-            width: double.infinity,
+            width:
+                double.infinity,
+
             child:
                 FilledButton.icon(
               onPressed:
                   widget.onOpenWorkflow,
-              icon: const Icon(
+
+              icon:
+                  const Icon(
                 Icons
                     .arrow_forward_rounded,
                 size: 18,
               ),
-              label: const Text(
+
+              label:
+                  const Text(
                 'Continue Pickup Workflow',
               ),
+
               style:
-                  FilledButton.styleFrom(
+                  FilledButton
+                      .styleFrom(
                 backgroundColor:
                     RiderColors.blue,
+
                 foregroundColor:
                     Colors.white,
+
                 padding:
-                    const EdgeInsets.symmetric(
+                    const EdgeInsets
+                        .symmetric(
                   vertical: 14,
                 ),
+
                 shape:
                     RoundedRectangleBorder(
                   borderRadius:
-                      BorderRadius.circular(
+                      BorderRadius
+                          .circular(
                     13,
                   ),
                 ),
@@ -693,26 +819,37 @@ class _RiderRequestsState
     return TextField(
       controller:
           _searchController,
-      onChanged: (_) =>
-          setState(() {}),
-      style: TextStyle(
-        color: RiderColors.text,
+
+      onChanged: (_) {
+        setState(() {});
+      },
+
+      style:
+          TextStyle(
+        color:
+            RiderColors.text,
         fontSize: 13,
       ),
+
       decoration:
           InputDecoration(
         hintText:
             'Search order, seller, parcel code...',
+
         hintStyle:
             TextStyle(
-          color: RiderColors.muted,
+          color:
+              RiderColors.muted,
           fontSize: 12,
         ),
+
         prefixIcon:
             Icon(
           Icons.search_rounded,
-          color: RiderColors.muted,
+          color:
+              RiderColors.muted,
         ),
+
         suffixIcon:
             _searchController
                     .text
@@ -726,38 +863,47 @@ class _RiderRequestsState
                         () {},
                       );
                     },
+
                     icon:
                         const Icon(
                       Icons.close,
                     ),
                   )
                 : null,
+
         filled: true,
+
         fillColor:
             RiderColors.field,
+
         contentPadding:
-            const EdgeInsets.symmetric(
+            const EdgeInsets
+                .symmetric(
           horizontal: 15,
           vertical: 14,
         ),
+
         enabledBorder:
             OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(
             14,
           ),
+
           borderSide:
               BorderSide(
             color:
                 RiderColors.border,
           ),
         ),
+
         focusedBorder:
             OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(
             14,
           ),
+
           borderSide:
               BorderSide(
             color:
@@ -774,8 +920,14 @@ class _RiderRequestsState
     int inProgress,
   ) {
     final filters = [
-      ('All', total),
-      ('Assigned', assigned),
+      (
+        'All',
+        total,
+      ),
+      (
+        'Assigned',
+        assigned,
+      ),
       (
         'In Progress',
         inProgress,
@@ -785,8 +937,10 @@ class _RiderRequestsState
     return SingleChildScrollView(
       scrollDirection:
           Axis.horizontal,
+
       child: Row(
-        children: filters.map(
+        children:
+            filters.map(
           (filter) {
             final selected =
                 _filter ==
@@ -794,43 +948,59 @@ class _RiderRequestsState
 
             return Padding(
               padding:
-                  const EdgeInsets.only(
+                  const EdgeInsets
+                      .only(
                 right: 8,
               ),
-              child: ChoiceChip(
-                label: Text(
+
+              child:
+                  ChoiceChip(
+                label:
+                    Text(
                   '${filter.$1} (${filter.$2})',
                 ),
+
                 selected:
                     selected,
+
                 onSelected: (_) {
                   setState(() {
                     _filter =
                         filter.$1;
                   });
                 },
+
                 selectedColor:
                     RiderColors
                         .blueSoft,
+
                 backgroundColor:
                     RiderColors
                         .surface,
-                side: BorderSide(
+
+                side:
+                    BorderSide(
                   color: selected
-                      ? RiderColors.blue
+                      ? RiderColors
+                          .blue
                       : RiderColors
                           .border,
                 ),
+
                 labelStyle:
                     TextStyle(
                   color: selected
-                      ? RiderColors.blue
+                      ? RiderColors
+                          .blue
                       : RiderColors
                           .muted,
+
                   fontWeight:
                       FontWeight.w700,
+
                   fontSize: 11,
                 ),
+
                 showCheckmark:
                     false,
               ),
@@ -853,14 +1023,23 @@ class _RiderRequestsState
     );
 
     return Container(
-      decoration: BoxDecoration(
-        color: RiderColors.surface,
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+
         borderRadius:
-            BorderRadius.circular(20),
-        border: Border.all(
-          color: RiderColors.border,
+            BorderRadius.circular(
+          20,
+        ),
+
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
         ),
       ),
+
       child: Column(
         crossAxisAlignment:
             CrossAxisAlignment.start,
@@ -870,33 +1049,47 @@ class _RiderRequestsState
                 const EdgeInsets.all(
               16,
             ),
+
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Expanded(
                       child: Text(
                         order.orderNumber,
-                        style: TextStyle(
+
+                        maxLines: 1,
+
+                        overflow:
+                            TextOverflow
+                                .ellipsis,
+
+                        style:
+                            TextStyle(
                           color:
-                              RiderColors
-                                  .text,
+                              RiderColors.text,
+
                           fontSize: 16,
+
                           fontWeight:
                               FontWeight
                                   .w900,
                         ),
                       ),
                     ),
+
+                    const SizedBox(
+                      width: 8,
+                    ),
+
                     Icon(
                       Icons
                           .inventory_2_outlined,
+
                       color:
-                          RiderColors
-                              .blue,
+                          RiderColors.blue,
                     ),
                   ],
                 ),
@@ -910,9 +1103,17 @@ class _RiderRequestsState
                           .isNotEmpty
                       ? order.sellerName
                       : order.pickupName,
-                  style: TextStyle(
+
+                  maxLines: 1,
+
+                  overflow:
+                      TextOverflow.ellipsis,
+
+                  style:
+                      TextStyle(
                     color:
                         RiderColors.muted,
+
                     fontSize: 12,
                   ),
                 ),
@@ -930,6 +1131,7 @@ class _RiderRequestsState
                       RiderColors.goldSoft,
                       RiderColors.goldDark,
                     ),
+
                     _badge(
                       'Seller Pickup',
                       RiderColors.blueSoft,
@@ -953,12 +1155,15 @@ class _RiderRequestsState
 
                 Padding(
                   padding:
-                      const EdgeInsets.only(
+                      const EdgeInsets
+                          .only(
                     left: 12,
                   ),
+
                   child: Container(
                     height: 23,
                     width: 2,
+
                     color:
                         RiderColors.border,
                   ),
@@ -967,17 +1172,21 @@ class _RiderRequestsState
                 _location(
                   Icons
                       .location_on_outlined,
+
                   'NEXT HANDOFF',
+
                   order.sortingCenterName
                           .isNotEmpty
                       ? order
                           .sortingCenterName
                       : 'Origin Sorting Hub',
+
                   order.sortingCenterAddress
                           .isNotEmpty
                       ? order
                           .sortingCenterAddress
                       : 'SARI Logistics intake',
+
                   RiderColors.green,
                 ),
 
@@ -993,15 +1202,19 @@ class _RiderRequestsState
           ),
 
           Container(
-            width: double.infinity,
+            width:
+                double.infinity,
+
             padding:
                 const EdgeInsets.all(
               14,
             ),
+
             decoration:
                 BoxDecoration(
-              color: RiderColors
-                  .surfaceSoft,
+              color:
+                  RiderColors.surfaceSoft,
+
               borderRadius:
                   const BorderRadius
                       .vertical(
@@ -1011,40 +1224,50 @@ class _RiderRequestsState
                 ),
               ),
             ),
+
             child: Column(
               children: [
                 SizedBox(
                   width:
                       double.infinity,
+
                   child:
                       FilledButton.icon(
-                    onPressed: widget
-                        .onOpenWorkflow,
-                    icon: Icon(
+                    onPressed:
+                        widget
+                            .onOpenWorkflow,
+
+                    icon:
+                        Icon(
                       isAssigned
                           ? Icons
                               .play_arrow_rounded
                           : Icons
                               .arrow_forward_rounded,
                     ),
-                    label: Text(
+
+                    label:
+                        Text(
                       isAssigned
                           ? 'Start Pickup Workflow'
                           : 'Continue Pickup Workflow',
                     ),
+
                     style:
                         FilledButton
                             .styleFrom(
                       backgroundColor:
-                          RiderColors
-                              .blue,
+                          RiderColors.blue,
+
                       foregroundColor:
                           Colors.white,
+
                       padding:
                           const EdgeInsets
                               .symmetric(
                         vertical: 14,
                       ),
+
                       shape:
                           RoundedRectangleBorder(
                         borderRadius:
@@ -1056,15 +1279,24 @@ class _RiderRequestsState
                     ),
                   ),
                 ),
+
                 const SizedBox(
                   height: 8,
                 ),
+
                 Text(
                   order.packageCode
                           .isEmpty
                       ? 'Parcel code unavailable'
                       : 'Parcel: ${order.packageCode}',
-                  style: TextStyle(
+
+                  maxLines: 1,
+
+                  overflow:
+                      TextOverflow.ellipsis,
+
+                  style:
+                      TextStyle(
                     color:
                         RiderColors.muted,
                     fontSize: 10,
@@ -1094,7 +1326,11 @@ class _RiderRequestsState
           color: accent,
           size: 26,
         ),
-        const SizedBox(width: 11),
+
+        const SizedBox(
+          width: 11,
+        ),
+
         Expanded(
           child: Column(
             crossAxisAlignment:
@@ -1102,7 +1338,8 @@ class _RiderRequestsState
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style:
+                    TextStyle(
                   color: accent,
                   fontSize: 10,
                   letterSpacing: .7,
@@ -1110,14 +1347,23 @@ class _RiderRequestsState
                       FontWeight.w900,
                 ),
               ),
+
               const SizedBox(
                 height: 4,
               ),
+
               Text(
                 name.isEmpty
                     ? 'Not available'
                     : name,
-                style: TextStyle(
+
+                maxLines: 2,
+
+                overflow:
+                    TextOverflow.ellipsis,
+
+                style:
+                    TextStyle(
                   color:
                       RiderColors.text,
                   fontSize: 13,
@@ -1125,14 +1371,23 @@ class _RiderRequestsState
                       FontWeight.w800,
                 ),
               ),
+
               const SizedBox(
                 height: 3,
               ),
+
               Text(
                 address.isEmpty
                     ? 'Address unavailable'
                     : address,
-                style: TextStyle(
+
+                maxLines: 3,
+
+                overflow:
+                    TextOverflow.ellipsis,
+
+                style:
+                    TextStyle(
                   color:
                       RiderColors.muted,
                   fontSize: 11,
@@ -1157,14 +1412,27 @@ class _RiderRequestsState
         horizontal: 10,
         vertical: 7,
       ),
-      decoration: BoxDecoration(
+
+      decoration:
+          BoxDecoration(
         color: background,
+
         borderRadius:
-            BorderRadius.circular(30),
+            BorderRadius.circular(
+          30,
+        ),
       ),
+
       child: Text(
         text,
-        style: TextStyle(
+
+        maxLines: 1,
+
+        overflow:
+            TextOverflow.ellipsis,
+
+        style:
+            TextStyle(
           color: foreground,
           fontSize: 10,
           fontWeight:
@@ -1179,13 +1447,21 @@ class _RiderRequestsState
   ) {
     return Container(
       padding:
-          const EdgeInsets.all(12),
-      decoration: BoxDecoration(
+          const EdgeInsets.all(
+        12,
+      ),
+
+      decoration:
+          BoxDecoration(
         color:
             RiderColors.blueSoft,
+
         borderRadius:
-            BorderRadius.circular(12),
+            BorderRadius.circular(
+          12,
+        ),
       ),
+
       child: Row(
         crossAxisAlignment:
             CrossAxisAlignment.start,
@@ -1193,15 +1469,23 @@ class _RiderRequestsState
           Icon(
             Icons
                 .info_outline_rounded,
+
             color:
                 RiderColors.blue,
+
             size: 18,
           ),
-          const SizedBox(width: 9),
+
+          const SizedBox(
+            width: 9,
+          ),
+
           Expanded(
             child: Text(
               message,
-              style: TextStyle(
+
+              style:
+                  TextStyle(
                 color:
                     RiderColors.text,
                 fontSize: 11,
@@ -1221,31 +1505,48 @@ class _RiderRequestsState
         horizontal: 22,
         vertical: 38,
       ),
-      decoration: BoxDecoration(
-        color: RiderColors.surface,
+
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+
         borderRadius:
-            BorderRadius.circular(20),
-        border: Border.all(
-          color: RiderColors.border,
+            BorderRadius.circular(
+          20,
+        ),
+
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
         ),
       ),
+
       child: Column(
         children: [
           Icon(
             Icons
                 .inventory_2_outlined,
+
             color:
                 RiderColors.muted,
+
             size: 45,
           ),
+
           const SizedBox(
             height: 14,
           ),
+
           Text(
             'No pickup assignments waiting',
+
             textAlign:
                 TextAlign.center,
-            style: TextStyle(
+
+            style:
+                TextStyle(
               color:
                   RiderColors.text,
               fontSize: 15,
@@ -1253,14 +1554,19 @@ class _RiderRequestsState
                   FontWeight.w800,
             ),
           ),
+
           const SizedBox(
             height: 8,
           ),
+
           Text(
             'New Seller pickups will appear here when SARI Logistics assigns them to you.',
+
             textAlign:
                 TextAlign.center,
-            style: TextStyle(
+
+            style:
+                TextStyle(
               color:
                   RiderColors.muted,
               fontSize: 12,
@@ -1281,19 +1587,25 @@ class _RiderRequestsState
           child: Text(
             'Showing $count assigned '
             '${count == 1 ? 'pickup' : 'pickups'}.',
-            style: TextStyle(
+
+            style:
+                TextStyle(
               color:
                   RiderColors.muted,
               fontSize: 11,
             ),
           ),
         ),
+
         TextButton(
           onPressed:
               widget.onOpenDelivery,
+
           child: Text(
             'Last-Mile',
-            style: TextStyle(
+
+            style:
+                TextStyle(
               color:
                   RiderColors.blue,
               fontSize: 12,
@@ -1303,43 +1615,6 @@ class _RiderRequestsState
           ),
         ),
       ],
-    );
-  }
-
-  Widget _apiNotice() {
-    return Container(
-      padding:
-          const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color:
-            RiderColors.goldSoft,
-        borderRadius:
-            BorderRadius.circular(13),
-      ),
-      child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline,
-            color:
-                RiderColors.goldDark,
-            size: 19,
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              'Assignments and workflow actions on this page are loaded from and confirmed by the authenticated Laravel Rider API.',
-              style: TextStyle(
-                color:
-                    RiderColors.text,
-                fontSize: 11,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
