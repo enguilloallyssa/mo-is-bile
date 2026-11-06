@@ -102,10 +102,6 @@ class _SariAddressPickerState extends State<SariAddressPicker> {
         : result;
   }
 
-  // ============================================================
-  // ADDRESS API
-  // ============================================================
-
   Future<List<_Location>> _request(
     String path,
   ) async {
@@ -117,7 +113,7 @@ class _SariAddressPickerState extends State<SariAddressPicker> {
     }
 
     final String base =
-        ApiConfig.baseUrl.replaceFirst(
+        ApiConfig.apiBaseUrl.replaceFirst(
       RegExp(r'/+$'),
       '',
     );
@@ -265,10 +261,6 @@ class _SariAddressPickerState extends State<SariAddressPicker> {
     );
   }
 
-  // ============================================================
-  // REGION
-  // ============================================================
-
   void _selectRegion(
     _Location item,
   ) {
@@ -296,10 +288,6 @@ class _SariAddressPickerState extends State<SariAddressPicker> {
     });
   }
 
-  // ============================================================
-  // PROVINCE
-  // ============================================================
-
   void _selectProvince(
     _Location item,
   ) {
@@ -324,10 +312,6 @@ class _SariAddressPickerState extends State<SariAddressPicker> {
 
     _clearMunicipality();
   }
-
-  // ============================================================
-  // MUNICIPALITY
-  // ============================================================
 
   void _selectMunicipality(
     _Location item,
@@ -355,10 +339,6 @@ class _SariAddressPickerState extends State<SariAddressPicker> {
     _clearBarangay();
   }
 
-  // ============================================================
-  // BARANGAY
-  // ============================================================
-
   void _selectBarangay(
     _Location item,
   ) {
@@ -380,10 +360,6 @@ class _SariAddressPickerState extends State<SariAddressPicker> {
     widget.barangay.clear();
     widget.barangayCode?.clear();
   }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
 
   @override
   Widget build(
@@ -512,10 +488,6 @@ class _SariAddressPickerState extends State<SariAddressPicker> {
     );
   }
 }
-
-// ============================================================
-// SEARCHABLE DROPDOWN
-// ============================================================
 
 class _AddressDropdown
     extends StatefulWidget {
@@ -909,21 +881,21 @@ class _AddressDropdownState
                                   item.code;
 
                           return InkWell(
-                          onTap: () {
-                      _choose(
-                    item,
-                  );
-                  },
-              child: Container(
-          constraints:
-        const BoxConstraints(
-            minHeight: 36,
-          ),
-              padding:
-              const EdgeInsets.symmetric(
-            horizontal: 12,
-              vertical: 8,
-              ),
+                            onTap: () {
+                              _choose(
+                                item,
+                              );
+                            },
+                            child: Container(
+                              constraints:
+                                  const BoxConstraints(
+                                minHeight: 36,
+                              ),
+                              padding:
+                                  const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                               color: selected
                                   ? widget.accent
                                       .withValues(
@@ -1226,4 +1198,4 @@ class _Location {
 
   final String code;
   final String name;
-} 
+}

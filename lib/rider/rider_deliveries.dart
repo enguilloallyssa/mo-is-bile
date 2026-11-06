@@ -180,6 +180,8 @@ class _RiderDeliveriesState
   void _openDetails(
     RiderDelivery order,
   ) {
+    final bool atBuyer = _stage(order) == 1;
+
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -298,8 +300,10 @@ class _RiderDeliveriesState
                         ),
                       ),
                       label: Text(
-                        order
-                            .actionLabel,
+                        atBuyer
+                            ? 'Scan & POD'
+                            : order
+                                .actionLabel,
                       ),
                       style:
                           FilledButton
@@ -346,6 +350,82 @@ class _RiderDeliveriesState
                     ),
                   ),
                 ),
+
+                const SizedBox(
+                  height: 10,
+                ),
+
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(
+                          sheetContext,
+                        ).pop();
+
+                        widget.onMarkFailed(
+                          order,
+                          'Rider reported a failed delivery from mobile.',
+                        );
+                      },
+                      icon: const Icon(
+                        Icons
+                            .report_problem_outlined,
+                        size: 17,
+                      ),
+                      label:
+                          const Text(
+                        'Report Failed',
+                      ),
+                    ),
+
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(
+                          sheetContext,
+                        ).pop();
+
+                        widget
+                            .onReschedule(
+                          order,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons
+                            .event_repeat_rounded,
+                        size: 17,
+                      ),
+                      label:
+                          const Text(
+                        'Reschedule',
+                      ),
+                    ),
+
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(
+                          sheetContext,
+                        ).pop();
+
+                        widget
+                            .onReturnToSorting(
+                          order,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons
+                            .keyboard_return_rounded,
+                        size: 17,
+                      ),
+                      label:
+                          const Text(
+                        'Return',
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -391,9 +471,11 @@ class _RiderDeliveriesState
             size: 23,
           ),
         ),
+
         const SizedBox(
           width: 11,
         ),
+
         Expanded(
           child: Column(
             crossAxisAlignment:
@@ -410,9 +492,11 @@ class _RiderDeliveriesState
                       FontWeight.w900,
                 ),
               ),
+
               const SizedBox(
                 height: 3,
               ),
+
               Text(
                 _stageLabel(
                   order,
@@ -449,9 +533,11 @@ class _RiderDeliveriesState
               RiderColors.blue,
           size: 20,
         ),
+
         const SizedBox(
           width: 10,
         ),
+
         Expanded(
           child: Column(
             crossAxisAlignment:
@@ -469,9 +555,11 @@ class _RiderDeliveriesState
                   letterSpacing: .7,
                 ),
               ),
+
               const SizedBox(
                 height: 4,
               ),
+
               Text(
                 value,
                 style:
@@ -491,6 +579,83 @@ class _RiderDeliveriesState
     );
   }
 
+  Widget _proofHelpCard() {
+    return Container(
+      padding:
+          const EdgeInsets.all(
+        14,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            RiderColors.surface,
+        borderRadius:
+            BorderRadius.circular(
+          15,
+        ),
+        border:
+            Border.all(
+          color:
+              RiderColors.border,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons
+                .add_a_photo_outlined,
+            color:
+                RiderColors.goldDark,
+            size: 21,
+          ),
+
+          const SizedBox(
+            width: 11,
+          ),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Proof of Delivery',
+                  style:
+                      TextStyle(
+                    color:
+                        RiderColors.text,
+                    fontWeight:
+                        FontWeight.w900,
+                    fontSize: 12,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 4,
+                ),
+
+                Text(
+                  'After arriving at the Buyer, tap Scan & POD on the order. '
+                  'Verify the parcel QR, take a delivery photo, and upload it. '
+                  'The server will then check COD and complete the order.',
+                  style:
+                      TextStyle(
+                    color:
+                        RiderColors.muted,
+                    fontSize: 10,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _deliveryNotice(
     RiderDelivery order,
   ) {
@@ -498,14 +663,15 @@ class _RiderDeliveriesState
 
     if (_stage(order) == 1) {
       message =
-          'You are at the Buyer location. Complete the required delivery verification and proof before final completion.';
+          'Arrived at Buyer. Tap Scan & POD below: scan parcel QR, capture a handoff photo, then upload proof before delivery completion.';
     } else {
       message =
           'The parcel is on the way to the Buyer. Confirm arrival only when you have reached the delivery location.';
     }
 
     return Container(
-      width: double.infinity,
+      width:
+          double.infinity,
       padding:
           const EdgeInsets.all(
         13,
@@ -530,9 +696,11 @@ class _RiderDeliveriesState
                 RiderColors.blue,
             size: 19,
           ),
+
           const SizedBox(
             width: 9,
           ),
+
           Expanded(
             child: Text(
               message,
@@ -580,7 +748,8 @@ class _RiderDeliveriesState
       ),
       (
         'At Buyer',
-        Icons.location_on_outlined,
+        Icons
+            .location_on_outlined,
       ),
       (
         'Delivered',
@@ -691,6 +860,7 @@ class _RiderDeliveriesState
                         const SizedBox(
                           height: 2,
                         ),
+
                         Text(
                           'Current stage',
                           style:
@@ -698,8 +868,7 @@ class _RiderDeliveriesState
                             color:
                                 RiderColors
                                     .blue,
-                            fontSize:
-                                8,
+                            fontSize: 8,
                             fontWeight:
                                 FontWeight
                                     .w600,
@@ -747,7 +916,6 @@ class _RiderDeliveriesState
       appBar: AppBar(
         automaticallyImplyLeading:
             false,
-        leading: const RiderMenuButton(),
         backgroundColor:
             RiderColors.surface,
         foregroundColor:
@@ -758,7 +926,8 @@ class _RiderDeliveriesState
         titleSpacing: 16,
         title:
             const RiderHeaderTitle(
-          title: 'Active Deliveries',
+          title:
+              'Active Deliveries',
           subtitle:
               'Last-Mile Buyer Delivery',
         ),
@@ -768,10 +937,12 @@ class _RiderDeliveriesState
                 'Delivery History',
             onPressed:
                 widget.onOpenHistory,
-            icon: const Icon(
+            icon:
+                const Icon(
               Icons.history_rounded,
             ),
           ),
+          const RiderMenuButton(),
         ],
       ),
       body: ListView(
@@ -793,8 +964,10 @@ class _RiderDeliveriesState
 
           _summary(
             total: all.length,
-            inTransit: inTransit,
-            atBuyer: atBuyer,
+            inTransit:
+                inTransit,
+            atBuyer:
+                atBuyer,
           ),
 
           const SizedBox(
@@ -817,8 +990,10 @@ class _RiderDeliveriesState
 
           _filters(
             total: all.length,
-            inTransit: inTransit,
-            atBuyer: atBuyer,
+            inTransit:
+                inTransit,
+            atBuyer:
+                atBuyer,
           ),
 
           const SizedBox(
@@ -860,7 +1035,7 @@ class _RiderDeliveriesState
             height: 15,
           ),
 
-          _apiNotice(),
+          _proofHelpCard(),
         ],
       ),
     );
@@ -901,16 +1076,20 @@ class _RiderDeliveriesState
                     Colors.white70,
                 size: 17,
               ),
-              SizedBox(width: 8),
+              SizedBox(
+                width: 8,
+              ),
               Text(
                 'LAST-MILE OPERATIONS',
-                style: TextStyle(
+                style:
+                    TextStyle(
                   color:
                       Colors.white70,
                   fontSize: 10,
                   fontWeight:
                       FontWeight.w800,
-                  letterSpacing: 1.3,
+                  letterSpacing:
+                      1.3,
                 ),
               ),
             ],
@@ -922,13 +1101,15 @@ class _RiderDeliveriesState
 
           const Text(
             'Active Deliveries',
-            style: TextStyle(
+            style:
+                TextStyle(
               color:
                   Colors.white,
               fontSize: 27,
               fontWeight:
                   FontWeight.w900,
-              letterSpacing: -.5,
+              letterSpacing:
+                  -.5,
             ),
           ),
 
@@ -938,9 +1119,12 @@ class _RiderDeliveriesState
 
           const Text(
             'Complete assigned Buyer deliveries and follow the required delivery verification flow.',
-            style: TextStyle(
+            style:
+                TextStyle(
               color:
-                  Color(0xFFE2E9ED),
+                  Color(
+                0xFFE2E9ED,
+              ),
               fontSize: 12,
               height: 1.5,
             ),
@@ -956,8 +1140,10 @@ class _RiderDeliveriesState
             children: [
               FilledButton.icon(
                 onPressed:
-                    widget.onOpenWorkflow,
-                icon: const Icon(
+                    widget
+                        .onOpenWorkflow,
+                icon:
+                    const Icon(
                   Icons
                       .assignment_outlined,
                   size: 18,
@@ -967,11 +1153,12 @@ class _RiderDeliveriesState
                   'Delivery Workflow',
                 ),
                 style:
-                    FilledButton.styleFrom(
+                    FilledButton
+                        .styleFrom(
                   backgroundColor:
                       Colors.white,
                   foregroundColor:
-                      Color(
+                      const Color(
                     0xFF263E4B,
                   ),
                 ),
@@ -979,7 +1166,8 @@ class _RiderDeliveriesState
 
               OutlinedButton.icon(
                 onPressed:
-                    widget.onOpenHistory,
+                    widget
+                        .onOpenHistory,
                 icon:
                     const Icon(
                   Icons.history_rounded,
@@ -990,7 +1178,8 @@ class _RiderDeliveriesState
                   'History',
                 ),
                 style:
-                    OutlinedButton.styleFrom(
+                    OutlinedButton
+                        .styleFrom(
                   foregroundColor:
                       Colors.white,
                   side:
@@ -1018,7 +1207,8 @@ class _RiderDeliveriesState
           child: _stat(
             label:
                 'Active',
-            value: total,
+            value:
+                total,
             icon: Icons
                 .inventory_2_outlined,
             accent:
@@ -1036,7 +1226,8 @@ class _RiderDeliveriesState
           child: _stat(
             label:
                 'In Transit',
-            value: inTransit,
+            value:
+                inTransit,
             icon: Icons
                 .local_shipping_outlined,
             accent:
@@ -1054,7 +1245,8 @@ class _RiderDeliveriesState
           child: _stat(
             label:
                 'At Buyer',
-            value: atBuyer,
+            value:
+                atBuyer,
             icon: Icons
                 .location_on_outlined,
             accent:
@@ -1103,7 +1295,8 @@ class _RiderDeliveriesState
                 Alignment.center,
             decoration:
                 BoxDecoration(
-              color: soft,
+              color:
+                  soft,
               borderRadius:
                   BorderRadius.circular(
                 10,
@@ -1111,7 +1304,8 @@ class _RiderDeliveriesState
             ),
             child: Icon(
               icon,
-              color: accent,
+              color:
+                  accent,
               size: 19,
             ),
           ),
@@ -1174,8 +1368,7 @@ class _RiderDeliveriesState
             ),
           ),
           child: Icon(
-            Icons
-                .route_outlined,
+            Icons.route_outlined,
             color:
                 RiderColors.blue,
           ),
@@ -1201,9 +1394,11 @@ class _RiderDeliveriesState
                       FontWeight.w900,
                 ),
               ),
+
               const SizedBox(
                 height: 3,
               ),
+
               Text(
                 'Current parcels assigned for Buyer delivery.',
                 style:
@@ -1255,7 +1450,8 @@ class _RiderDeliveriesState
                     },
                     icon:
                         const Icon(
-                      Icons.close_rounded,
+                      Icons
+                          .close_rounded,
                     ),
                   ),
       ),
@@ -1267,11 +1463,20 @@ class _RiderDeliveriesState
     required int inTransit,
     required int atBuyer,
   }) {
-    final items = <
-        (String, int)>[
-      ('All', total),
-      ('In Transit', inTransit),
-      ('At Buyer', atBuyer),
+    final items =
+        <(String, int)>[
+      (
+        'All',
+        total,
+      ),
+      (
+        'In Transit',
+        inTransit,
+      ),
+      (
+        'At Buyer',
+        atBuyer,
+      ),
     ];
 
     return SingleChildScrollView(
@@ -1281,14 +1486,16 @@ class _RiderDeliveriesState
         children: items.map(
           (item) {
             final selected =
-                _filter == item.$1;
+                _filter ==
+                    item.$1;
 
             return Padding(
               padding:
                   const EdgeInsets.only(
                 right: 7,
               ),
-              child: ChoiceChip(
+              child:
+                  ChoiceChip(
                 label: Text(
                   '${item.$1} (${item.$2})',
                 ),
@@ -1377,14 +1584,18 @@ class _RiderDeliveriesState
                   children: [
                     Expanded(
                       child: Text(
-                        order.orderNumber,
+                        order
+                            .orderNumber,
                         style:
                             TextStyle(
                           color:
-                              RiderColors.text,
-                          fontSize: 16,
+                              RiderColors
+                                  .text,
+                          fontSize:
+                              16,
                           fontWeight:
-                              FontWeight.w900,
+                              FontWeight
+                                  .w900,
                         ),
                       ),
                     ),
@@ -1399,18 +1610,22 @@ class _RiderDeliveriesState
                   ],
                 ),
 
-                if (order.sellerName
+                if (order
+                    .sellerName
                     .trim()
                     .isNotEmpty) ...[
                   const SizedBox(
                     height: 5,
                   ),
+
                   Text(
-                    order.sellerName,
+                    order
+                        .sellerName,
                     style:
                         TextStyle(
                       color:
-                          RiderColors.muted,
+                          RiderColors
+                              .muted,
                       fontSize: 10,
                     ),
                   ),
@@ -1439,28 +1654,36 @@ class _RiderDeliveriesState
 
                 _location(
                   icon:
-                      Icons.person_outline_rounded,
-                  label: 'BUYER',
-                  name: order.buyerName
+                      Icons
+                          .person_outline_rounded,
+                  label:
+                      'BUYER',
+                  name: order
+                          .buyerName
                           .trim()
                           .isNotEmpty
-                      ? order.buyerName
+                      ? order
+                          .buyerName
                       : 'Buyer',
                   address: order
                           .buyerAddress
                           .trim()
                           .isNotEmpty
-                      ? order.buyerAddress
+                      ? order
+                          .buyerAddress
                       : 'Delivery address unavailable',
-                  accent: accent,
+                  accent:
+                      accent,
                 ),
 
-                if (order.packageCode
+                if (order
+                    .packageCode
                     .trim()
                     .isNotEmpty) ...[
                   const SizedBox(
                     height: 13,
                   ),
+
                   _location(
                     icon: Icons
                         .qr_code_2_rounded,
@@ -1471,7 +1694,8 @@ class _RiderDeliveriesState
                     address:
                         'Verify this parcel during the required delivery flow.',
                     accent:
-                        RiderColors.goldDark,
+                        RiderColors
+                            .goldDark,
                   ),
                 ],
 
@@ -1517,7 +1741,8 @@ class _RiderDeliveriesState
                   ),
                 ),
 
-                if (order.actionLabel
+                if (order
+                    .actionLabel
                     .trim()
                     .isNotEmpty) ...[
                   const SizedBox(
@@ -1546,7 +1771,8 @@ class _RiderDeliveriesState
                                 .ellipsis,
                       ),
                       style:
-                          FilledButton.styleFrom(
+                          FilledButton
+                              .styleFrom(
                         backgroundColor:
                             accent,
                         foregroundColor:
@@ -1584,7 +1810,8 @@ class _RiderDeliveriesState
               children: [
                 Row(
                   children: [
-                    if (index > 0)
+                    if (index >
+                        0)
                       Expanded(
                         child:
                             Container(
@@ -1608,13 +1835,15 @@ class _RiderDeliveriesState
                         shape:
                             BoxShape.circle,
                         color: reached
-                            ? RiderColors.blue
+                            ? RiderColors
+                                .blue
                             : RiderColors
                                 .surfaceSoft,
                         border:
                             Border.all(
                           color: reached
-                              ? RiderColors.blue
+                              ? RiderColors
+                                  .blue
                               : RiderColors
                                   .border,
                         ),
@@ -1632,7 +1861,8 @@ class _RiderDeliveriesState
                               style:
                                   TextStyle(
                                 color:
-                                    RiderColors.muted,
+                                    RiderColors
+                                        .muted,
                                 fontSize:
                                     9,
                               ),
@@ -1647,7 +1877,8 @@ class _RiderDeliveriesState
                           height: 2,
                           color: index <
                                   current
-                              ? RiderColors.blue
+                              ? RiderColors
+                                  .blue
                               : RiderColors
                                   .border,
                         ),
@@ -1667,11 +1898,14 @@ class _RiderDeliveriesState
                       TextStyle(
                     color: index ==
                             current
-                        ? RiderColors.blue
-                        : RiderColors.muted,
+                        ? RiderColors
+                            .blue
+                        : RiderColors
+                            .muted,
                     fontSize: 7.5,
                     fontWeight:
-                        index == current
+                        index ==
+                                current
                             ? FontWeight
                                 .w800
                             : FontWeight
@@ -1699,7 +1933,8 @@ class _RiderDeliveriesState
       children: [
         Icon(
           icon,
-          color: accent,
+          color:
+              accent,
           size: 22,
         ),
 
@@ -1716,7 +1951,8 @@ class _RiderDeliveriesState
                 label,
                 style:
                     TextStyle(
-                  color: accent,
+                  color:
+                      accent,
                   fontSize: 8,
                   fontWeight:
                       FontWeight.w900,
@@ -1774,7 +2010,8 @@ class _RiderDeliveriesState
       ),
       decoration:
           BoxDecoration(
-        color: background,
+        color:
+            background,
         borderRadius:
             BorderRadius.circular(
           20,
@@ -1784,7 +2021,8 @@ class _RiderDeliveriesState
         text,
         style:
             TextStyle(
-          color: foreground,
+          color:
+              foreground,
           fontSize: 8,
           fontWeight:
               FontWeight.w800,
@@ -1874,54 +2112,6 @@ class _RiderDeliveriesState
             label:
                 const Text(
               'View History',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _apiNotice() {
-    return Container(
-      padding:
-          const EdgeInsets.all(
-        12,
-      ),
-      decoration:
-          BoxDecoration(
-        color:
-            RiderColors.goldSoft,
-        borderRadius:
-            BorderRadius.circular(
-          12,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons
-                .verified_user_outlined,
-            color:
-                RiderColors.goldDark,
-            size: 18,
-          ),
-
-          const SizedBox(
-            width: 8,
-          ),
-
-          Expanded(
-            child: Text(
-              'Arrival and delivery completion are validated by the authenticated Laravel Rider API. Proof of delivery is handled separately and will be aligned in the next Rider workflow update.',
-              style:
-                  TextStyle(
-                color:
-                    RiderColors.text,
-                fontSize: 9.5,
-                height: 1.45,
-              ),
             ),
           ),
         ],

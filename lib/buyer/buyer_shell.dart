@@ -11,6 +11,7 @@ import 'buyer_messages.dart';
 import 'buyer_notifications.dart';
 import 'buyer_orders.dart';
 import 'buyer_products.dart';
+import 'buyer_rewards.dart';
 import 'buyer_shipping.dart';
 import 'buyer_theme.dart';
 import 'widgets/buyer_bottom_nav.dart';
@@ -38,29 +39,30 @@ class _BuyerShellState extends State<BuyerShell> {
 
   static const Color _gold =
       Color(0xFFD9950B);
-int _navIndexForPage(
-  int page,
-) {
-  switch (page) {
-    case 0:
-      return 0;
 
-    case 1:
-      return 1;
+  int _navIndexForPage(
+    int page,
+  ) {
+    switch (page) {
+      case 0:
+        return 0;
 
-    case 3:
-      return 2;
+      case 1:
+        return 1;
 
-    case 6:
-      return 3;
+      case 3:
+        return 2;
 
-    case 4:
-      return 4;
+      case 6:
+        return 3;
 
-    default:
-      return _currentNavIndex;
+      case 4:
+        return 4;
+
+      default:
+        return _currentNavIndex;
+    }
   }
-}
 
   bool _requiresLogin(
     int page,
@@ -70,14 +72,15 @@ int _navIndexForPage(
         page == 4 ||
         page == 5 ||
         page == 6 ||
-        page == 7;
+        page == 7 ||
+        page == 8;
   }
 
   Future<void> _openPage(
     int page,
   ) async {
     if (page < 0 ||
-        page > 7) {
+        page > 8) {
       return;
     }
 
@@ -156,27 +159,27 @@ int _navIndexForPage(
     }
   }
 
-Future<void> _onBottomNavTap(
-  int index,
-) async {
-  const List<int> pages =
-      <int>[
-    0, // Home
-    1, // Shop
-    3, // Orders
-    6, // Messages
-    4, // Account
-  ];
+  Future<void> _onBottomNavTap(
+    int index,
+  ) async {
+    const List<int> pages =
+        <int>[
+      0,
+      1,
+      3,
+      6,
+      4,
+    ];
 
-  if (index < 0 ||
-      index >= pages.length) {
-    return;
+    if (index < 0 ||
+        index >= pages.length) {
+      return;
+    }
+
+    await _openPage(
+      pages[index],
+    );
   }
-
-  await _openPage(
-    pages[index],
-  );
-}
 
   void _showLoginRequired() {
     showDialog<void>(
@@ -185,17 +188,21 @@ Future<void> _onBottomNavTap(
         BuildContext dialogContext,
       ) {
         return AlertDialog(
-          title: const Text(
+          title:
+              const Text(
             'Login Required',
-            style: TextStyle(
+            style:
+                TextStyle(
               fontWeight:
                   FontWeight.w800,
             ),
           ),
-          content: const Text(
+          content:
+              const Text(
             'Please log in to your SARI Buyer account to access this page.',
           ),
-          actions: <Widget>[
+          actions:
+              <Widget>[
             TextButton(
               onPressed: () {
                 Navigator.of(
@@ -245,12 +252,16 @@ Future<void> _onBottomNavTap(
       return;
     }
 
-    ScaffoldMessenger.of(context)
+    ScaffoldMessenger.of(
+      context,
+    )
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           content:
-              Text(message),
+              Text(
+            message,
+          ),
           behavior:
               SnackBarBehavior
                   .floating,
@@ -262,7 +273,9 @@ Future<void> _onBottomNavTap(
     BuildContext context,
   ) {
     final ThemeData base =
-        Theme.of(context);
+        Theme.of(
+      context,
+    );
 
     const List<String>
         fallbackFonts =
@@ -291,15 +304,6 @@ Future<void> _onBottomNavTap(
           BuyerTheme.ink,
     );
 
-    /*
-     * Very important:
-     *
-     * Google Fonts can occasionally miss the
-     * Philippine peso character depending on
-     * the loaded font subset.
-     *
-     * Explicit fallback keeps ₱ visible.
-     */
     final TextTheme textTheme =
         interTheme.copyWith(
       displayLarge:
@@ -369,7 +373,8 @@ Future<void> _onBottomNavTap(
           BuyerTheme.canvas,
       canvasColor:
           BuyerTheme.canvas,
-      textTheme: textTheme,
+      textTheme:
+          textTheme,
       primaryTextTheme:
           textTheme,
 
@@ -514,7 +519,8 @@ Future<void> _onBottomNavTap(
         ),
         contentTextStyle:
             GoogleFonts.inter(
-          color: Colors.white,
+          color:
+              Colors.white,
           fontSize: 11,
         ),
         behavior:
@@ -573,6 +579,9 @@ Future<void> _onBottomNavTap(
       case 7:
         return const BuyerShipping();
 
+      case 8:
+        return const BuyerRewards();
+
       default:
         return BuyerHome(
           onTabChanged:
@@ -600,13 +609,16 @@ Future<void> _onBottomNavTap(
         .addPostFrameCallback(
       (_) {
         if (mounted) {
-          _openPage(page);
+          _openPage(
+            page,
+          );
         }
       },
     );
   }
 
-  Future<void> _logout() async {
+  Future<void> _logout()
+      async {
     if (_loggingOut) {
       return;
     }
@@ -637,7 +649,8 @@ Future<void> _onBottomNavTap(
               const Text(
             'You will need to sign in again to access your Buyer account.',
           ),
-          actions: <Widget>[
+          actions:
+              <Widget>[
             TextButton(
               onPressed: () {
                 Navigator.pop(
@@ -686,12 +699,7 @@ Future<void> _onBottomNavTap(
 
       revokedRemotely =
           true;
-    } catch (_) {
-      /*
-       * Server may temporarily be unavailable.
-       * Still clear this device session.
-       */
-    }
+    } catch (_) {}
 
     try {
       const FlutterSecureStorage
@@ -718,8 +726,9 @@ Future<void> _onBottomNavTap(
         );
       }
 
-      Navigator.of(context)
-          .pushNamedAndRemoveUntil(
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(
         '/login',
         (
           Route<dynamic> route,
@@ -743,8 +752,9 @@ Future<void> _onBottomNavTap(
 
   Widget _settingsDrawer() {
     final double width =
-        MediaQuery.sizeOf(context)
-                    .width >
+        MediaQuery.sizeOf(
+                      context,
+                    ).width >
                 430
             ? 335
             : MediaQuery.sizeOf(
@@ -753,7 +763,8 @@ Future<void> _onBottomNavTap(
                 .86;
 
     return Drawer(
-      width: width,
+      width:
+          width,
       shape:
           const RoundedRectangleBorder(
         borderRadius:
@@ -766,12 +777,15 @@ Future<void> _onBottomNavTap(
       ),
       backgroundColor:
           BuyerTheme.surface,
-      child: SafeArea(
-        child: Column(
+      child:
+          SafeArea(
+        child:
+            Column(
           crossAxisAlignment:
               CrossAxisAlignment
                   .start,
-          children: <Widget>[
+          children:
+              <Widget>[
             Padding(
               padding:
                   const EdgeInsets
@@ -781,8 +795,10 @@ Future<void> _onBottomNavTap(
                 16,
                 12,
               ),
-              child: Row(
-                children: <Widget>[
+              child:
+                  Row(
+                children:
+                    <Widget>[
                   Container(
                     height: 43,
                     width: 43,
@@ -806,15 +822,19 @@ Future<void> _onBottomNavTap(
                               .goldDark,
                     ),
                   ),
+
                   const SizedBox(
                     width: 12,
                   ),
+
                   const Expanded(
-                    child: Column(
+                    child:
+                        Column(
                       crossAxisAlignment:
                           CrossAxisAlignment
                               .start,
-                      children: <Widget>[
+                      children:
+                          <Widget>[
                         Text(
                           'Account settings',
                           style:
@@ -841,6 +861,7 @@ Future<void> _onBottomNavTap(
                       ],
                     ),
                   ),
+
                   IconButton(
                     tooltip:
                         'Close settings',
@@ -873,9 +894,11 @@ Future<void> _onBottomNavTap(
                 16,
                 8,
               ),
-              child: Text(
+              child:
+                  Text(
                 'MORE SERVICES',
-                style: TextStyle(
+                style:
+                    TextStyle(
                   color:
                       BuyerTheme
                           .goldDark,
@@ -912,6 +935,18 @@ Future<void> _onBottomNavTap(
               },
             ),
 
+            _settingsLink(
+              Icons
+                  .workspace_premium_outlined,
+              'Rewards',
+              'View your live SARI reward points',
+              () {
+                _openSettingsPage(
+                  8,
+                );
+              },
+            ),
+
             const Spacer(),
 
             const Divider(
@@ -929,7 +964,8 @@ Future<void> _onBottomNavTap(
                 12,
                 5,
               ),
-              child: Material(
+              child:
+                  Material(
                 color:
                     const Color(
                   0xFFFFF1EF,
@@ -939,7 +975,8 @@ Future<void> _onBottomNavTap(
                         .circular(
                   15,
                 ),
-                child: ListTile(
+                child:
+                    ListTile(
                   shape:
                       RoundedRectangleBorder(
                     borderRadius:
@@ -956,7 +993,8 @@ Future<void> _onBottomNavTap(
                         BuyerTheme
                             .danger,
                   ),
-                  title: Text(
+                  title:
+                      Text(
                     _loggingOut
                         ? 'Signing out...'
                         : 'Log out',
@@ -994,9 +1032,11 @@ Future<void> _onBottomNavTap(
                 22,
                 12,
               ),
-              child: Text(
+              child:
+                  Text(
                 'SARI Marketplace · Buyer account',
-                style: TextStyle(
+                style:
+                    TextStyle(
                   fontSize: 10,
                   color:
                       BuyerTheme.muted,
@@ -1021,15 +1061,18 @@ Future<void> _onBottomNavTap(
         horizontal: 12,
         vertical: 3,
       ),
-      child: Material(
+      child:
+          Material(
         color:
             BuyerTheme.canvas,
         borderRadius:
             BorderRadius.circular(
           15,
         ),
-        child: ListTile(
-          onTap: onTap,
+        child:
+            ListTile(
+          onTap:
+              onTap,
           shape:
               RoundedRectangleBorder(
             borderRadius:
@@ -1037,12 +1080,14 @@ Future<void> _onBottomNavTap(
               15,
             ),
           ),
-          leading: Icon(
+          leading:
+              Icon(
             icon,
             color:
                 BuyerTheme.goldDark,
           ),
-          title: Text(
+          title:
+              Text(
             title,
             style:
                 const TextStyle(
@@ -1053,7 +1098,8 @@ Future<void> _onBottomNavTap(
                   BuyerTheme.ink,
             ),
           ),
-          subtitle: Text(
+          subtitle:
+              Text(
             subtitle,
             style:
                 const TextStyle(
@@ -1088,8 +1134,10 @@ Future<void> _onBottomNavTap(
           BuyerNavigationScope(
         openSettings:
             _openAccountSettings,
-        child: Scaffold(
-          key: _scaffoldKey,
+        child:
+            Scaffold(
+          key:
+              _scaffoldKey,
           endDrawer:
               _currentPage == 4
                   ? _settingsDrawer()
@@ -1098,17 +1146,22 @@ Future<void> _onBottomNavTap(
               false,
           backgroundColor:
               BuyerTheme.canvas,
-          body: Stack(
-            children: <Widget>[
+          body:
+              Stack(
+            children:
+                <Widget>[
               AnimatedSwitcher(
                 duration:
                     const Duration(
-                  milliseconds: 220,
+                  milliseconds:
+                      220,
                 ),
                 switchInCurve:
-                    Curves.easeOutCubic,
+                    Curves
+                        .easeOutCubic,
                 switchOutCurve:
-                    Curves.easeInCubic,
+                    Curves
+                        .easeInCubic,
                 transitionBuilder:
                     (
                   Widget child,
@@ -1118,12 +1171,14 @@ Future<void> _onBottomNavTap(
                   return FadeTransition(
                     opacity:
                         animation,
-                    child: child,
+                    child:
+                        child,
                   );
                 },
                 child:
                     KeyedSubtree(
-                  key: ValueKey<int>(
+                  key:
+                      ValueKey<int>(
                     _currentPage,
                   ),
                   child:
@@ -1141,7 +1196,8 @@ Future<void> _onBottomNavTap(
                         const Color(
                       0x55FFFFFF,
                     ),
-                    child: Center(
+                    child:
+                        Center(
                       child:
                           Container(
                         padding:

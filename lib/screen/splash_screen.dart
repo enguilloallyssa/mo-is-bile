@@ -1,6 +1,7 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -17,31 +18,26 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   // ============================================================
-  // ASSETS
+  // ASSET
   // ============================================================
 
-  static const String _logoTile =
-      'assets/images/sari-logo.png';
-
-  static const String _goldS =
-      'assets/images/sari_s.png';
+  // The splash now uses ONLY the transparent gold S.
+  static const String _goldS = 'assets/images/sari_s.png';
 
   // ============================================================
   // STORAGE KEYS
   // ============================================================
 
-  static const String _tokenKey =
-      'sari_access_token';
-
-  static const String _roleKey =
-      'sari_account_role';
+  static const String _tokenKey = 'sari_access_token';
+  static const String _roleKey = 'sari_account_role';
 
   // ============================================================
   // COLORS
   // ============================================================
 
-  static const Color _gold =
-      Color(0xFFE5B94E);
+  static const Color _gold = Color(0xFFE5B94E);
+  static const Color _lightGold = Color(0xFFFFE99B);
+  static const Color _deepGold = Color(0xFFC88C27);
 
   // ============================================================
   // STORAGE / API
@@ -51,7 +47,6 @@ class _SplashScreenState extends State<SplashScreen>
       FlutterSecureStorage();
 
   late final SariApi _api;
-
   late final Future<String> _sessionRouteFuture;
 
   // ============================================================
@@ -60,13 +55,11 @@ class _SplashScreenState extends State<SplashScreen>
 
   late final AnimationController _controller;
 
-  late final Animation<double> _entrance;
-  late final Animation<double> _entranceScale;
-
-  late final Animation<double> _tileFadeOut;
-  late final Animation<double> _standaloneSFadeIn;
+  late final Animation<double> _logoFade;
+  late final Animation<double> _logoScale;
 
   late final Animation<double> _moveLeft;
+
   late final Animation<double> _ariReveal;
   late final Animation<double> _ariFade;
 
@@ -96,6 +89,17 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
+    // Keep the splash completely dark and premium-looking.
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.black,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+    );
+
     _api = SariApi(
       baseUrl: ApiConfig.apiBaseUrl,
       timeout: const Duration(seconds: 10),
@@ -106,86 +110,81 @@ class _SplashScreenState extends State<SplashScreen>
       },
     );
 
-    /*
-     * Start validating the mobile session immediately.
-     *
-     * This runs at the same time as the splash animation,
-     * so the user does not need to wait for another loading
-     * screen after the animation.
-     */
-    _sessionRouteFuture =
-        _resolveSessionRoute();
+    // Validate the existing session while the animation is running.
+    _sessionRouteFuture = _resolveSessionRoute();
 
+    // Shorter and cleaner than the previous 4.8 second animation.
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(
-        milliseconds: 4800,
+        milliseconds: 3400,
       ),
     );
 
-    // Original logo tile enters.
-    _entrance = _interval(
+    // ------------------------------------------------------------
+    // S APPEARS
+    // ------------------------------------------------------------
+
+    _logoFade = _interval(
       0.00,
-      0.18,
+      0.07,
       Curves.easeOut,
     );
 
-    _entranceScale = Tween<double>(
-      begin: 0.72,
+    _logoScale = Tween<double>(
+      begin: 0.92,
       end: 1.0,
     ).animate(
       _interval(
         0.00,
-        0.22,
-        Curves.easeOutBack,
+        0.10,
+        Curves.easeOutCubic,
       ),
     );
 
-    // Gold S appears.
-    _standaloneSFadeIn = _interval(
-      0.27,
-      0.43,
-      Curves.easeInOut,
-    );
+    // ------------------------------------------------------------
+    // S IMMEDIATELY MOVES LEFT
+    // ------------------------------------------------------------
 
-    // Original tile disappears.
-    _tileFadeOut = _interval(
-      0.32,
-      0.50,
-      Curves.easeInOut,
-    );
-
-    // S moves to the left.
     _moveLeft = _interval(
-      0.45,
-      0.69,
+      0.08,
+      0.34,
       Curves.easeInOutCubic,
     );
 
-    // "ari" reveals.
+    // ------------------------------------------------------------
+    // "ari" REVEALS AFTER S STARTS MOVING
+    // ------------------------------------------------------------
+
     _ariReveal = _interval(
-      0.50,
-      0.72,
+      0.28,
+      0.53,
       Curves.easeOutCubic,
     );
 
     _ariFade = _interval(
-      0.50,
-      0.68,
+      0.30,
+      0.48,
       Curves.easeOut,
     );
 
-    // Bottom line.
+    // ------------------------------------------------------------
+    // ACCENT LINE
+    // ------------------------------------------------------------
+
     _lineReveal = _interval(
-      0.70,
-      0.84,
+      0.54,
+      0.67,
       Curves.easeOutCubic,
     );
 
-    // Tagline.
+    // ------------------------------------------------------------
+    // TAGLINE
+    // ------------------------------------------------------------
+
     _taglineFade = _interval(
-      0.76,
-      0.91,
+      0.61,
+      0.77,
       Curves.easeOut,
     );
 
@@ -212,35 +211,20 @@ class _SplashScreenState extends State<SplashScreen>
             .trim()
             .toLowerCase();
 
-    /*
-     * No token means:
-     *
-     * - new user
-     * - logged out user
-     * - guest user
-     *
-     * Go to the normal Welcome page.
-     */
+    // No token:
+    // new user, logged-out user, or guest.
     if (token.isEmpty) {
       return '/welcome';
     }
 
     try {
-      /*
-       * The Laravel backend is the source of truth.
-       *
-       * We do NOT automatically trust only the locally
-       * saved role.
-       */
-      final SariJson response =
-          await _api.me();
+      // Laravel remains the source of truth.
+      final SariJson response = await _api.me();
 
-      final dynamic rawData =
-          response['data'];
+      final dynamic rawData = response['data'];
 
       if (rawData is! Map) {
         await _clearSession();
-
         return '/welcome';
       }
 
@@ -249,12 +233,10 @@ class _SplashScreenState extends State<SplashScreen>
         rawData,
       );
 
-      final dynamic rawUser =
-          data['user'];
+      final dynamic rawUser = data['user'];
 
       if (rawUser is! Map) {
         await _clearSession();
-
         return '/welcome';
       }
 
@@ -276,14 +258,9 @@ class _SplashScreenState extends State<SplashScreen>
 
       if (route == null) {
         await _clearSession();
-
         return '/welcome';
       }
 
-      /*
-       * Keep the locally stored role synchronized with
-       * whatever Laravel currently says the account is.
-       */
       await _storage.write(
         key: _roleKey,
         value: serverRole,
@@ -291,33 +268,14 @@ class _SplashScreenState extends State<SplashScreen>
 
       return route;
     } on SariApiException catch (error) {
-      /*
-       * A 401 means the token no longer exists or is invalid.
-       *
-       * Examples:
-       * - logout from another device using logout-all
-       * - token revoked from Laravel
-       * - expired/removed Sanctum token
-       */
+      // Invalid / revoked token.
       if (error.isUnauthorized) {
         await _clearSession();
-
         return '/welcome';
       }
 
-      /*
-       * IMPORTANT:
-       *
-       * If Laravel is temporarily unavailable (500/502/530,
-       * network timeout, etc.), DO NOT delete a potentially
-       * valid login token.
-       *
-       * We can temporarily use the previously verified
-       * stored role.
-       *
-       * The actual Rider/Buyer pages will still refresh
-       * their data from Laravel when they open.
-       */
+      // Do not erase a valid token just because
+      // the backend is temporarily unreachable.
       final String? fallback =
           _routeForRole(storedRole);
 
@@ -381,10 +339,6 @@ class _SplashScreenState extends State<SplashScreen>
   // ============================================================
 
   Future<void> _runSplash() async {
-    /*
-     * Animation and API verification are running
-     * simultaneously.
-     */
     await _controller.forward();
 
     if (!mounted) {
@@ -406,17 +360,12 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   // ============================================================
-  // IMAGE PRELOAD
+  // PRELOAD
   // ============================================================
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    precacheImage(
-      const AssetImage(_logoTile),
-      context,
-    );
 
     precacheImage(
       const AssetImage(_goldS),
@@ -437,151 +386,126 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   // ============================================================
-  // LOGO ANIMATION
+  // GOLD S
+  // ============================================================
+
+  Widget _buildGoldS() {
+    /*
+     * sari_s.png contains transparent space around the visible S.
+     *
+     * BoxFit.cover intentionally crops that transparent padding,
+     * allowing the actual gold S to look larger and cleaner
+     * without creating another image asset.
+     */
+
+    return SizedBox(
+      width: 95,
+      height: 250,
+      child: Image.asset(
+        _goldS,
+        fit: BoxFit.cover,
+        alignment: Alignment.center,
+        filterQuality: FilterQuality.high,
+      ),
+    );
+  }
+
+  // ============================================================
+  // LOGO / WORD ANIMATION
   // ============================================================
 
   Widget _buildLogoAnimation() {
     /*
      * Fixed design canvas.
      *
-     * FittedBox scales the complete animation instead of
-     * allowing the S and "ari" to separate on phones with
-     * different screen sizes.
+     * The complete canvas is scaled as one unit by FittedBox,
+     * keeping the S and "ari" aligned on phones of different sizes.
      */
+
+    const double canvasWidth = 340;
+    const double canvasHeight = 180;
+
     return SizedBox(
-      width: 340,
-      height: 205,
+      width: canvasWidth,
+      height: canvasHeight,
       child: Stack(
         clipBehavior: Clip.none,
         children: <Widget>[
-          // ----------------------------------------------------
-          // ORIGINAL BLACK LOGO TILE
-          // ----------------------------------------------------
+          // ------------------------------------------------------
+          // SUBTLE GOLD AMBIENT GLOW
+          // ------------------------------------------------------
 
           Positioned(
-            left: 67,
-            top: 0,
-            width: 206,
-            height: 206,
+            left: 75,
+            top: 9,
+            width: 190,
+            height: 150,
             child: Opacity(
-              opacity: (
-                _entrance.value *
-                    (1 - _tileFadeOut.value)
-              ).clamp(
-                0.0,
-                1.0,
-              ),
-              child: Transform.scale(
-                scale:
-                    _entranceScale.value,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius:
-                        BorderRadius.circular(
-                      45,
-                    ),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color:
-                            _gold.withOpacity(
-                          0.17,
-                        ),
-                        blurRadius: 55,
-                        spreadRadius: 2,
+              opacity:
+                  0.18 * _logoFade.value,
+              child: Container(
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: Color(
+                        0x22E5B94E,
                       ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(
-                      45,
+                      blurRadius: 85,
+                      spreadRadius: 15,
                     ),
-                    child:
-                        Transform.scale(
-                      scale: 1.05,
-                      child: Image.asset(
-                        _logoTile,
-                        width: 206,
-                        height: 206,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
               ),
             ),
           ),
 
-          // ----------------------------------------------------
-          // TRANSPARENT GOLD S
-          // ----------------------------------------------------
+          // ------------------------------------------------------
+          // GOLD S
+          //
+          // Starts exactly in the middle.
+          // Then moves left to become the first letter of "Sari".
+          // ------------------------------------------------------
 
-          AnimatedBuilder(
-            animation: _controller,
+          Builder(
             builder: (
               BuildContext context,
-              Widget? child,
             ) {
-              final double progress =
-                  _moveLeft.value;
-
               final double left =
                   lerpDouble(
-                111,
-                31,
-                progress,
-              )!;
-
-              final double top =
-                  lerpDouble(
-                27,
-                40,
-                progress,
-              )!;
-
-              final double width =
-                  lerpDouble(
-                118,
-                108,
-                progress,
-              )!;
-
-              final double height =
-                  lerpDouble(
-                156,
-                132,
-                progress,
+                122.5,
+                63.0,
+                _moveLeft.value,
               )!;
 
               return Positioned(
                 left: left,
-                top: top,
-                width: width,
-                height: height,
+                top: -35,
+                width: 95,
+                height: 250,
                 child: Opacity(
-                  opacity:
-                      _standaloneSFadeIn
-                          .value,
-                  child: Image.asset(
-                    _goldS,
-                    width: width,
-                    height: height,
-                    fit: BoxFit.contain,
+                  opacity: _logoFade.value,
+                  child: Transform.scale(
+                    scale:
+                        _logoScale.value,
+                    alignment:
+                        Alignment.center,
+                    child: _buildGoldS(),
                   ),
                 ),
               );
             },
           ),
 
-          // ----------------------------------------------------
+          // ------------------------------------------------------
           // "ari"
-          // ----------------------------------------------------
+          // ------------------------------------------------------
 
           Positioned(
-            left: 101,
-            top: 40,
-            width: 220,
-            height: 135,
+            left: 125,
+            top: 30,
+            width: 195,
+            height: 125,
             child: ClipRect(
               child: Align(
                 alignment:
@@ -591,13 +515,12 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Opacity(
                   opacity:
                       _ariFade.value,
-                  child:
-                      Transform.translate(
+                  child: Transform.translate(
                     offset: Offset(
                       (1 -
                               _ariReveal
                                   .value) *
-                          -25,
+                          -14,
                       0,
                     ),
                     child: ShaderMask(
@@ -606,20 +529,14 @@ class _SplashScreenState extends State<SplashScreen>
                       shaderCallback:
                           (Rect bounds) {
                         return const LinearGradient(
-                          begin: Alignment
-                              .topCenter,
-                          end: Alignment
-                              .bottomCenter,
+                          begin:
+                              Alignment.topCenter,
+                          end:
+                              Alignment.bottomCenter,
                           colors: <Color>[
-                            Color(
-                              0xFFFFE99B,
-                            ),
-                            Color(
-                              0xFFE8BD55,
-                            ),
-                            Color(
-                              0xFFD39C2D,
-                            ),
+                            _lightGold,
+                            _gold,
+                            _deepGold,
                           ],
                           stops: <double>[
                             0.0,
@@ -633,15 +550,15 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Text(
                         'ari',
                         maxLines: 1,
-                        style: GoogleFonts
-                            .playfairDisplay(
-                          fontSize: 112,
+                        softWrap: false,
+                        style:
+                            GoogleFonts.playfairDisplay(
+                          fontSize: 102,
                           fontWeight:
                               FontWeight.w600,
-                          height: 1.0,
-                          letterSpacing: -4,
-                          color:
-                              Colors.white,
+                          height: 0.98,
+                          letterSpacing: -3.6,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -664,23 +581,38 @@ class _SplashScreenState extends State<SplashScreen>
       mainAxisSize:
           MainAxisSize.min,
       children: <Widget>[
+        // Gold separator line
         Container(
           width:
-              52 * _lineReveal.value,
-          height: 1.2,
+              50 *
+              _lineReveal.value,
+          height: 1.25,
           decoration: BoxDecoration(
             color: _gold.withOpacity(
-              0.95 *
+              0.92 *
                   _lineReveal.value,
             ),
             borderRadius:
                 BorderRadius.circular(
-              10,
+              20,
             ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color:
+                    _gold.withOpacity(
+                  0.12 *
+                      _lineReveal.value,
+                ),
+                blurRadius: 9,
+                spreadRadius: 1,
+              ),
+            ],
           ),
         ),
 
-        const SizedBox(height: 13),
+        const SizedBox(
+          height: 13,
+        ),
 
         Opacity(
           opacity:
@@ -697,12 +629,13 @@ class _SplashScreenState extends State<SplashScreen>
               'ELEVATED EVERYDAY',
               textAlign:
                   TextAlign.center,
+              maxLines: 1,
               style:
                   GoogleFonts.poppins(
-                fontSize: 10.5,
+                fontSize: 10,
                 fontWeight:
                     FontWeight.w600,
-                letterSpacing: 3.7,
+                letterSpacing: 3.5,
                 color: const Color(
                   0xFFE0C886,
                 ),
@@ -715,6 +648,34 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   // ============================================================
+  // BACKGROUND
+  // ============================================================
+
+  BoxDecoration _backgroundDecoration() {
+    return const BoxDecoration(
+      gradient: RadialGradient(
+        center: Alignment(
+          0,
+          -0.02,
+        ),
+        radius: 1.05,
+        colors: <Color>[
+          Color(0xFF272729),
+          Color(0xFF171719),
+          Color(0xFF0C0C0D),
+          Color(0xFF020202),
+        ],
+        stops: <double>[
+          0.0,
+          0.38,
+          0.70,
+          1.0,
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
   // BUILD
   // ============================================================
 
@@ -722,10 +683,11 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(
     BuildContext context,
   ) {
+    final Size screen =
+        MediaQuery.sizeOf(context);
+
     final double availableWidth =
-        MediaQuery.sizeOf(context)
-                .width *
-            0.86;
+        screen.width * 0.88;
 
     return Scaffold(
       backgroundColor:
@@ -734,61 +696,62 @@ class _SplashScreenState extends State<SplashScreen>
         width: double.infinity,
         height: double.infinity,
         decoration:
-            const BoxDecoration(
-          gradient: RadialGradient(
-            center:
-                Alignment(0, -0.08),
-            radius: 1.10,
-            colors: <Color>[
-              Color(0xFF29292C),
-              Color(0xFF151517),
-              Color(0xFF050505),
-            ],
-            stops: <double>[
-              0.0,
-              0.55,
-              1.0,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child:
-                AnimatedBuilder(
-              animation:
-                  _controller,
-              builder: (
-                BuildContext context,
-                Widget? child,
-              ) {
-                return Column(
-                  mainAxisSize:
-                      MainAxisSize.min,
-                  children: <Widget>[
-                    SizedBox(
-                      width:
-                          availableWidth,
-                      height: 205,
-                      child: FittedBox(
-                        fit:
-                            BoxFit.contain,
-                        alignment:
-                            Alignment
-                                .center,
-                        child:
-                            _buildLogoAnimation(),
-                      ),
-                    ),
+            _backgroundDecoration(),
 
-                    const SizedBox(
-                      height: 5,
-                    ),
+        /*
+         * No SafeArea here intentionally.
+         *
+         * This makes the actual logo composition use the true
+         * physical center of the display rather than the center
+         * of the remaining safe-area space.
+         */
+        child: Center(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (
+              BuildContext context,
+              Widget? child,
+            ) {
+              return Stack(
+                clipBehavior:
+                    Clip.none,
+                alignment:
+                    Alignment.center,
+                children: <Widget>[
+                  // ------------------------------------------------
+                  // MAIN S / SARI WORD
+                  // ------------------------------------------------
 
-                    _buildTagline(),
-                  ],
-                );
-              },
-            ),
+                  SizedBox(
+                    width:
+                        availableWidth,
+                    height: 180,
+                    child: FittedBox(
+                      fit:
+                          BoxFit.contain,
+                      alignment:
+                          Alignment.center,
+                      child:
+                          _buildLogoAnimation(),
+                    ),
+                  ),
+
+                  // ------------------------------------------------
+                  // TAGLINE
+                  // ------------------------------------------------
+
+                  Transform.translate(
+                    offset:
+                        const Offset(
+                      0,
+                      118,
+                    ),
+                    child:
+                        _buildTagline(),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

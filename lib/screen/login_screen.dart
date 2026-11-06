@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'mobile_password_reset_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/api_config.dart';
@@ -364,8 +365,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _forgotPassword() {
-    _showMessage(
-      'Password reset is not connected to the mobile API yet.',
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            const MobilePasswordResetScreen(),
+      ),
     );
   }
 

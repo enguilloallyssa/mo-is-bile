@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../services/sari_live_data.dart';
@@ -19,6 +17,7 @@ import 'rider_messages.dart';
 import 'rider_notifications.dart';
 import 'rider_pickups.dart';
 import 'rider_profile.dart';
+import 'rider_proof_of_delivery.dart';
 import 'rider_remittances.dart';
 import 'rider_requests.dart';
 import 'rider_scanner.dart';
@@ -37,10 +36,11 @@ class RiderShell extends StatefulWidget {
 }
 
 class _RiderShellState extends State<RiderShell> {
-  final ImagePicker _imagePicker = ImagePicker();
-  final GlobalKey<ScaffoldState> _shellKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> _shellKey =
+      GlobalKey<ScaffoldState>();
 
-  void _openDrawer() => _shellKey.currentState?.openEndDrawer();
+  void _openDrawer() =>
+      _shellKey.currentState?.openEndDrawer();
 
   @override
   void dispose() {
@@ -49,10 +49,14 @@ class _RiderShellState extends State<RiderShell> {
   }
 
   int _currentIndex = 0;
+
   final Set<int> _visitedTabs = {0};
 
+  final Set<int> _uploadedProofOrderIds =
+      <int>{};
+
   bool _darkMode = false;
-  bool _loading = true;
+  bool _loading = false;
   bool _refreshing = false;
   bool _financeLoading = false;
   bool _lastMileLoading = false;
@@ -93,8 +97,13 @@ class _RiderShellState extends State<RiderShell> {
   void initState() {
     super.initState();
 
-    RiderThemeController.setDark(_darkMode);
-    RiderMenuController.open = _openDrawer;
+    RiderThemeController.setDark(
+      _darkMode,
+    );
+
+    RiderMenuController.open =
+        _openDrawer;
+
     _loadAll();
   }
 
@@ -172,15 +181,13 @@ class _RiderShellState extends State<RiderShell> {
   RiderDelivery _delivery(
     dynamic raw,
   ) {
-    final data =
-        _map(raw);
+    final data = _map(raw);
 
     final actions = _list(
       data['allowed_actions'],
     )
         .map(
-          (value) =>
-              '$value',
+          (value) => '$value',
         )
         .where(
           (value) =>
@@ -225,7 +232,9 @@ class _RiderShellState extends State<RiderShell> {
 
       if (key.contains('buyer') ||
           key.contains('delivery') ||
-          key.contains('destination')) {
+          key.contains(
+            'destination',
+          )) {
         buyerStop = stop;
       }
 
@@ -286,11 +295,13 @@ class _RiderShellState extends State<RiderShell> {
           pickupStop?['address'],
         ),
       ),
-      pickupLatitude: coordinate(
+      pickupLatitude:
+          coordinate(
         pickupStop,
         'lat',
       ),
-      pickupLongitude: coordinate(
+      pickupLongitude:
+          coordinate(
         pickupStop,
         'lng',
       ),
@@ -301,11 +312,13 @@ class _RiderShellState extends State<RiderShell> {
       sortingCenterAddress: _text(
         hubStop?['address'],
       ),
-      sortingCenterLatitude: coordinate(
+      sortingCenterLatitude:
+          coordinate(
         hubStop,
         'lat',
       ),
-      sortingCenterLongitude: coordinate(
+      sortingCenterLongitude:
+          coordinate(
         hubStop,
         'lng',
       ),
@@ -319,11 +332,13 @@ class _RiderShellState extends State<RiderShell> {
           buyerStop?['address'],
         ),
       ),
-      buyerLatitude: coordinate(
+      buyerLatitude:
+          coordinate(
         buyerStop,
         'lat',
       ),
-      buyerLongitude: coordinate(
+      buyerLongitude:
+          coordinate(
         buyerStop,
         'lng',
       ),
@@ -342,7 +357,8 @@ class _RiderShellState extends State<RiderShell> {
       isLogisticsPickup:
           data['is_logistics_pickup'] ==
               true,
-      allowedActions: actions,
+      allowedActions:
+          actions,
     );
   }
 
@@ -395,9 +411,7 @@ class _RiderShellState extends State<RiderShell> {
         data['completed_deliveries'],
       ),
       rating:
-          rating <= 0
-              ? 5
-              : rating,
+          rating <= 0 ? 5 : rating,
     );
   }
 
@@ -431,8 +445,7 @@ class _RiderShellState extends State<RiderShell> {
           data['facility_municipality'],
         ),
       ),
-      parcels:
-          const [],
+      parcels: const [],
     );
   }
 
@@ -458,7 +471,8 @@ class _RiderShellState extends State<RiderShell> {
 
       try {
         final response =
-            await SariLiveData.instance
+            await SariLiveData
+                .instance
                 .riderLastMileDetails(
           id,
         );
@@ -539,8 +553,7 @@ class _RiderShellState extends State<RiderShell> {
                   (
                     parcel,
                   ) =>
-                      parcel.id >
-                      0,
+                      parcel.id > 0,
                 )
                 .toList();
 
@@ -571,7 +584,8 @@ class _RiderShellState extends State<RiderShell> {
                 'SARI Hub',
               ),
             ),
-            facilityAddress: _text(
+            facilityAddress:
+                _text(
               assignment[
                   'facility_address'],
               _text(
@@ -617,7 +631,8 @@ class _RiderShellState extends State<RiderShell> {
   ) {
     final current =
         _map(
-      dashboard['current_assignment'],
+      dashboard[
+          'current_assignment'],
     );
 
     final currentId =
@@ -642,164 +657,499 @@ class _RiderShellState extends State<RiderShell> {
     return assignments.first;
   }
 
-  // Only the dashboard is on the critical path after login. Other data
-  // loads when its section needs it, without holding the initial screen.
   Future<void> _loadAll() async {
-    if (_refreshing || !mounted) return;
-    setState(() { _refreshing = true; _error = null; });
-    Map<String, dynamic> response = {};
-    String? failure;
-    try {
-      response = await SariLiveData.instance.riderDashboard(
-          timeout: const Duration(seconds: 8));
-    } catch (error) {
-      failure = error.toString();
+    if (_refreshing ||
+        !mounted) {
+      return;
     }
-    if (!mounted) return;
-    final dashboard = _map(response['data']);
+
+    setState(() {
+      _refreshing = true;
+      _error = null;
+    });
+
+    Map<String, dynamic> response =
+        {};
+
+    String? failure;
+
+    try {
+      response =
+          await SariLiveData
+              .instance
+              .riderDashboard(
+        timeout:
+            const Duration(
+          seconds: 8,
+        ),
+      );
+    } catch (error) {
+      failure =
+          error.toString();
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    final dashboard =
+        _map(
+      response['data'],
+    );
+
     setState(() {
       if (dashboard.isNotEmpty) {
-        _dashboardSummary = _map(dashboard['summary']);
-        _currentDelivery = _resolveCurrentDelivery(_assignments, dashboard);
+        _dashboardSummary =
+            _map(
+          dashboard['summary'],
+        );
+
+        _currentDelivery =
+            _resolveCurrentDelivery(
+          _assignments,
+          dashboard,
+        );
       }
+
       _loading = false;
       _refreshing = false;
-      _error = dashboard.isEmpty ? (failure ?? 'Rider dashboard is unavailable.') : null;
+
+      _error =
+          dashboard.isEmpty
+              ? (failure ??
+                  'Rider dashboard is unavailable.')
+              : null;
     });
-    // Data shown here is always server-backed, never seeded demo data.
-    unawaited(_loadPrimary());
-    if (_visitedTabs.contains(3)) unawaited(_loadFinance());
+
+    unawaited(
+      _loadPrimary(),
+    );
+
+    if (_visitedTabs.contains(3)) {
+      unawaited(
+        _loadFinance(),
+      );
+    }
   }
 
   Future<void> _loadPrimary() async {
-    final results = await Future.wait<Map<String, dynamic>>([
-      _safeJson(() => SariLiveData.instance.riderProfile(
-          timeout: const Duration(seconds: 9))),
-      _safeJson(() => SariLiveData.instance.riderAssignments(
-          timeout: const Duration(seconds: 9))),
-    ]);
-    if (!mounted) return;
-    final profile = _map(results[0]['data']);
-    final rows = _list(results[1]['data']);
-    final assignments = rows.map(_delivery).where((item) => item.id > 0).toList();
+    final results =
+        await Future.wait<
+            Map<String, dynamic>>(
+      [
+        _safeJson(
+          () => SariLiveData
+              .instance
+              .riderProfile(
+            timeout:
+                const Duration(
+              seconds: 9,
+            ),
+          ),
+        ),
+        _safeJson(
+          () => SariLiveData
+              .instance
+              .riderAssignments(
+            timeout:
+                const Duration(
+              seconds: 9,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    final profile =
+        _map(
+      results[0]['data'],
+    );
+
+    final rows =
+        _list(
+      results[1]['data'],
+    );
+
+    final assignments =
+        rows
+            .map(_delivery)
+            .where(
+              (item) =>
+                  item.id > 0,
+            )
+            .toList();
+
     setState(() {
-      if (profile.isNotEmpty) _profile = _profileFrom(profile);
-      if (results[1].isNotEmpty) {
-        _assignments..clear()..addAll(assignments);
+      if (profile.isNotEmpty) {
+        _profile =
+            _profileFrom(
+          profile,
+        );
       }
-      _currentDelivery = _resolveCurrentDelivery(_assignments, {});
+
+      if (results[1].isNotEmpty) {
+        _assignments
+          ..clear()
+          ..addAll(
+            assignments,
+          );
+      }
+
+      _currentDelivery =
+          _resolveCurrentDelivery(
+        _assignments,
+        {},
+      );
     });
-    // Detail requests only while the active work pages need map/route details.
-    if (_visitedTabs.contains(1) || _visitedTabs.contains(2)) {
-      unawaited(_hydrateAssignments(assignments));
+
+    if (_visitedTabs.contains(1) ||
+        _visitedTabs.contains(2)) {
+      unawaited(
+        _hydrateAssignments(
+          assignments,
+        ),
+      );
     }
   }
 
-  Future<void> _hydrateAssignments(List<RiderDelivery> initial) async {
-    if (initial.isEmpty) return;
-    final details = await Future.wait<RiderDelivery>(initial.take(20).map((item) async {
-      try {
-        final response = await SariLiveData.instance.riderAssignment(item.id);
-        return _delivery(response['data']);
-      } catch (_) { return item; }
-    }));
-    if (!mounted) return;
+  Future<void> _hydrateAssignments(
+    List<RiderDelivery> initial,
+  ) async {
+    if (initial.isEmpty) {
+      return;
+    }
+
+    final details =
+        await Future.wait<
+            RiderDelivery>(
+      initial.take(20).map(
+        (item) async {
+          try {
+            final response =
+                await SariLiveData
+                    .instance
+                    .riderAssignment(
+              item.id,
+            );
+
+            return _delivery(
+              response['data'],
+            );
+          } catch (_) {
+            return item;
+          }
+        },
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
-      for (final detail in details) {
-        final i = _assignments.indexWhere((item) => item.id == detail.id);
-        if (i >= 0) _assignments[i] = detail;
+      for (final detail
+          in details) {
+        final i =
+            _assignments
+                .indexWhere(
+          (item) =>
+              item.id ==
+              detail.id,
+        );
+
+        if (i >= 0) {
+          _assignments[i] =
+              detail;
+        }
       }
-      final currentId = _currentDelivery?.id;
-      final currentIndex = _assignments.indexWhere((item) => item.id == currentId);
-      if (currentIndex >= 0) _currentDelivery = _assignments[currentIndex];
+
+      final currentId =
+          _currentDelivery?.id;
+
+      final currentIndex =
+          _assignments
+              .indexWhere(
+        (item) =>
+            item.id ==
+            currentId,
+      );
+
+      if (currentIndex >= 0) {
+        _currentDelivery =
+            _assignments[
+                currentIndex];
+      }
     });
   }
 
-  Future<void> _loadFinance() async {
-    if (_financeLoading || !mounted) return;
+  Future<void> _loadFinance()
+      async {
+    if (_financeLoading ||
+        !mounted) {
+      return;
+    }
+
     _financeLoading = true;
+
     try {
-      final results = await Future.wait<Map<String, dynamic>>([
-        _safeJson(() => SariLiveData.instance.riderEarnings()),
-        _safeJson(() => SariLiveData.instance.riderTransactions(perPage: 50)),
-      ]);
-      if (!mounted) return;
-      final earnings = _map(results[0]['data']);
-      final transactions = _list(results[1]['data']);
+      final results =
+          await Future.wait<
+              Map<String, dynamic>>(
+        [
+          _safeJson(
+            () =>
+                SariLiveData
+                    .instance
+                    .riderEarnings(),
+          ),
+          _safeJson(
+            () =>
+                SariLiveData
+                    .instance
+                    .riderTransactions(
+              perPage: 50,
+            ),
+          ),
+        ],
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final earnings =
+          _map(
+        results[0]['data'],
+      );
+
+      final transactions =
+          _list(
+        results[1]['data'],
+      );
+
       setState(() {
         if (results[0].isNotEmpty) {
           _dailyEarnings
             ..clear()
-            ..addAll(_list(earnings['daily']).map((raw) {
-              final data = _map(raw);
-              return RiderDailyEarning(day: _text(data['day']), amount: _double(data['amount']));
-            }));
+            ..addAll(
+              _list(
+                earnings['daily'],
+              ).map(
+                (raw) {
+                  final data =
+                      _map(raw);
+
+                  return RiderDailyEarning(
+                    day: _text(
+                      data['day'],
+                    ),
+                    amount: _double(
+                      data['amount'],
+                    ),
+                  );
+                },
+              ),
+            );
         }
+
         if (results[1].isNotEmpty) {
           _transactions
             ..clear()
-            ..addAll(transactions.map((raw) {
-              final data = _map(raw);
-              return RiderEarningTransaction(
-                order: _text(data['order_number'], 'Order'),
-                date: _text(data['earned_at']),
-                type: _text(data['earning_type'], 'earning'),
-                amount: _double(data['amount']),
-                status: _text(data['status'], 'recorded'),
-              );
-            }));
+            ..addAll(
+              transactions.map(
+                (raw) {
+                  final data =
+                      _map(raw);
+
+                  return RiderEarningTransaction(
+                    order: _text(
+                      data[
+                          'order_number'],
+                      'Order',
+                    ),
+                    date: _text(
+                      data[
+                          'earned_at'],
+                    ),
+                    type: _text(
+                      data[
+                          'earning_type'],
+                      'earning',
+                    ),
+                    amount: _double(
+                      data['amount'],
+                    ),
+                    status: _text(
+                      data['status'],
+                      'recorded',
+                    ),
+                  );
+                },
+              ),
+            );
         }
       });
-    } finally { _financeLoading = false; }
+    } finally {
+      _financeLoading =
+          false;
+    }
   }
 
-  Future<void> _loadLastMile() async {
-    if (_lastMileLoading || !mounted) return;
+  Future<void> _loadLastMile()
+      async {
+    if (_lastMileLoading ||
+        !mounted) {
+      return;
+    }
+
     _lastMileLoading = true;
+
     try {
-      final response = await SariLiveData.instance.riderLastMile();
-      final rows = _list(response['data']);
-      final batches = await _loadLastMileBatches(rows);
-      if (!mounted) return;
-      setState(() { _lastMileBatches..clear()..addAll(batches); });
+      final response =
+          await SariLiveData
+              .instance
+              .riderLastMile();
+
+      final rows =
+          _list(
+        response['data'],
+      );
+
+      final batches =
+          await _loadLastMileBatches(
+        rows,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _lastMileBatches
+          ..clear()
+          ..addAll(
+            batches,
+          );
+      });
     } catch (error) {
-      if (mounted) _toast('Last-mile data unavailable: $error');
-    } finally { _lastMileLoading = false; }
+      if (mounted) {
+        _toast(
+          'Last-mile data unavailable: $error',
+        );
+      }
+    } finally {
+      _lastMileLoading =
+          false;
+    }
   }
 
-  void _drawerNavigate(int tab) {
-    _shellKey.currentState?.closeEndDrawer();
-    _changeTab(tab);
+  void _drawerNavigate(
+    int tab,
+  ) {
+    _shellKey.currentState
+        ?.closeEndDrawer();
+
+    _changeTab(
+      tab,
+    );
   }
 
-  void _drawerOpen(VoidCallback action) {
-    _shellKey.currentState?.closeEndDrawer();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) action();
-    });
+  void _drawerOpen(
+    VoidCallback action,
+  ) {
+    _shellKey.currentState
+        ?.closeEndDrawer();
+
+    WidgetsBinding.instance
+        .addPostFrameCallback(
+      (_) {
+        if (mounted) {
+          action();
+        }
+      },
+    );
   }
 
-  Future<void> _logoutFromDrawer() async {
-    final confirm = await showDialog<bool>(
+  Future<void> _logoutFromDrawer()
+      async {
+    final confirm =
+        await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('End the SARI Rider session on this phone?'),
+      builder:
+          (dialogContext) =>
+              AlertDialog(
+        title:
+            const Text(
+          'Log out?',
+        ),
+        content:
+            const Text(
+          'End the SARI Rider session on this phone?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Log out')),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(
+              dialogContext,
+              false,
+            ),
+            child:
+                const Text(
+              'Cancel',
+            ),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(
+              dialogContext,
+              true,
+            ),
+            child:
+                const Text(
+              'Log out',
+            ),
+          ),
         ],
       ),
     );
-    if (confirm != true || !mounted) return;
+
+    if (confirm != true ||
+        !mounted) {
+      return;
+    }
+
     try {
-      await SariLiveData.instance.logout();
-      const storage = FlutterSecureStorage();
-      await storage.delete(key: 'sari_access_token');
-      await storage.delete(key: 'sari_account_role');
-      if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+      await SariLiveData
+          .instance
+          .logout();
+
+      const storage =
+          FlutterSecureStorage();
+
+      await storage.delete(
+        key: 'sari_access_token',
+      );
+
+      await storage.delete(
+        key: 'sari_account_role',
+      );
+
+      if (mounted) {
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(
+          '/login',
+          (_) => false,
+        );
+      }
     } catch (error) {
-      _toast('Logout failed; session retained: $error');
+      _toast(
+        'Logout failed; session retained: $error',
+      );
     }
   }
 
@@ -814,10 +1164,28 @@ class _RiderShellState extends State<RiderShell> {
     setState(() {
       _currentIndex =
           index;
-      _visitedTabs.add(index);
+
+      _visitedTabs.add(
+        index,
+      );
     });
-    if (index == 3) unawaited(_loadFinance());
-    if (index == 1 || index == 2) unawaited(_hydrateAssignments(List.of(_assignments)));
+
+    if (index == 3) {
+      unawaited(
+        _loadFinance(),
+      );
+    }
+
+    if (index == 1 ||
+        index == 2) {
+      unawaited(
+        _hydrateAssignments(
+          List.of(
+            _assignments,
+          ),
+        ),
+      );
+    }
   }
 
   void _setDarkMode(
@@ -840,12 +1208,16 @@ class _RiderShellState extends State<RiderShell> {
       return;
     }
 
-    ScaffoldMessenger.of(context)
+    ScaffoldMessenger.of(
+      context,
+    )
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           content:
-              Text(message),
+              Text(
+            message,
+          ),
           behavior:
               SnackBarBehavior
                   .floating,
@@ -895,8 +1267,9 @@ class _RiderShellState extends State<RiderShell> {
     String? expectedOrderNumber,
   }) async {
     final code =
-        await Navigator.of(context)
-            .push<String>(
+        await Navigator.of(
+      context,
+    ).push<String>(
       MaterialPageRoute<String>(
         builder: (
           context,
@@ -922,7 +1295,8 @@ class _RiderShellState extends State<RiderShell> {
 
     try {
       final response =
-          await SariLiveData.instance
+          await SariLiveData
+              .instance
               .riderScanVerify(
         code.trim(),
       );
@@ -970,307 +1344,129 @@ class _RiderShellState extends State<RiderShell> {
     required String orderNumber,
     String? recipientName,
   }) async {
-    XFile? photo;
-
-    try {
-      photo =
-          await _imagePicker
-              .pickImage(
-        source:
-            ImageSource.camera,
-        imageQuality: 82,
-        maxWidth: 1800,
-      );
-    } catch (error) {
-      _toast(
-        'Unable to open the camera: $error',
-      );
-
-      return false;
+    if (_uploadedProofOrderIds
+        .contains(orderId)) {
+      return true;
     }
 
-    if (!mounted ||
-        photo == null) {
-      return false;
-    }
-
-    final recipientController =
-        TextEditingController(
-      text:
-          recipientName ?? '',
-    );
-
-    final notesController =
-        TextEditingController();
-
-    final submit =
-        await showDialog<bool>(
-      context: context,
-      builder: (
-        dialogContext,
-      ) {
-        return AlertDialog(
-          title:
-              const Text(
-            'Proof of Delivery',
-          ),
-          content:
-              SingleChildScrollView(
-            child: Column(
-              mainAxisSize:
-                  MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
-              children: [
-                Container(
-                  width:
-                      double.infinity,
-                  padding:
-                      const EdgeInsets.all(
-                    12,
-                  ),
-                  decoration:
-                      BoxDecoration(
-                    color:
-                        RiderColors
-                            .greenSoft,
-                    borderRadius:
-                        BorderRadius.circular(
-                      12,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons
-                            .photo_camera_outlined,
-                        color:
-                            RiderColors
-                                .green,
-                      ),
-                      const SizedBox(
-                        width: 9,
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Photo captured for $orderNumber',
-                          style:
-                              TextStyle(
-                            color:
-                                RiderColors
-                                    .text,
-                            fontSize: 10,
-                            fontWeight:
-                                FontWeight
-                                    .w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 14,
-                ),
-
-                TextField(
-                  controller:
-                      recipientController,
-                  decoration:
-                      const InputDecoration(
-                    labelText:
-                        'Recipient Name (optional)',
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 12,
-                ),
-
-                TextField(
-                  controller:
-                      notesController,
-                  minLines: 2,
-                  maxLines: 4,
-                  maxLength: 1000,
-                  decoration:
-                      const InputDecoration(
-                    labelText:
-                        'Delivery Notes (optional)',
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 4,
-                ),
-
-                Text(
-                  'The captured image will be uploaded to the authenticated SARI Rider delivery proof endpoint.',
-                  style:
-                      TextStyle(
-                    color:
-                        RiderColors.muted,
-                    fontSize: 9,
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.of(
-                dialogContext,
-              ).pop(
-                false,
-              ),
-              child:
-                  const Text(
-                'Cancel',
-              ),
-            ),
-
-            FilledButton.icon(
-              onPressed: () =>
-                  Navigator.of(
-                dialogContext,
-              ).pop(
-                true,
-              ),
-              icon:
-                  const Icon(
-                Icons
-                    .cloud_upload_outlined,
-              ),
-              label:
-                  const Text(
-                'Upload Proof',
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (submit != true ||
-        !mounted) {
-      recipientController
-          .dispose();
-
-      notesController
-          .dispose();
-
-      return false;
-    }
-
-    final recipient =
-        recipientController.text
-            .trim();
-
-    final notes =
-        notesController.text
-            .trim();
-
-    recipientController.dispose();
-    notesController.dispose();
-
-    try {
-      final response =
-          await SariLiveData.instance
-              .riderProof(
-        orderId:
-            orderId,
-        photo:
-            File(
-          photo.path,
+    final bool? uploaded =
+        await Navigator.of(
+      context,
+    ).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) =>
+            RiderProofOfDelivery(
+          orderId: orderId,
+          orderNumber:
+              orderNumber,
+          recipientName:
+              recipientName,
         ),
-        recipientName:
-            recipient.isEmpty
-                ? null
-                : recipient,
-        notes:
-            notes.isEmpty
-                ? null
-                : notes,
+      ),
+    );
+
+    if (!mounted) {
+      return false;
+    }
+
+    if (uploaded == true) {
+      _uploadedProofOrderIds.add(
+        orderId,
       );
 
       _toast(
-        _text(
-          response['message'],
-          'Proof of delivery saved.',
-        ),
+        'Proof of delivery uploaded successfully.',
       );
 
       return true;
-    } catch (error) {
-      _toast(
-        error.toString(),
-      );
-
-      return false;
     }
+
+    return false;
   }
 
-  Future<bool> _confirmCodCashIfRequired(
+  Future<bool>
+      _confirmCodCashIfRequired(
     Map<String, dynamic> scanData, {
     required int orderId,
     required String orderNumber,
   }) async {
     final requiresPayment =
-        scanData['requires_payment'] == true ||
-            scanData['requires_payment']?.toString() == '1';
+        scanData[
+                    'requires_payment'] ==
+                true ||
+            scanData[
+                        'requires_payment']
+                    ?.toString() ==
+                '1';
 
     if (!requiresPayment) {
       return true;
     }
 
     final paymentToken =
-        _text(scanData['payment_token']);
+        _text(
+      scanData[
+          'payment_token'],
+    );
+
     final amountDue =
-        _text(scanData['amount_due'], '0.00');
+        _text(
+      scanData['amount_due'],
+      '0.00',
+    );
 
     if (paymentToken.isEmpty) {
       _toast(
         'COD verification token is missing. Scan the parcel again.',
       );
+
       return false;
     }
 
     final confirmed =
         await showDialog<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
+      barrierDismissible:
+          false,
+      builder:
+          (
+            dialogContext,
+          ) {
         return AlertDialog(
-          title: const Text(
+          title:
+              const Text(
             'Confirm COD cash received',
           ),
           content: Column(
             mainAxisSize:
                 MainAxisSize.min,
             crossAxisAlignment:
-                CrossAxisAlignment.start,
+                CrossAxisAlignment
+                    .start,
             children: [
               Text(
                 orderNumber,
-                style: const TextStyle(
+                style:
+                    const TextStyle(
                   fontWeight:
                       FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(
+                height: 10,
+              ),
               Text(
                 'Amount to collect: ₱$amountDue',
-                style: const TextStyle(
+                style:
+                    const TextStyle(
                   fontSize: 20,
                   fontWeight:
                       FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(
+                height: 10,
+              ),
               const Text(
                 'Only confirm after the Buyer has physically handed you the full cash amount. The order will not be marked paid until this confirmation is recorded on the server.',
               ),
@@ -1282,7 +1478,8 @@ class _RiderShellState extends State<RiderShell> {
                   Navigator.of(
                 dialogContext,
               ).pop(false),
-              child: const Text(
+              child:
+                  const Text(
                 'Not yet',
               ),
             ),
@@ -1291,10 +1488,13 @@ class _RiderShellState extends State<RiderShell> {
                   Navigator.of(
                 dialogContext,
               ).pop(true),
-              icon: const Icon(
-                Icons.payments_outlined,
+              icon:
+                  const Icon(
+                Icons
+                    .payments_outlined,
               ),
-              label: const Text(
+              label:
+                  const Text(
                 'Cash received',
               ),
             ),
@@ -1310,10 +1510,12 @@ class _RiderShellState extends State<RiderShell> {
 
     try {
       final response =
-          await SariLiveData.instance
+          await SariLiveData
+              .instance
               .riderConfirmCodCash(
         orderId: orderId,
-        paymentToken: paymentToken,
+        paymentToken:
+            paymentToken,
       );
 
       _toast(
@@ -1322,14 +1524,19 @@ class _RiderShellState extends State<RiderShell> {
           'COD cash receipt confirmed.',
         ),
       );
+
       return true;
     } catch (error) {
-      _toast(error.toString());
+      _toast(
+        error.toString(),
+      );
+
       return false;
     }
   }
 
-  Future<bool> _verifyAndCaptureProof(
+  Future<bool>
+      _verifyAndCaptureProof(
     RiderDelivery delivery,
   ) async {
     final verified =
@@ -1362,8 +1569,10 @@ class _RiderShellState extends State<RiderShell> {
 
     return _confirmCodCashIfRequired(
       verified,
-      orderId: delivery.id,
-      orderNumber: delivery.orderNumber,
+      orderId:
+          delivery.id,
+      orderNumber:
+          delivery.orderNumber,
     );
   }
 
@@ -1371,12 +1580,28 @@ class _RiderShellState extends State<RiderShell> {
     RiderDelivery delivery,
   ) async {
     try {
-      final latest = await SariLiveData.instance.riderAssignment(delivery.id);
-      final fresh = _delivery(latest['data']);
-      if (!mounted) return;
+      final latest =
+          await SariLiveData
+              .instance
+              .riderAssignment(
+        delivery.id,
+      );
+
+      final fresh =
+          _delivery(
+        latest['data'],
+      );
+
+      if (!mounted) {
+        return;
+      }
+
       delivery = fresh;
     } catch (error) {
-      _toast('Unable to verify current assignment status: $error');
+      _toast(
+        'Unable to verify current assignment status: $error',
+      );
+
       return;
     }
 
@@ -1394,17 +1619,30 @@ class _RiderShellState extends State<RiderShell> {
     }
 
     try {
-      if (action == 'confirm_pickup' && delivery.isLogisticsPickup) {
-        final verified = await _scanAndVerify(
-          expectedOrderId: delivery.id,
-          expectedOrderNumber: delivery.orderNumber,
+      if (action ==
+              'confirm_pickup' &&
+          delivery
+              .isLogisticsPickup) {
+        final verified =
+            await _scanAndVerify(
+          expectedOrderId:
+              delivery.id,
+          expectedOrderNumber:
+              delivery.orderNumber,
         );
-        if (verified == null || !mounted) return;
+
+        if (verified == null ||
+            !mounted) {
+          return;
+        }
+
         await _loadAll();
+
         return;
       }
 
-      if (action == 'complete') {
+      if (action ==
+          'complete') {
         final ready =
             await _verifyAndCaptureProof(
           delivery,
@@ -1419,37 +1657,41 @@ class _RiderShellState extends State<RiderShell> {
       final response =
           switch (action) {
         'proceed_pickup' =>
-          await SariLiveData.instance
+          await SariLiveData
+              .instance
               .riderProceedPickup(
             delivery.id,
           ),
 
         'arrived_pickup' =>
-          await SariLiveData.instance
+          await SariLiveData
+              .instance
               .riderArrivedPickup(
             delivery.id,
           ),
 
         'confirm_pickup' =>
-          await SariLiveData.instance
+          await SariLiveData
+              .instance
               .riderConfirmPickup(
             delivery.id,
           ),
 
         'arrived_buyer' =>
-          await SariLiveData.instance
+          await SariLiveData
+              .instance
               .riderArrivedBuyer(
             delivery.id,
           ),
 
         'complete' =>
-          await SariLiveData.instance
+          await SariLiveData
+              .instance
               .riderComplete(
             delivery.id,
           ),
 
-        _ =>
-          <String, dynamic>{},
+        _ => <String, dynamic>{},
       };
 
       _toast(
@@ -1471,15 +1713,35 @@ class _RiderShellState extends State<RiderShell> {
     RiderDelivery delivery,
   ) async {
     try {
-      final latest = await SariLiveData.instance.riderAssignment(delivery.id);
-      delivery = _delivery(latest['data']);
-      if (delivery.status != 'arrived_buyer' ||
-          !delivery.allowedActions.contains('complete')) {
-        _toast('Mark arrival at the Buyer before completing this delivery.');
+      final latest =
+          await SariLiveData
+              .instance
+              .riderAssignment(
+        delivery.id,
+      );
+
+      delivery =
+          _delivery(
+        latest['data'],
+      );
+
+      if (delivery.status !=
+              'arrived_buyer' ||
+          !delivery.allowedActions
+              .contains(
+            'complete',
+          )) {
+        _toast(
+          'Mark arrival at the Buyer before completing this delivery.',
+        );
+
         return;
       }
     } catch (error) {
-      _toast('Unable to verify current assignment status: $error');
+      _toast(
+        'Unable to verify current assignment status: $error',
+      );
+
       return;
     }
 
@@ -1504,7 +1766,8 @@ class _RiderShellState extends State<RiderShell> {
 
     try {
       final response =
-          await SariLiveData.instance
+          await SariLiveData
+              .instance
               .riderComplete(
         delivery.id,
       );
@@ -1524,6 +1787,229 @@ class _RiderShellState extends State<RiderShell> {
     }
   }
 
+  Future<String?> _askReason(
+    String title,
+  ) async {
+    final controller =
+        TextEditingController();
+
+    final result =
+        await showDialog<String>(
+      context: context,
+      builder:
+          (dialogContext) =>
+              AlertDialog(
+        title:
+            Text(
+          title,
+        ),
+        content:
+            TextField(
+          controller:
+              controller,
+          maxLines: 4,
+          decoration:
+              const InputDecoration(
+            labelText:
+                'Reason',
+            border:
+                OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(
+              dialogContext,
+            ),
+            child:
+                const Text(
+              'Cancel',
+            ),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value =
+                  controller.text
+                      .trim();
+
+              if (value.isNotEmpty) {
+                Navigator.pop(
+                  dialogContext,
+                  value,
+                );
+              }
+            },
+            child:
+                const Text(
+              'Submit',
+            ),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+
+    return result;
+  }
+
+  Future<void> _reportFailed(
+    RiderDelivery delivery,
+  ) async {
+    final reason =
+        await _askReason(
+      'Report failed delivery',
+    );
+
+    if (reason == null ||
+        !mounted) {
+      return;
+    }
+
+    try {
+      final response =
+          await SariLiveData
+              .instance
+              .riderReportFailed(
+        delivery.id,
+        reason,
+      );
+
+      _toast(
+        _text(
+          response['message'],
+          'Failed delivery report sent.',
+        ),
+      );
+
+      await _loadAll();
+    } catch (error) {
+      _toast(
+        error.toString(),
+      );
+    }
+  }
+
+  Future<void> _requestReschedule(
+    RiderDelivery delivery,
+  ) async {
+    final reason =
+        await _askReason(
+      'Reason for reschedule',
+    );
+
+    if (reason == null ||
+        !mounted) {
+      return;
+    }
+
+    final now =
+        DateTime.now();
+
+    final date =
+        await showDatePicker(
+      context: context,
+      firstDate: DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).add(
+        const Duration(
+          days: 1,
+        ),
+      ),
+      lastDate: DateTime(
+        now.year + 1,
+        12,
+        31,
+      ),
+      initialDate: DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).add(
+        const Duration(
+          days: 1,
+        ),
+      ),
+    );
+
+    if (date == null ||
+        !mounted) {
+      return;
+    }
+
+    final scheduled =
+        DateTime(
+      date.year,
+      date.month,
+      date.day,
+      9,
+    ).toIso8601String();
+
+    try {
+      final response =
+          await SariLiveData
+              .instance
+              .riderRescheduleRequest(
+        delivery.id,
+        reason,
+        scheduled,
+      );
+
+      _toast(
+        _text(
+          response['message'],
+          'Reschedule request sent.',
+        ),
+      );
+
+      await _loadAll();
+    } catch (error) {
+      _toast(
+        error.toString(),
+      );
+    }
+  }
+
+  Future<void> _requestReturn(
+    RiderDelivery delivery,
+  ) async {
+    final reason =
+        await _askReason(
+      'Reason for return to sorting',
+    );
+
+    if (reason == null ||
+        !mounted) {
+      return;
+    }
+
+    try {
+      final response =
+          await SariLiveData
+              .instance
+              .riderReturnRequest(
+        delivery.id,
+        reason,
+      );
+
+      _toast(
+        _text(
+          response['message'],
+          'Return request sent.',
+        ),
+      );
+
+      await _loadAll();
+    } catch (error) {
+      _toast(
+        error.toString(),
+      );
+    }
+  }
+
   void _unsupported(
     String label,
   ) {
@@ -1532,15 +2018,26 @@ class _RiderShellState extends State<RiderShell> {
     );
   }
 
-  Future<void> _openNotifications() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => RiderNotifications(onOpenMessages: _openMessages),
-    ));
+  Future<void> _openNotifications()
+      async {
+    await Navigator.of(
+      context,
+    ).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            RiderNotifications(
+          onOpenMessages:
+              _openMessages,
+        ),
+      ),
+    );
   }
 
   Future<void> _openMessages()
       async {
-    await Navigator.of(context).push(
+    await Navigator.of(
+      context,
+    ).push(
       MaterialPageRoute<void>(
         builder: (
           context,
@@ -1581,23 +2078,25 @@ class _RiderShellState extends State<RiderShell> {
           time:
               dateTime == null
                   ? ''
-                  : TimeOfDay.fromDateTime(
-                      dateTime,
-                    ).format(
-                      context,
-                    ),
+                  : TimeOfDay
+                      .fromDateTime(
+                        dateTime,
+                      )
+                      .format(
+                        context,
+                      ),
           fee:
               transaction.amount,
           status:
               transaction.status,
           isToday:
               dateTime != null &&
-              dateTime.year ==
-                  now.year &&
-              dateTime.month ==
-                  now.month &&
-              dateTime.day ==
-                  now.day,
+                  dateTime.year ==
+                      now.year &&
+                  dateTime.month ==
+                      now.month &&
+                  dateTime.day ==
+                      now.day,
         );
       },
     ).toList();
@@ -1605,7 +2104,9 @@ class _RiderShellState extends State<RiderShell> {
 
   Future<void> _openHistory()
       async {
-    await Navigator.of(context).push(
+    await Navigator.of(
+      context,
+    ).push(
       MaterialPageRoute<void>(
         builder: (
           context,
@@ -1624,7 +2125,9 @@ class _RiderShellState extends State<RiderShell> {
 
   Future<void> _openPickups()
       async {
-    await Navigator.of(context).push(
+    await Navigator.of(
+      context,
+    ).push(
       MaterialPageRoute<void>(
         builder: (
           context,
@@ -1635,8 +2138,9 @@ class _RiderShellState extends State<RiderShell> {
           onAdvanceDelivery:
               _advanceDelivery,
           onOpenWorkflow: () {
-            Navigator.of(context)
-                .pop();
+            Navigator.of(
+              context,
+            ).pop();
 
             _changeTab(
               1,
@@ -1659,7 +2163,8 @@ class _RiderShellState extends State<RiderShell> {
   ) async {
     try {
       final response =
-          await SariLiveData.instance
+          await SariLiveData
+              .instance
               .riderStartLastMile(
         batch.id,
       );
@@ -1698,7 +2203,8 @@ class _RiderShellState extends State<RiderShell> {
     return null;
   }
 
-  Future<void> _completeLastMileParcel(
+  Future<void>
+      _completeLastMileParcel(
     RiderLastMileBatch batch,
     RiderLastMileParcel parcel,
   ) async {
@@ -1733,8 +2239,10 @@ class _RiderShellState extends State<RiderShell> {
     final codReady =
         await _confirmCodCashIfRequired(
       verified,
-      orderId: parcel.id,
-      orderNumber: parcel.orderNumber,
+      orderId:
+          parcel.id,
+      orderNumber:
+          parcel.orderNumber,
     );
 
     if (!codReady ||
@@ -1744,7 +2252,8 @@ class _RiderShellState extends State<RiderShell> {
 
     try {
       final response =
-          await SariLiveData.instance
+          await SariLiveData
+              .instance
               .riderLastMileDelivered(
         batch.id,
         parcel.id,
@@ -1804,7 +2313,8 @@ class _RiderShellState extends State<RiderShell> {
           return SafeArea(
             child: Padding(
               padding:
-                  const EdgeInsets.fromLTRB(
+                  const EdgeInsets
+                      .fromLTRB(
                 18,
                 6,
                 18,
@@ -1829,27 +2339,22 @@ class _RiderShellState extends State<RiderShell> {
                           FontWeight.w900,
                     ),
                   ),
-
                   const SizedBox(
                     height: 6,
                   ),
-
                   Text(
                     'This batch is assigned but has not started yet. Start the route before confirming arrival at any Buyer.',
                     style:
                         TextStyle(
                       color:
-                          RiderColors
-                              .muted,
+                          RiderColors.muted,
                       fontSize: 10,
                       height: 1.5,
                     ),
                   ),
-
                   const SizedBox(
                     height: 18,
                   ),
-
                   SizedBox(
                     width:
                         double.infinity,
@@ -1919,7 +2424,8 @@ class _RiderShellState extends State<RiderShell> {
         return SafeArea(
           child: Padding(
             padding:
-                const EdgeInsets.fromLTRB(
+                const EdgeInsets
+                    .fromLTRB(
               18,
               6,
               18,
@@ -1943,11 +2449,9 @@ class _RiderShellState extends State<RiderShell> {
                         FontWeight.w900,
                   ),
                 ),
-
                 const SizedBox(
                   height: 5,
                 ),
-
                 Text(
                   parcel.buyerName,
                   style:
@@ -1959,11 +2463,9 @@ class _RiderShellState extends State<RiderShell> {
                         FontWeight.w700,
                   ),
                 ),
-
                 const SizedBox(
                   height: 3,
                 ),
-
                 Text(
                   parcel.buyerAddress,
                   style:
@@ -1974,11 +2476,9 @@ class _RiderShellState extends State<RiderShell> {
                     height: 1.4,
                   ),
                 ),
-
                 const SizedBox(
                   height: 18,
                 ),
-
                 if (!canComplete)
                   SizedBox(
                     width:
@@ -2002,7 +2502,6 @@ class _RiderShellState extends State<RiderShell> {
                       ),
                     ),
                   ),
-
                 if (canComplete)
                   SizedBox(
                     width:
@@ -2074,8 +2573,14 @@ class _RiderShellState extends State<RiderShell> {
   Future<void> _openLastMile()
       async {
     await _loadLastMile();
-    if (!mounted) return;
-    await Navigator.of(context).push(
+
+    if (!mounted) {
+      return;
+    }
+
+    await Navigator.of(
+      context,
+    ).push(
       MaterialPageRoute<void>(
         builder: (
           context,
@@ -2084,8 +2589,9 @@ class _RiderShellState extends State<RiderShell> {
           batches:
               _lastMileBatches,
           onBackToDashboard: () {
-            Navigator.of(context)
-                .pop();
+            Navigator.of(
+              context,
+            ).pop();
 
             _changeTab(
               0,
@@ -2119,7 +2625,9 @@ class _RiderShellState extends State<RiderShell> {
 
   Future<void> _openRemittances()
       async {
-    await Navigator.of(context).push(
+    await Navigator.of(
+      context,
+    ).push(
       MaterialPageRoute<void>(
         builder: (
           context,
@@ -2150,7 +2658,8 @@ class _RiderShellState extends State<RiderShell> {
         return SafeArea(
           child: Padding(
             padding:
-                const EdgeInsets.fromLTRB(
+                const EdgeInsets
+                    .fromLTRB(
               16,
               8,
               16,
@@ -2182,7 +2691,6 @@ class _RiderShellState extends State<RiderShell> {
                     _openPickups();
                   },
                 ),
-
                 ListTile(
                   leading:
                       const Icon(
@@ -2205,7 +2713,6 @@ class _RiderShellState extends State<RiderShell> {
                     _openLastMile();
                   },
                 ),
-
                 ListTile(
                   leading:
                       const Icon(
@@ -2228,7 +2735,6 @@ class _RiderShellState extends State<RiderShell> {
                     _openStandaloneScanner();
                   },
                 ),
-
                 ListTile(
                   leading:
                       const Icon(
@@ -2251,7 +2757,6 @@ class _RiderShellState extends State<RiderShell> {
                     _openRemittances();
                   },
                 ),
-
                 ListTile(
                   leading:
                       const Icon(
@@ -2274,7 +2779,6 @@ class _RiderShellState extends State<RiderShell> {
                     _openHistory();
                   },
                 ),
-
                 ListTile(
                   leading:
                       const Icon(
@@ -2302,39 +2806,6 @@ class _RiderShellState extends State<RiderShell> {
           ),
         );
       },
-    );
-  }
-
-  Widget _loadingScreen() {
-    return Scaffold(
-      backgroundColor:
-          RiderColors.bg,
-      body: Center(
-        child: Column(
-          mainAxisSize:
-              MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(
-              color:
-                  RiderColors.gold,
-            ),
-
-            const SizedBox(
-              height: 14,
-            ),
-
-            Text(
-              'Loading Rider workspace...',
-              style:
-                  TextStyle(
-                color:
-                    RiderColors.muted,
-                fontSize: 11,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -2375,11 +2846,9 @@ class _RiderShellState extends State<RiderShell> {
                   size: 32,
                 ),
               ),
-
               const SizedBox(
                 height: 15,
               ),
-
               Text(
                 'Unable to load Rider workspace',
                 textAlign:
@@ -2393,11 +2862,9 @@ class _RiderShellState extends State<RiderShell> {
                       FontWeight.w900,
                 ),
               ),
-
               const SizedBox(
                 height: 7,
               ),
-
               Text(
                 _error ??
                     'Please check your connection and try again.',
@@ -2411,11 +2878,9 @@ class _RiderShellState extends State<RiderShell> {
                   height: 1.45,
                 ),
               ),
-
               const SizedBox(
                 height: 16,
               ),
-
               FilledButton.icon(
                 onPressed:
                     _loadAll,
@@ -2467,15 +2932,13 @@ class _RiderShellState extends State<RiderShell> {
     );
 
     return Theme(
-      data: theme,
-      child: Builder(
+      data:
+          theme,
+      child:
+          Builder(
         builder: (
           context,
         ) {
-          if (_loading) {
-            return _loadingScreen();
-          }
-
           if (_error != null &&
               _assignments.isEmpty &&
               _lastMileBatches
@@ -2513,7 +2976,6 @@ class _RiderShellState extends State<RiderShell> {
               dashboardSummary:
                   _dashboardSummary,
             ),
-
             RiderRequests(
               activeOrder:
                   _currentDelivery,
@@ -2532,7 +2994,6 @@ class _RiderShellState extends State<RiderShell> {
                 );
               },
             ),
-
             RiderDeliveries(
               orders:
                   _assignments,
@@ -2545,30 +3006,20 @@ class _RiderShellState extends State<RiderShell> {
               onMarkSuccessful:
                   _markSuccessful,
               onMarkFailed:
-                  (
-                _,
-                __,
-              ) =>
-                      _unsupported(
-                'Failed delivery submission',
+                  (delivery, _) =>
+                      _reportFailed(
+                delivery,
               ),
               onReschedule:
-                  (_) =>
-                      _unsupported(
-                'Rescheduling',
-              ),
+                  _requestReschedule,
               onReturnToSorting:
-                  (_) =>
-                      _unsupported(
-                'Return to sorting',
-              ),
+                  _requestReturn,
               onBuyerConfirmed:
                   (_) =>
                       _unsupported(
                 'Buyer receipt confirmation',
               ),
             ),
-
             RiderEarnings(
               daily:
                   _dailyEarnings,
@@ -2577,7 +3028,6 @@ class _RiderShellState extends State<RiderShell> {
               onOpenHistory:
                   _openHistory,
             ),
-
             RiderProfilePage(
               profile:
                   _profile,
@@ -2589,35 +3039,88 @@ class _RiderShellState extends State<RiderShell> {
           ];
 
           return Scaffold(
-            key: _shellKey,
-            endDrawer: RiderDrawer(
-              profile: _profile,
-              activeIndex: _currentIndex,
-              onDashboard: () => _drawerNavigate(0),
-              onAssignments: () => _drawerNavigate(1),
-              onDeliveries: () => _drawerNavigate(2),
-              onEarnings: () => _drawerNavigate(3),
-              onProfile: () => _drawerNavigate(4),
-              onPickups: () => _drawerOpen(_openPickups),
-              onLastMile: () => _drawerOpen(_openLastMile),
-              onScanner: () => _drawerOpen(_openStandaloneScanner),
-              onCod: () => _drawerOpen(_openRemittances),
-              onHistory: () => _drawerOpen(_openHistory),
-              onMessages: () => _drawerOpen(_openMessages),
-              onNotifications: () => _drawerOpen(_openNotifications),
-              onLogout: () => _drawerOpen(_logoutFromDrawer),
+            key:
+                _shellKey,
+            endDrawer:
+                RiderDrawer(
+              profile:
+                  _profile,
+              activeIndex:
+                  _currentIndex,
+              onDashboard: () =>
+                  _drawerNavigate(
+                0,
+              ),
+              onAssignments: () =>
+                  _drawerNavigate(
+                1,
+              ),
+              onDeliveries: () =>
+                  _drawerNavigate(
+                2,
+              ),
+              onEarnings: () =>
+                  _drawerNavigate(
+                3,
+              ),
+              onProfile: () =>
+                  _drawerNavigate(
+                4,
+              ),
+              onPickups: () =>
+                  _drawerOpen(
+                _openPickups,
+              ),
+              onLastMile: () =>
+                  _drawerOpen(
+                _openLastMile,
+              ),
+              onScanner: () =>
+                  _drawerOpen(
+                _openStandaloneScanner,
+              ),
+              onCod: () =>
+                  _drawerOpen(
+                _openRemittances,
+              ),
+              onHistory: () =>
+                  _drawerOpen(
+                _openHistory,
+              ),
+              onMessages: () =>
+                  _drawerOpen(
+                _openMessages,
+              ),
+              onNotifications: () =>
+                  _drawerOpen(
+                _openNotifications,
+              ),
+              onLogout: () =>
+                  _drawerOpen(
+                _logoutFromDrawer,
+              ),
             ),
             backgroundColor:
                 RiderColors.bg,
-            body: Stack(
+            body:
+                Stack(
               children: [
                 IndexedStack(
                   index:
                       _currentIndex,
-                  children: List.generate(pages.length, (index) =>
-                      _visitedTabs.contains(index) ? pages[index] : const SizedBox.shrink()),
+                  children:
+                      List.generate(
+                    pages.length,
+                    (index) =>
+                        _visitedTabs
+                                .contains(
+                              index,
+                            )
+                            ? pages[index]
+                            : const SizedBox
+                                .shrink(),
+                  ),
                 ),
-
                 if (_refreshing &&
                     !_loading)
                   Positioned(
@@ -2629,15 +3132,17 @@ class _RiderShellState extends State<RiderShell> {
                     right: 0,
                     child:
                         const LinearProgressIndicator(
-                      minHeight:
-                          2,
+                      minHeight: 2,
                     ),
                   ),
               ],
             ),
-            bottomNavigationBar: RiderBottomNav(
-              currentIndex: _currentIndex,
-              onTap: _changeTab,
+            bottomNavigationBar:
+                RiderBottomNav(
+              currentIndex:
+                  _currentIndex,
+              onTap:
+                  _changeTab,
             ),
           );
         },

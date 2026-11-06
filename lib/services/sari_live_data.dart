@@ -903,4 +903,50 @@ class SariLiveData {
               confirmation,
         },
       );
+
+  // ============================================================
+  // MOBILE LOGISTICS — authenticated, branch-scoped API
+  // ============================================================
+
+  Future<SariJson> logisticsDashboard() => _api.request('GET', 'logistics/dashboard');
+  Future<SariJson> logisticsProfile() => _api.request('GET', 'logistics/profile');
+  Future<SariJson> logisticsBranches() => _api.request('GET', 'logistics/branches');
+  Future<SariJson> logisticsIncoming(int facilityId) => _api.request('GET', 'logistics/incoming', query: {'facility_id':'$facilityId'});
+  Future<SariJson> logisticsSorting(int facilityId) => _api.request('GET', 'logistics/sorting', query: {'facility_id':'$facilityId'});
+  Future<SariJson> logisticsPickupRequests(int facilityId) => _api.request('GET', 'logistics/pickups', query: {'facility_id':'$facilityId'});
+  Future<SariJson> logisticsVerifyPickups(int facilityId, List<int> orderIds) => _api.request('POST', 'logistics/pickups/verify', jsonBody: {'facility_id':facilityId,'order_ids':orderIds});
+  Future<SariJson> logisticsAssignPickup(int facilityId, int riderId, List<int> orderIds) => _api.request('POST', 'logistics/pickups/assign', jsonBody: {'facility_id':facilityId,'rider_id':riderId,'order_ids':orderIds});
+  Future<SariJson> logisticsLastMile(int facilityId) => _api.request('GET', 'logistics/last-mile', query: {'facility_id':'$facilityId'});
+  Future<SariJson> logisticsAssignLastMile(int facilityId, int riderId, List<int> orderIds) => _api.request('POST', 'logistics/last-mile/assign', jsonBody: {'facility_id':facilityId,'rider_id':riderId,'order_ids':orderIds});
+  Future<SariJson> logisticsMonitoring(String search) => _api.request('GET', 'logistics/monitoring', query: {'q':search});
+  Future<SariJson> logisticsScanVerify(String code, int facilityId) => _api.request('POST', 'logistics/scanner/verify', jsonBody: {'payload':code,'facility_id':facilityId});
+  Future<SariJson> logisticsReceive(int parcelId, int facilityId, {String? notes}) => _api.request('POST', 'logistics/incoming/$parcelId/receive', jsonBody: {'facility_id':facilityId, if (notes?.trim().isNotEmpty == true) 'notes':notes!.trim()});
+  Future<SariJson> logisticsSort(int parcelId, int facilityId, {String? sortingZone, String? notes}) => _api.request('POST', 'logistics/sorting/$parcelId/confirm', jsonBody: {'facility_id':facilityId, if (sortingZone?.trim().isNotEmpty == true) 'sorting_zone':sortingZone!.trim(), if (notes?.trim().isNotEmpty == true) 'notes':notes!.trim()});
+  Future<SariJson> logisticsTransfers({int? facilityId}) => _api.request('GET', 'logistics/transfers', query: facilityId == null ? null : {'facility_id':'$facilityId'});
+  Future<SariJson> logisticsTransfer(int id) => _api.request('GET', 'logistics/transfers/$id');
+  Future<SariJson> logisticsTransferAction(int id, int facilityId, String action) {
+    if (action != 'dispatch' && action != 'receive') throw ArgumentError.value(action, 'action');
+    return _api.request('POST', 'logistics/transfers/$id/$action', jsonBody: {'facility_id':facilityId});
+  }
+  Future<SariJson> logisticsNotifications() => _api.request('GET', 'logistics/notifications');
+  Future<SariJson> logisticsReadNotification(int id) => _api.request('POST', 'logistics/notifications/$id/read');
+  Future<SariJson> logisticsRiders() => _api.request('GET', 'logistics/riders');
+  Future<SariJson> logisticsMessages(int riderId) => _api.request('GET', 'logistics/messages', query: {'rider_id':'$riderId'});
+  Future<SariJson> logisticsSendMessage(int riderId, String body) => _api.request('POST', 'logistics/messages', jsonBody: {'rider_id':riderId,'body':body});
+  Future<SariJson> logisticsRemittances(int facilityId) => _api.request('GET', 'logistics/remittances', query: {'facility_id':'$facilityId'});
+  Future<SariJson> logisticsRemittance(int id, int facilityId) => _api.request('GET', 'logistics/remittances/$id', query: {'facility_id':'$facilityId'});
+  Future<SariJson> logisticsVerifyRemittance({required int id, required int facilityId, required double confirmedAmount, String? reference, String? note}) => _api.request('POST', 'logistics/remittances/$id/verify', jsonBody: {'facility_id':facilityId,'confirmed_amount':confirmedAmount, if(reference?.trim().isNotEmpty == true) 'logistics_reference':reference!.trim(), if(note?.trim().isNotEmpty == true) 'logistics_note':note!.trim()});
+  Future<SariJson> buyerRewards() => _api.request('GET', 'buyer/rewards');
+
+  Future<SariJson> logisticsRegister(Map<String, String> fields, Map<String, File> documents) => _api.multipart('POST', 'registration/logistics', authenticated:false, fields: fields, files: documents);
+  Future<SariJson> logisticsResendOtp(String email) => _api.request('POST', 'registration/logistics/otp/resend', authenticated:false, jsonBody: {'email': email});
+  Future<SariJson> logisticsVerifyOtp(String email, String otp) => _api.request('POST', 'registration/logistics/otp/verify', authenticated:false, jsonBody: {'email':email,'otp':otp});
+
+  Future<SariJson> passwordResetSendCode(String email) => _api.request('POST', 'auth/forgot-password/send', authenticated:false, jsonBody: {'email':email});
+  Future<SariJson> passwordResetVerify(String email, String code) => _api.request('POST', 'auth/forgot-password/verify', authenticated:false, jsonBody: {'email':email, 'code':code});
+  Future<SariJson> passwordResetConfirm(String email, String token, String password) => _api.request('POST', 'auth/forgot-password/reset', authenticated:false, jsonBody: {'email':email, 'reset_token':token, 'password':password, 'password_confirmation':password});
+
+  Future<SariJson> riderReportFailed(int orderId, String reason) => _api.request('POST','rider/orders/$orderId/failed', jsonBody:{'reason':reason});
+  Future<SariJson> riderRescheduleRequest(int orderId, String reason, String rescheduledFor) => _api.request('POST','rider/orders/$orderId/reschedule-request', jsonBody:{'reason':reason,'rescheduled_for':rescheduledFor});
+  Future<SariJson> riderReturnRequest(int orderId, String reason) => _api.request('POST','rider/orders/$orderId/return-request', jsonBody:{'reason':reason});
 }

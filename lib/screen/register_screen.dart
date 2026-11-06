@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'account_registration_screen.dart';
 import 'rider_logistics_screen.dart';
+import 'logistics_register_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({
@@ -61,10 +62,10 @@ class _RegisterScreenState
       keyName: 'logistics',
       title: 'Logistics',
       subtitle:
-          'Logistics mobile registration API is not available yet.',
+          'Register a SARI Logistics provider account.',
       icon:
           Icons.hub_outlined,
-      available: false,
+      available: true,
     ),
   ];
 
@@ -104,9 +105,12 @@ class _RegisterScreenState
       return;
     }
 
-    _show(
-      'Logistics registration is not connected to the mobile API yet.',
-    );
+    if (role == 'logistics') {
+      Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => const LogisticsRegisterScreen(),
+      ));
+      return;
+    }
   }
 
   void _show(
