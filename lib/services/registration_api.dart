@@ -6,13 +6,10 @@ import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
 
-class RegistrationApiException
-    implements Exception {
+class RegistrationApiException implements Exception {
   final String message;
 
-  const RegistrationApiException(
-    this.message,
-  );
+  const RegistrationApiException(this.message);
 
   @override
   String toString() => message;
@@ -31,36 +28,20 @@ class RegistrationApiException
 class RegistrationApi {
   RegistrationApi._();
 
-  static final RegistrationApi instance =
-      RegistrationApi._();
+  static final RegistrationApi instance = RegistrationApi._();
 
-  static const Duration _timeout =
-      Duration(
-    seconds: 30,
-  );
+  static const Duration _timeout = Duration(seconds: 30);
 
   // ============================================================
   // URI
   // ============================================================
 
-  Uri _apiUri(
-    String path,
-  ) {
-    final String base =
-        ApiConfig.apiBaseUrl.replaceFirst(
-      RegExp(r'/+$'),
-      '',
-    );
+  Uri _apiUri(String path) {
+    final String base = ApiConfig.apiBaseUrl.replaceFirst(RegExp(r'/+$'), '');
 
-    final String clean =
-        path.replaceFirst(
-      RegExp(r'^/+'),
-      '',
-    );
+    final String clean = path.replaceFirst(RegExp(r'^/+'), '');
 
-    return Uri.parse(
-      '$base/$clean',
-    );
+    return Uri.parse('$base/$clean');
   }
 
   // ============================================================
@@ -80,20 +61,13 @@ class RegistrationApi {
   // SEND REQUEST
   // ============================================================
 
-  Future<http.Response> _send(
-    http.BaseRequest request,
-  ) async {
+  Future<http.Response> _send(http.BaseRequest request) async {
     try {
-      final http.StreamedResponse streamed =
-          await request
-              .send()
-              .timeout(
-                _timeout,
-              );
-
-      return http.Response.fromStream(
-        streamed,
+      final http.StreamedResponse streamed = await request.send().timeout(
+        _timeout,
       );
+
+      return http.Response.fromStream(streamed);
     } on TimeoutException {
       throw const RegistrationApiException(
         'The SARI server took too long to respond. Please try again.',
@@ -111,34 +85,22 @@ class RegistrationApi {
   // JSON
   // ============================================================
 
-  Map<String, dynamic> _json(
-    String body,
-  ) {
+  Map<String, dynamic> _json(String body) {
     if (body.trim().isEmpty) {
       return <String, dynamic>{};
     }
 
     try {
-      final dynamic decoded =
-          jsonDecode(body);
+      final dynamic decoded = jsonDecode(body);
 
-      if (decoded
-          is Map<String, dynamic>) {
+      if (decoded is Map<String, dynamic>) {
         return decoded;
       }
 
       if (decoded is Map) {
-        return decoded.map<String, dynamic>(
-          (
-            dynamic key,
-            dynamic value,
-          ) {
-            return MapEntry<String, dynamic>(
-              key.toString(),
-              value,
-            );
-          },
-        );
+        return decoded.map<String, dynamic>((dynamic key, dynamic value) {
+          return MapEntry<String, dynamic>(key.toString(), value);
+        });
       }
     } catch (_) {
       // Central error handling below.
@@ -151,33 +113,20 @@ class RegistrationApi {
   // ERROR MAPPER
   // ============================================================
 
-  Never _throwFor(
-    http.Response response,
-  ) {
-    final Map<String, dynamic> body =
-        _json(
-      response.body,
-    );
+  Never _throwFor(http.Response response) {
+    final Map<String, dynamic> body = _json(response.body);
 
-    final dynamic errors =
-        body['errors'];
+    final dynamic errors = body['errors'];
 
-    if (errors is Map &&
-        errors.isNotEmpty) {
-      final dynamic first =
-          errors.values.first;
+    if (errors is Map && errors.isNotEmpty) {
+      final dynamic first = errors.values.first;
 
-      if (first is List &&
-          first.isNotEmpty) {
-        throw RegistrationApiException(
-          first.first.toString(),
-        );
+      if (first is List && first.isNotEmpty) {
+        throw RegistrationApiException(first.first.toString());
       }
 
       if (first != null) {
-        throw RegistrationApiException(
-          first.toString(),
-        );
+        throw RegistrationApiException(first.toString());
       }
     }
 
@@ -209,19 +158,11 @@ class RegistrationApi {
     String path,
     Map<String, String> fields,
   ) async {
-    final http.Request request =
-        http.Request(
-      'POST',
-      _apiUri(path),
-    )
-          ..headers.addAll(
-            _headers(),
-          )
-          ..bodyFields = fields;
+    final http.Request request = http.Request('POST', _apiUri(path))
+      ..headers.addAll(_headers())
+      ..bodyFields = fields;
 
-    return _send(
-      request,
-    );
+    return _send(request);
   }
 
   // ============================================================
@@ -230,46 +171,33 @@ class RegistrationApi {
 
   Future<void> registerBuyer({
     required Map<String, String> fields,
-    required PlatformFile profileImage,
+    PlatformFile? profileImage,
   }) async {
-    if (profileImage.path == null) {
+    if (profileImage != null && profileImage.path == null) {
       throw const RegistrationApiException(
         'The selected photo cannot be read.',
       );
     }
 
     final http.MultipartRequest request =
-        http.MultipartRequest(
-      'POST',
-      _apiUri(
-        'registration/buyer',
-      ),
-    )
-          ..headers.addAll(
-            _headers(),
-          )
-          ..fields.addAll(
-            fields,
-          )
-          ..files.add(
-            await http.MultipartFile.fromPath(
-              'profile_image',
-              profileImage.path!,
-              filename:
-                  profileImage.name,
-            ),
-          );
+        http.MultipartRequest('POST', _apiUri('registration/buyer'))
+          ..headers.addAll(_headers())
+          ..fields.addAll(fields);
 
-    final http.Response response =
-        await _send(
-      request,
-    );
-
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
-      _throwFor(
-        response,
+    if (profileImage != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'profile_image',
+          profileImage.path!,
+          filename: profileImage.name,
+        ),
       );
+    }
+
+    final http.Response response = await _send(request);
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _throwFor(response);
     }
   }
 
@@ -277,154 +205,87 @@ class RegistrationApi {
   // BUYER OTP
   // ============================================================
 
-  Future<String> sendOtp({
-    required String email,
-    required String role,
-  }) async {
-    if (role.toLowerCase() !=
-        'buyer') {
+  Future<String> sendOtp({required String email, required String role}) async {
+    if (role.toLowerCase() != 'buyer') {
       throw const RegistrationApiException(
         'This verification action is only available for Buyer registration.',
       );
     }
 
-    final http.Response response =
-        await _postForm(
+    final http.Response response = await _postForm(
       'registration/buyer/otp/resend',
-      <String, String>{
-        'email': email,
-      },
+      <String, String>{'email': email},
     );
 
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
-      _throwFor(
-        response,
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _throwFor(response);
     }
 
-    final Map<String, dynamic> result =
-        _json(
-      response.body,
-    );
+    final Map<String, dynamic> result = _json(response.body);
 
-    return result['message']
-            ?.toString() ??
-        'Verification code sent.';
+    return result['message']?.toString() ?? 'Verification code sent.';
   }
 
-  Future<Map<String, dynamic>>
-      verifyOtp({
+  Future<Map<String, dynamic>> verifyOtp({
     required String email,
     required String role,
     required String otp,
   }) async {
-    if (role.toLowerCase() !=
-        'buyer') {
+    if (role.toLowerCase() != 'buyer') {
       throw const RegistrationApiException(
         'This verification action is only available for Buyer registration.',
       );
     }
 
-    final http.Response response =
-        await _postForm(
+    final http.Response response = await _postForm(
       'registration/buyer/otp/verify',
-      <String, String>{
-        'email': email,
-        'otp': otp,
-      },
+      <String, String>{'email': email, 'otp': otp},
     );
 
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
-      _throwFor(
-        response,
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _throwFor(response);
     }
 
-    return _json(
-      response.body,
-    );
+    return _json(response.body);
   }
 
   // ============================================================
   // RIDER PROVIDERS
   // ============================================================
 
-  Future<List<Map<String, Object>>>
-      loadRiderLogistics() async {
-    final http.Request request =
-        http.Request(
+  Future<List<Map<String, Object>>> loadRiderLogistics() async {
+    final http.Request request = http.Request(
       'GET',
-      _apiUri(
-        'registration/rider/providers',
-      ),
-    )..headers.addAll(
-            _headers(),
-          );
+      _apiUri('registration/rider/providers'),
+    )..headers.addAll(_headers());
 
-    final http.Response response =
-        await _send(
-      request,
-    );
+    final http.Response response = await _send(request);
 
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
-      _throwFor(
-        response,
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _throwFor(response);
     }
 
-    final dynamic data =
-        _json(
-      response.body,
-    )['data'];
+    final dynamic data = _json(response.body)['data'];
 
     if (data is! List) {
       return <Map<String, Object>>[];
     }
 
-    return data
-        .whereType<Map>()
-        .map(
-          (
-            dynamic raw,
-          ) {
-            final Map<dynamic, dynamic>
-                item =
-                raw
-                    as Map<dynamic,
-                        dynamic>;
+    return data.whereType<Map>().map((dynamic raw) {
+      final Map<dynamic, dynamic> item = raw as Map<dynamic, dynamic>;
 
-            return <String, Object>{
-              'id': int.tryParse(
-                    '${item['id']}',
-                  ) ??
-                  0,
+      return <String, Object>{
+        'id': int.tryParse('${item['id']}') ?? 0,
 
-              'name': item['name']
-                      ?.toString() ??
-                  'SARI Logistics',
+        'name': item['name']?.toString() ?? 'SARI Logistics',
 
-              'location':
-                  item['location']
-                          ?.toString() ??
-                      '',
+        'location': item['location']?.toString() ?? '',
 
-              'coverage':
-                  item['coverage']
-                          ?.toString() ??
-                      '',
+        'coverage': item['coverage']?.toString() ?? '',
 
-              'approvedRiders':
-                  int.tryParse(
-                        '${item['approvedRiders'] ?? 0}',
-                      ) ??
-                      0,
-            };
-          },
-        )
-        .toList();
+        'approvedRiders': int.tryParse('${item['approvedRiders'] ?? 0}') ?? 0,
+      };
+    }).toList();
   }
 
   // ============================================================
@@ -435,29 +296,18 @@ class RegistrationApi {
     required int logisticsId,
     required String email,
   }) async {
-    final http.Response response =
-        await _postForm(
+    final http.Response response = await _postForm(
       'registration/rider/$logisticsId/otp/send',
-      <String, String>{
-        'email': email,
-      },
+      <String, String>{'email': email},
     );
 
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
-      _throwFor(
-        response,
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _throwFor(response);
     }
 
-    final Map<String, dynamic> result =
-        _json(
-      response.body,
-    );
+    final Map<String, dynamic> result = _json(response.body);
 
-    return result['message']
-            ?.toString() ??
-        'Verification code sent.';
+    return result['message']?.toString() ?? 'Verification code sent.';
   }
 
   Future<void> verifyRiderOtp({
@@ -465,20 +315,13 @@ class RegistrationApi {
     required String email,
     required String otp,
   }) async {
-    final http.Response response =
-        await _postForm(
+    final http.Response response = await _postForm(
       'registration/rider/$logisticsId/otp/verify',
-      <String, String>{
-        'email': email,
-        'otp': otp,
-      },
+      <String, String>{'email': email, 'otp': otp},
     );
 
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
-      _throwFor(
-        response,
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _throwFor(response);
     }
   }
 
@@ -493,8 +336,7 @@ class RegistrationApi {
     required PlatformFile idDocument,
     required PlatformFile orcrDocument,
   }) async {
-    for (final PlatformFile file
-        in <PlatformFile>[
+    for (final PlatformFile file in <PlatformFile>[
       profileImage,
       idDocument,
       orcrDocument,
@@ -508,55 +350,35 @@ class RegistrationApi {
 
     final http.MultipartRequest request =
         http.MultipartRequest(
-      'POST',
-      _apiUri(
-        'registration/rider/$logisticsId',
-      ),
-    )
-          ..headers.addAll(
-            _headers(),
+            'POST',
+            _apiUri('registration/rider/$logisticsId'),
           )
-          ..fields.addAll(
-            fields,
-          )
-          ..files.addAll(
-            <http.MultipartFile>[
-              await http.MultipartFile
-                  .fromPath(
-                'profile_image',
-                profileImage.path!,
-                filename:
-                    profileImage.name,
-              ),
+          ..headers.addAll(_headers())
+          ..fields.addAll(fields)
+          ..files.addAll(<http.MultipartFile>[
+            await http.MultipartFile.fromPath(
+              'profile_image',
+              profileImage.path!,
+              filename: profileImage.name,
+            ),
 
-              await http.MultipartFile
-                  .fromPath(
-                'id_document',
-                idDocument.path!,
-                filename:
-                    idDocument.name,
-              ),
+            await http.MultipartFile.fromPath(
+              'id_document',
+              idDocument.path!,
+              filename: idDocument.name,
+            ),
 
-              await http.MultipartFile
-                  .fromPath(
-                'orcr_document',
-                orcrDocument.path!,
-                filename:
-                    orcrDocument.name,
-              ),
-            ],
-          );
+            await http.MultipartFile.fromPath(
+              'orcr_document',
+              orcrDocument.path!,
+              filename: orcrDocument.name,
+            ),
+          ]);
 
-    final http.Response response =
-        await _send(
-      request,
-    );
+    final http.Response response = await _send(request);
 
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
-      _throwFor(
-        response,
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _throwFor(response);
     }
   }
 }

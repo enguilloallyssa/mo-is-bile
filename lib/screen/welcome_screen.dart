@@ -26,11 +26,7 @@ class WelcomeScreen extends StatelessWidget {
                   Color(0xFF17171A),
                   Color(0xFF08080A),
                 ],
-                stops: <double>[
-                  0,
-                  0.52,
-                  1,
-                ],
+                stops: <double>[0, 0.52, 1],
               ),
             ),
           ),
@@ -42,9 +38,7 @@ class WelcomeScreen extends StatelessWidget {
               height: 280,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.05),
-                ),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
               ),
             ),
           ),
@@ -56,37 +50,24 @@ class WelcomeScreen extends StatelessWidget {
               height: 310,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: _gold.withOpacity(0.08),
-                ),
+                border: Border.all(color: _gold.withOpacity(0.08)),
               ),
             ),
           ),
           SafeArea(
             child: LayoutBuilder(
-              builder: (
-                BuildContext context,
-                BoxConstraints constraints,
-              ) {
+              builder: (BuildContext context, BoxConstraints constraints) {
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(
-                    20,
-                    24,
-                    20,
-                    28,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       minHeight: constraints.maxHeight - 52,
                     ),
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: 430,
-                        ),
+                        constraints: const BoxConstraints(maxWidth: 430),
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.stretch,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: <Widget>[
                             Row(
                               children: <Widget>[
@@ -96,38 +77,36 @@ class WelcomeScreen extends StatelessWidget {
                                   padding: const EdgeInsets.all(5),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF121214),
-                                    borderRadius:
-                                        BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
-                                      color:
-                                          Colors.white.withOpacity(0.07),
+                                      color: Colors.white.withOpacity(0.07),
                                     ),
                                   ),
                                   child: Image.asset(
                                     'assets/images/sari_s.png',
                                     fit: BoxFit.contain,
-                                    errorBuilder: (
-                                      BuildContext context,
-                                      Object error,
-                                      StackTrace? stackTrace,
-                                    ) {
-                                      return const Center(
-                                        child: Text(
-                                          'S',
-                                          style: TextStyle(
-                                            color: _gold,
-                                            fontSize: 27,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      );
-                                    },
+                                    errorBuilder:
+                                        (
+                                          BuildContext context,
+                                          Object error,
+                                          StackTrace? stackTrace,
+                                        ) {
+                                          return const Center(
+                                            child: Text(
+                                              'S',
+                                              style: TextStyle(
+                                                color: _gold,
+                                                fontSize: 27,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          );
+                                        },
                                   ),
                                 ),
                                 const SizedBox(width: 10),
                                 const Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[
                                     Text(
                                       'Sari',
@@ -183,8 +162,7 @@ class WelcomeScreen extends StatelessWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: _surface.withOpacity(0.97),
-                                borderRadius:
-                                    BorderRadius.circular(25),
+                                borderRadius: BorderRadius.circular(25),
                                 border: Border.all(
                                   color: Colors.white.withOpacity(0.07),
                                 ),
@@ -197,8 +175,7 @@ class WelcomeScreen extends StatelessWidget {
                                 ],
                               ),
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.stretch,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: <Widget>[
                                   const Text(
                                     'Welcome to SARI',
@@ -224,26 +201,22 @@ class WelcomeScreen extends StatelessWidget {
                                     height: 52,
                                     child: ElevatedButton.icon(
                                       onPressed: () {
-                                        Navigator
-                                            .pushNamedAndRemoveUntil(
+                                        Navigator.pushNamedAndRemoveUntil(
                                           context,
                                           '/buyer',
-                                          (
-                                            Route<dynamic> route,
-                                          ) =>
-                                              false,
+                                          (Route<dynamic> route) => false,
                                         );
                                       },
-                                      style:
-                                          ElevatedButton.styleFrom(
+                                      style: ElevatedButton.styleFrom(
                                         backgroundColor: _gold,
-                                        foregroundColor:
-                                            const Color(0xFF131313),
+                                        foregroundColor: const Color(
+                                          0xFF131313,
+                                        ),
                                         elevation: 0,
-                                        shape:
-                                            RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(15),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            15,
+                                          ),
                                         ),
                                       ),
                                       icon: const Icon(
@@ -262,26 +235,18 @@ class WelcomeScreen extends StatelessWidget {
                                     height: 50,
                                     child: OutlinedButton.icon(
                                       onPressed: () {
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/login',
-                                        );
+                                        Navigator.pushNamed(context, '/login');
                                       },
-                                      style:
-                                          OutlinedButton.styleFrom(
+                                      style: OutlinedButton.styleFrom(
                                         foregroundColor: Colors.white,
-                                        side: const BorderSide(
-                                          color: _border,
-                                        ),
-                                        shape:
-                                            RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(15),
+                                        side: const BorderSide(color: _border),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            15,
+                                          ),
                                         ),
                                       ),
-                                      icon: const Icon(
-                                        Icons.login_rounded,
-                                      ),
+                                      icon: const Icon(Icons.login_rounded),
                                       label: const Text(
                                         'Sign In',
                                         style: TextStyle(
@@ -293,10 +258,7 @@ class WelcomeScreen extends StatelessWidget {
                                   const SizedBox(height: 7),
                                   TextButton(
                                     onPressed: () {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/register',
-                                      );
+                                      Navigator.pushNamed(context, '/register');
                                     },
                                     child: const Text(
                                       'Create a SARI account',

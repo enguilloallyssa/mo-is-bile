@@ -44,7 +44,8 @@ class _RiderShellState extends State<RiderShell> {
 
   @override
   void dispose() {
-    RiderMenuController.open = null;
+    RiderHeaderController.messages = null;
+    RiderHeaderController.notifications = null;
     super.dispose();
   }
 
@@ -101,8 +102,8 @@ class _RiderShellState extends State<RiderShell> {
       _darkMode,
     );
 
-    RiderMenuController.open =
-        _openDrawer;
+    RiderHeaderController.messages = _openMessages;
+    RiderHeaderController.notifications = _openNotifications;
 
     _loadAll();
   }
@@ -2901,6 +2902,17 @@ class _RiderShellState extends State<RiderShell> {
     );
   }
 
+  void _openProfileSection(String section) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => RiderProfilePage(
+        profile: _profile,
+        isDarkMode: _darkMode,
+        onDarkModeChanged: _setDarkMode,
+        section: section,
+      ),
+    ));
+  }
+
   @override
   Widget build(
     BuildContext context,
@@ -2920,6 +2932,7 @@ class _RiderShellState extends State<RiderShell> {
           brightness,
       useMaterial3:
           true,
+      textTheme: Theme.of(context).textTheme.apply(fontFamily: 'Roboto'),
       colorScheme:
           ColorScheme.fromSeed(
         seedColor:
@@ -3035,71 +3048,15 @@ class _RiderShellState extends State<RiderShell> {
                   _darkMode,
               onDarkModeChanged:
                   _setDarkMode,
+              onTabChanged: _changeTab,
+              onHistory: _openHistory,
+              onPickups: _openPickups,
             ),
           ];
 
           return Scaffold(
             key:
                 _shellKey,
-            endDrawer:
-                RiderDrawer(
-              profile:
-                  _profile,
-              activeIndex:
-                  _currentIndex,
-              onDashboard: () =>
-                  _drawerNavigate(
-                0,
-              ),
-              onAssignments: () =>
-                  _drawerNavigate(
-                1,
-              ),
-              onDeliveries: () =>
-                  _drawerNavigate(
-                2,
-              ),
-              onEarnings: () =>
-                  _drawerNavigate(
-                3,
-              ),
-              onProfile: () =>
-                  _drawerNavigate(
-                4,
-              ),
-              onPickups: () =>
-                  _drawerOpen(
-                _openPickups,
-              ),
-              onLastMile: () =>
-                  _drawerOpen(
-                _openLastMile,
-              ),
-              onScanner: () =>
-                  _drawerOpen(
-                _openStandaloneScanner,
-              ),
-              onCod: () =>
-                  _drawerOpen(
-                _openRemittances,
-              ),
-              onHistory: () =>
-                  _drawerOpen(
-                _openHistory,
-              ),
-              onMessages: () =>
-                  _drawerOpen(
-                _openMessages,
-              ),
-              onNotifications: () =>
-                  _drawerOpen(
-                _openNotifications,
-              ),
-              onLogout: () =>
-                  _drawerOpen(
-                _logoutFromDrawer,
-              ),
-            ),
             backgroundColor:
                 RiderColors.bg,
             body:

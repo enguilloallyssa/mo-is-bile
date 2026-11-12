@@ -12,11 +12,19 @@ class RiderProfilePage extends StatefulWidget {
     required this.profile,
     required this.isDarkMode,
     required this.onDarkModeChanged,
+    this.section = 'overview',
+    this.onTabChanged,
+    this.onHistory,
+    this.onPickups,
   });
 
   final RiderProfile profile;
   final bool isDarkMode;
   final ValueChanged<bool> onDarkModeChanged;
+  final String section;
+  final ValueChanged<int>? onTabChanged;
+  final VoidCallback? onHistory;
+  final VoidCallback? onPickups;
 
   @override
   State<RiderProfilePage> createState() =>
@@ -61,6 +69,7 @@ class _RiderProfilePageState
   bool _updatingPassword = false;
   bool _updatingAvailability = false;
   bool _loggingOut = false;
+  late bool _appearanceDarkMode;
 
   bool _showCurrentPassword = false;
   bool _showNewPassword = false;
@@ -80,6 +89,7 @@ class _RiderProfilePageState
   @override
   void initState() {
     super.initState();
+    _appearanceDarkMode = widget.isDarkMode;
 
     final profile = widget.profile;
 
@@ -977,6 +987,212 @@ class _RiderProfilePageState
         );
   }
 
+  Widget _accountQuickActions() {
+    final actions = <({IconData icon, String title, String subtitle, VoidCallback? onTap})>[
+      (icon: Icons.inventory_2_outlined, title: 'Pickups', subtitle: 'Seller orders', onTap: widget.onPickups),
+      (icon: Icons.assignment_outlined, title: 'Jobs', subtitle: 'Assignments', onTap: () => widget.onTabChanged?.call(1)),
+      (icon: Icons.local_shipping_outlined, title: 'Deliveries', subtitle: 'Last-mile route', onTap: () => widget.onTabChanged?.call(2)),
+    ];
+    return LayoutBuilder(builder: (context, constraints) {
+      final compact = constraints.maxWidth < 325;
+      return Row(
+        children: [
+          for (var i = 0; i < actions.length; i++) ...[
+            if (i != 0) const SizedBox(width: 10),
+            Expanded(
+              child: Material(
+                color: RiderColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  onTap: actions[i].onTap,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      color: RiderColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: RiderColors.border),
+                      boxShadow: [BoxShadow(
+                        color: Colors.black.withValues(alpha: .035),
+                        blurRadius: 14, offset: const Offset(0, 5),
+                      )],
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 7, vertical: 16),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Container(
+                          height: 44, width: 44,
+                          decoration: BoxDecoration(
+                            color: RiderColors.goldSoft,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Icon(actions[i].icon, color: RiderColors.goldDark, size: 22),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(actions[i].title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: RiderColors.text, fontSize: compact ? 11 : 12.5, fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 3),
+                        Text(actions[i].subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: RiderColors.muted, fontSize: compact ? 9 : 10)),
+                      ]),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      );
+    });
+  }
+
+
+  Future<void> _openAccountSection(String section) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => RiderProfilePage(
+          profile: widget.profile,
+          isDarkMode: widget.isDarkMode,
+          onDarkModeChanged: widget.onDarkModeChanged,
+          section: section,
+          onHistory: widget.onHistory,
+          onPickups: widget.onPickups,
+          onTabChanged: widget.onTabChanged,
+        ),
+      ),
+    );
+    if (mounted) await _loadProfile();
+  }
+
+  Widget _settingsItem({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    final accent = isDestructive ? RiderColors.red : RiderColors.goldDark;
+    return Material(
+      color: RiderColors.surface,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+          child: Row(children: [
+            Container(
+              width: 43, height: 43,
+              decoration: BoxDecoration(
+                color: isDestructive ? RiderColors.redSoft : RiderColors.goldSoft,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: accent, size: 21),
+            ),
+            const SizedBox(width: 13),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(color: isDestructive ? RiderColors.red : RiderColors.text,
+                    fontSize: 14, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: RiderColors.muted, fontSize: 11.5)),
+              ],
+            )),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right_rounded, color: RiderColors.muted, size: 20),
+          ]),
+        ),
+      ),
+    );
+  }
+
+
+  Widget _settingsOverview() {
+    Widget sectionLabel(String label) => Padding(
+      padding: const EdgeInsets.fromLTRB(4, 22, 0, 11),
+      child: Text(label, style: TextStyle(
+        color: RiderColors.muted, fontSize: 11, letterSpacing: 1.1,
+        fontWeight: FontWeight.w800,
+      )),
+    );
+    Widget section(List<Widget> children) => Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: RiderColors.surface,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: RiderColors.border),
+        boxShadow: [BoxShadow(
+          color: Colors.black.withValues(alpha: .03),
+          blurRadius: 16, offset: const Offset(0, 5),
+        )],
+      ),
+      child: Column(children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) Divider(height: 1, thickness: 1, indent: 72,
+              endIndent: 14, color: RiderColors.border),
+          children[i],
+        ],
+      ]),
+    );
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: RiderColors.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: RiderColors.border),
+        ),
+        child: Row(children: [
+          Container(width: 52, height: 52,
+            decoration: BoxDecoration(color: RiderColors.goldSoft,
+              borderRadius: BorderRadius.circular(15)),
+            alignment: Alignment.center,
+            child: Text('S', style: TextStyle(color: RiderColors.goldDark,
+              fontSize: 29, fontWeight: FontWeight.w800)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('SARI Settings', style: TextStyle(color: RiderColors.text,
+                fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text('Your account, your preferences.', style: TextStyle(
+                color: RiderColors.muted, fontSize: 12)),
+          ])),
+        ]),
+      ),
+      sectionLabel('ACCOUNT INFORMATION'),
+      section([
+        _settingsItem(title: 'Personal Information',
+          subtitle: 'Name, email, address and contact',
+          icon: Icons.person_outline_rounded,
+          onTap: () => _openAccountSection('personal')),
+        _settingsItem(title: 'Vehicle Information',
+          subtitle: 'Vehicle and license details',
+          icon: Icons.two_wheeler_rounded,
+          onTap: () => _openAccountSection('vehicle')),
+      ]),
+      sectionLabel('PREFERENCES & SECURITY'),
+      section([
+        _settingsItem(title: 'Appearance',
+          subtitle: _appearanceDarkMode ? 'Dark mode' : 'Light mode',
+          icon: _appearanceDarkMode ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+          onTap: () => _openAccountSection('appearance')),
+        _settingsItem(title: 'Security',
+          subtitle: 'Change your password',
+          icon: Icons.shield_outlined,
+          onTap: () => _openAccountSection('security')),
+      ]),
+      sectionLabel('SESSION'),
+      section([
+        _settingsItem(title: _loggingOut ? 'Signing out...' : 'Log Out',
+          subtitle: 'End your SARI Rider session',
+          icon: Icons.logout_rounded, isDestructive: true,
+          onTap: _loggingOut ? () {} : _logout),
+      ]),
+    ]);
+  }
+
+
   @override
   Widget build(
     BuildContext context,
@@ -984,78 +1200,35 @@ class _RiderProfilePageState
     return Scaffold(
       backgroundColor:
           RiderColors.bg,
-      appBar: AppBar(
-        automaticallyImplyLeading:
-            false,
-        leading: const RiderMenuButton(),
-        backgroundColor:
-            RiderColors.surface,
-        foregroundColor:
-            RiderColors.text,
-        surfaceTintColor:
-            Colors.transparent,
+      appBar: widget.section == 'overview' ? null : AppBar(
+        automaticallyImplyLeading: false,
+        leading: widget.section == 'overview' ? null : IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        backgroundColor: RiderColors.surface,
+        foregroundColor: RiderColors.text,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleSpacing: 16,
-        title:
-            const RiderHeaderTitle(
-          title:
-              'Account Management',
-          subtitle:
-              'Rider Profile & Settings',
+        title: RiderHeaderTitle(
+          title: widget.section == 'overview' ? 'Rider Profile'
+              : widget.section == 'settings' ? 'Settings'
+              : widget.section == 'personal' ? 'Personal Information'
+              : widget.section == 'vehicle' ? 'Vehicle Information'
+              : widget.section == 'appearance' ? 'Appearance' : 'Security',
+          subtitle: widget.section == 'overview' ? 'Your SARI Rider Account' : 'SARI Rider Account',
         ),
         actions: [
-          if (_loading)
-            const Padding(
-              padding:
-                  EdgeInsets.only(
-                right: 7,
-              ),
-              child: Center(
-                child: SizedBox(
-                  width: 19,
-                  height: 19,
-                  child:
-                      CircularProgressIndicator(
-                    strokeWidth: 2,
-                  ),
-                ),
-              ),
-            )
-          else
+          if ((widget.section == 'personal' || widget.section == 'vehicle'))
             IconButton(
-              tooltip:
-                  'Refresh profile',
-              onPressed:
-                  _loadProfile,
-              icon:
-                  const Icon(
-                Icons.refresh_rounded,
-              ),
+              tooltip: _editing ? 'Cancel editing' : 'Edit profile',
+              onPressed: _saving ? null : () {
+                if (_editing) { _resetFields(); }
+                else { setState(() { _editing = true; }); }
+              },
+              icon: Icon(_editing ? Icons.close_rounded : Icons.edit_outlined),
             ),
-
-          IconButton(
-            tooltip:
-                _editing
-                    ? 'Cancel editing'
-                    : 'Edit profile',
-            onPressed:
-                _saving
-                    ? null
-                    : () {
-                        if (_editing) {
-                          _resetFields();
-                        } else {
-                          setState(() {
-                            _editing = true;
-                          });
-                        }
-                      },
-            icon: Icon(
-              _editing
-                  ? Icons.close_rounded
-                  : Icons.edit_outlined,
-            ),
-          ),
         ],
       ),
       body: RefreshIndicator(
@@ -1066,32 +1239,28 @@ class _RiderProfilePageState
         child: ListView(
           physics:
               const AlwaysScrollableScrollPhysics(),
-          padding:
-              const EdgeInsets.fromLTRB(
-            16,
-            18,
-            16,
-            36,
-          ),
+          padding: widget.section == 'overview'
+              ? const EdgeInsets.only(bottom: 36)
+              : const EdgeInsets.fromLTRB(16, 18, 16, 36),
           children: [
-            _hero(),
-
-            const SizedBox(
-              height: 18,
-            ),
-
-            _availabilityCard(),
-
-            const SizedBox(
-              height: 12,
-            ),
-
-            _appearanceCard(),
-
-            const SizedBox(
-              height: 24,
-            ),
-
+            if (widget.section == 'overview') ...[
+              _hero(),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionTitle('Quick Actions', 'Open your Rider tools.'),
+                    const SizedBox(height: 12),
+                    _accountQuickActions(),
+                  ],
+                ),
+              ),
+            ],
+            if (widget.section == 'settings') _settingsOverview(),
+            if (widget.section == 'appearance') _appearanceCard(),
+            if (widget.section == 'personal') ...[
             _sectionTitle(
               'Personal Information',
               'Your registered SARI Rider account details.',
@@ -1145,10 +1314,8 @@ class _RiderProfilePageState
               _registeredLocation(),
             ],
 
-            const SizedBox(
-              height: 22,
-            ),
-
+            ],
+            if (widget.section == 'vehicle') ...[
             _sectionTitle(
               'Vehicle Information',
               'Registered delivery vehicle and license details.',
@@ -1194,6 +1361,8 @@ class _RiderProfilePageState
               ],
             ),
 
+            ],
+            if (widget.section == 'personal' || widget.section == 'vehicle') ...[
             if (_editing) ...[
               const SizedBox(
                 height: 13,
@@ -1265,10 +1434,8 @@ class _RiderProfilePageState
               ),
             ],
 
-            const SizedBox(
-              height: 26,
-            ),
-
+            ],
+            if (widget.section == 'security') ...[
             _sectionTitle(
               'Security',
               'Change your Rider account password.',
@@ -1280,183 +1447,148 @@ class _RiderProfilePageState
 
             _passwordCard(),
 
-            const SizedBox(
-              height: 26,
-            ),
-
-            _sectionTitle(
-              'Account Session',
-              'Manage your authenticated mobile session.',
-            ),
-
-            const SizedBox(
-              height: 12,
-            ),
-
-            _sessionCard(),
+            ],
           ],
         ),
       ),
     );
   }
 
+  // Unified profile card: dark brand header, overlapping avatar, profile
+  // details and performance metrics all share one clipped surface.
+  // Compact, softly styled account card. All API state and callbacks remain intact.
   Widget _hero() {
-    return Container(
-      padding:
-          const EdgeInsets.all(
-        21,
-      ),
-      decoration:
-          BoxDecoration(
-        gradient:
-            LinearGradient(
-          colors:
-              RiderColors.heroGradient,
-          begin:
-              Alignment.topLeft,
-          end:
-              Alignment.bottomRight,
+    final online = _availability == 'online' || _availability == 'available' || _availability == 'active';
+    const ink = Color(0xFF27231D);
+    const warm = Color(0xFFF7F1E7);
+    const gold = Color(0xFFB98B2A);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 0),
+      child: Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: RiderColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: RiderColors.border),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 18, offset: const Offset(0, 7))],
         ),
-        borderRadius:
-            BorderRadius.circular(
-          23,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'RIDER ACCOUNT',
-            style: TextStyle(
-              color:
-                  Colors.white70,
-              fontSize: 10,
-              fontWeight:
-                  FontWeight.w900,
-              letterSpacing: 1.4,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(18, 16, 14, 17),
+              decoration: BoxDecoration(
+                color: widget.isDarkMode ? const Color(0xFF322D25) : warm,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('SARI', style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900, letterSpacing: 2, color: gold)),
+                      const SizedBox(height: 8),
+                      Text('Rider Profile', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: widget.isDarkMode ? Colors.white : ink)),
+                      const SizedBox(height: 4),
+                      Text('Your SARI Rider account', style: TextStyle(fontSize: 12, color: widget.isDarkMode ? Colors.white70 : const Color(0xFF766D61))),
+                    ],
+                  )),
+                  _accountIcon(Icons.history_rounded, 'Delivery History', widget.onHistory),
+                  const SizedBox(width: 8),
+                  _accountIcon(Icons.settings_outlined, 'Settings', () => _openAccountSection('settings')),
+                ],
+              ),
             ),
-          ),
-
-          const SizedBox(
-            height: 20,
-          ),
-
-          Row(
-            children: [
-              _avatar(),
-
-              const SizedBox(
-                width: 15,
-              ),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _fullName,
-                      maxLines: 2,
-                      overflow:
-                          TextOverflow.ellipsis,
-                      style:
-                          const TextStyle(
-                        color:
-                            Colors.white,
-                        fontSize: 21,
-                        fontWeight:
-                            FontWeight.w900,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 15),
+              child: Column(
+                children: [
+                  Row(children: [
+                    Stack(children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: RiderColors.border)),
+                        child: _avatar(),
                       ),
-                    ),
-
-                    const SizedBox(
-                      height: 5,
-                    ),
-
-                    Text(
-                      _email.text
-                              .trim()
-                              .isEmpty
-                          ? 'SARI Rider'
-                          : _email.text
-                              .trim(),
-                      maxLines: 1,
-                      overflow:
-                          TextOverflow.ellipsis,
-                      style:
-                          const TextStyle(
-                        color:
-                            Colors.white70,
-                        fontSize: 11,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 9,
-                    ),
-
-                    Text(
-                      [
-                        _vehicleType.text
-                            .trim(),
-                        _plate.text
-                            .trim(),
-                      ]
-                          .where(
-                            (value) =>
-                                value
-                                    .isNotEmpty,
-                          )
-                          .join(
-                            ' • ',
-                          ),
-                      maxLines: 1,
-                      overflow:
-                          TextOverflow.ellipsis,
-                      style:
-                          const TextStyle(
-                        color:
-                            Colors.white,
-                        fontSize: 11,
-                        fontWeight:
-                            FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
+                      Positioned(right: 2, bottom: 2, child: Container(
+                        height: 15, width: 15,
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: online ? RiderColors.green : RiderColors.muted, border: Border.all(color: RiderColors.surface, width: 3)),
+                      )),
+                    ]),
+                    const SizedBox(width: 13),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(_fullName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: RiderColors.text, fontSize: 16, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 4),
+                      Text(_email.text.isEmpty ? 'SARI Rider' : _email.text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: RiderColors.muted, fontSize: 12)),
+                      const SizedBox(height: 8),
+                      Wrap(spacing: 5, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                        const Icon(Icons.star_rounded, size: 16, color: gold),
+                        Text(_rating.toStringAsFixed(1), style: TextStyle(color: RiderColors.text, fontSize: 12, fontWeight: FontWeight.w700)),
+                        Text('  •  $_completedDeliveries completed', style: TextStyle(color: RiderColors.muted, fontSize: 11)),
+                      ]),
+                    ])),
+                  ]),
+                  const SizedBox(height: 18),
+                  Row(children: [
+                    Expanded(child: _profileMetric(Icons.wifi_rounded, online ? 'Online' : 'Offline', 'Status')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _profileMetric(Icons.check_circle_outline_rounded, '$_completedDeliveries', 'Completed')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _profileMetric(Icons.star_outline_rounded, _rating.toStringAsFixed(1), 'Rating')),
+                  ]),
+                  const SizedBox(height: 13),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(12, 3, 4, 3),
+                    decoration: BoxDecoration(color: RiderColors.surfaceSoft, borderRadius: BorderRadius.circular(14)),
+                    child: Row(children: [
+                      Icon(Icons.circle, size: 8, color: online ? RiderColors.green : RiderColors.muted),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(online ? 'Available for Rider assignments' : 'Currently unavailable', style: TextStyle(color: RiderColors.muted, fontSize: 11))),
+                      if (_updatingAvailability)
+                        const Padding(padding: EdgeInsets.all(13), child: SizedBox(height: 17, width: 17, child: CircularProgressIndicator(strokeWidth: 2)))
+                      else
+                        Transform.scale(scale: .82, child: Switch.adaptive(value: online, activeTrackColor: RiderColors.green, onChanged: _changeAvailability)),
+                    ]),
+                  ),
+                ],
               ),
-            ],
-          ),
-
-          const SizedBox(
-            height: 22,
-          ),
-
-          Row(
-            children: [
-              _heroStat(
-                Icons.star_rounded,
-                _rating.toStringAsFixed(
-                  1,
-                ),
-                'Rating',
-              ),
-
-              const SizedBox(
-                width: 10,
-              ),
-
-              _heroStat(
-                Icons
-                    .check_circle_outline_rounded,
-                '$_completedDeliveries',
-                'Completed',
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _accountIcon(IconData icon, String tooltip, VoidCallback? onTap) {
+    return Material(
+      color: widget.isDarkMode ? Colors.white.withValues(alpha: .12) : Colors.white,
+      borderRadius: BorderRadius.circular(13),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onTap,
+        icon: Icon(icon, size: 21, color: widget.isDarkMode ? Colors.white : const Color(0xFF27231D)),
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        padding: const EdgeInsets.all(9),
+      ),
+    );
+  }
+
+  Widget _profileMetric(IconData icon, String count, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 13),
+      decoration: BoxDecoration(
+        color: RiderColors.surfaceSoft,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(children: [
+        Icon(icon, color: RiderColors.gold, size: 21),
+        const SizedBox(height: 8),
+        Text(count, style: TextStyle(color: RiderColors.text, fontWeight: FontWeight.w800, fontSize: 17)),
+        const SizedBox(height: 3),
+        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: RiderColors.muted, fontSize: 10)),
+      ]),
     );
   }
 
@@ -1701,7 +1833,7 @@ class _RiderProfilePageState
               ),
             ),
             child: Icon(
-              widget.isDarkMode
+              _appearanceDarkMode
                   ? Icons
                       .dark_mode_rounded
                   : Icons
@@ -1738,7 +1870,7 @@ class _RiderProfilePageState
                 ),
 
                 Text(
-                  widget.isDarkMode
+                  _appearanceDarkMode
                       ? 'Dark Mode'
                       : 'Light Mode',
                   style:
@@ -1754,12 +1886,13 @@ class _RiderProfilePageState
 
           Switch.adaptive(
             value:
-                widget.isDarkMode,
+                _appearanceDarkMode,
             activeTrackColor:
                 RiderColors.blue,
-            onChanged:
-                widget
-                    .onDarkModeChanged,
+            onChanged: (value) {
+                setState(() => _appearanceDarkMode = value);
+                widget.onDarkModeChanged(value);
+              },
           ),
         ],
       ),
@@ -1832,7 +1965,7 @@ class _RiderProfilePageState
                       TextStyle(
                     color:
                         RiderColors.muted,
-                    fontSize: 9.5,
+                    fontSize: 11,
                     height: 1.4,
                   ),
                 ),
@@ -2064,7 +2197,7 @@ class _RiderProfilePageState
                       TextStyle(
                     color:
                         RiderColors.muted,
-                    fontSize: 8,
+                    fontSize: 10,
                   ),
                 ),
                 const SizedBox(
@@ -2233,7 +2366,7 @@ class _RiderProfilePageState
                 TextStyle(
               color:
                   RiderColors.muted,
-              fontSize: 9.5,
+              fontSize: 11,
               height: 1.5,
             ),
           ),
@@ -2342,7 +2475,7 @@ class _RiderProfilePageState
                 color: valid
                     ? RiderColors.green
                     : RiderColors.muted,
-                fontSize: 8.5,
+                fontSize: 10,
                 fontWeight: valid
                     ? FontWeight.w700
                     : FontWeight.w500,

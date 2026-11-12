@@ -1217,44 +1217,11 @@ class _RiderHistoryState
           _cardDecoration(),
       child: Column(
         children: [
-          TextField(
-            controller:
-                _searchController,
-            textInputAction:
-                TextInputAction.search,
-            onSubmitted: (_) =>
-                _load(
-              reset: true,
-            ),
-            decoration:
-                InputDecoration(
-              hintText:
-                  'Search order or Buyer...',
-              prefixIcon:
-                  const Icon(
-                Icons.search_rounded,
-              ),
-              suffixIcon:
-                  _searchController
-                          .text
-                          .isEmpty
-                      ? null
-                      : IconButton(
-                          onPressed: () async {
-                            _searchController
-                                .clear();
-
-                            await _load(
-                              reset: true,
-                            );
-                          },
-                          icon:
-                              const Icon(
-                            Icons
-                                .close_rounded,
-                          ),
-                        ),
-            ),
+          RiderSearchField(
+            controller: _searchController,
+            hintText: 'Search order or buyer...',
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _load(reset: true),
           ),
 
           const SizedBox(

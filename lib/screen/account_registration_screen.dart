@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../widgets/sari_registration_theme.dart';
 import 'package:flutter/services.dart';
 
 import '../services/registration_api.dart';
@@ -22,25 +23,26 @@ class AccountRegistrationScreen extends StatefulWidget {
 class _AccountRegistrationScreenState
     extends State<AccountRegistrationScreen> {
   static const Color _background =
-      Color(0xFF0B0B0D);
+      Color(0xFFF9F3E9);
+  static const Color _ink = Color(0xFF322A21);
 
   static const Color _surface =
-      Color(0xFF18181C);
+      Color(0xDFFFFCF6);
 
   static const Color _field =
-      Color(0xFF222226);
+      Color(0xF4FFFCF7);
 
   static const Color _border =
-      Color(0xFF37373D);
+      Color(0xFFE2C9A4);
 
   static const Color _gold =
-      Color(0xFFD4A62A);
+      Color(0xFFBB8531);
 
   static const Color _goldDark =
-      Color(0xFFA96F06);
+      Color(0xFF97641B);
 
   static const Color _muted =
-      Color(0xFFA7A7AF);
+      Color(0xFF82776B);
 
   final GlobalKey<FormState> _formKey =
       GlobalKey<FormState>();
@@ -62,6 +64,10 @@ class _AccountRegistrationScreenState
 
   final TextEditingController _birthday =
       TextEditingController();
+
+  final TextEditingController _region = TextEditingController();
+  final TextEditingController _regionCode = TextEditingController();
+  final TextEditingController _postalCode = TextEditingController();
 
   final TextEditingController _province =
       TextEditingController();
@@ -117,6 +123,9 @@ class _AccountRegistrationScreenState
     _contact.dispose();
     _birthday.dispose();
 
+    _region.dispose();
+    _regionCode.dispose();
+    _postalCode.dispose();
     _province.dispose();
     _provinceCode.dispose();
 
@@ -264,14 +273,6 @@ class _AccountRegistrationScreenState
       return false;
     }
 
-    if (_sex == null) {
-      _message(
-        'Please select your sex.',
-      );
-
-      return false;
-    }
-
     if ((_calculateAge() ?? 0) <
         18) {
       _message(
@@ -301,14 +302,6 @@ class _AccountRegistrationScreenState
   }
 
   bool _validateSecurity() {
-    if (_profileImage == null) {
-      _message(
-        'Please select a profile photo.',
-      );
-
-      return false;
-    }
-
     final String password =
         _password.text;
 
@@ -397,8 +390,7 @@ class _AccountRegistrationScreenState
               .trim()
               .toUpperCase(),
 
-      'sex':
-          _sex ?? '',
+      if (_sex != null) 'sex': _sex!,
 
       'email':
           _email.text
@@ -410,6 +402,11 @@ class _AccountRegistrationScreenState
 
       'birthday':
           _birthday.text.trim(),
+
+      'region_code': _regionCode.text.trim(),
+      'region_name': _region.text.trim(),
+      if (_postalCode.text.trim().isNotEmpty)
+        'postal_code': _postalCode.text.trim(),
 
       'province_code':
           _provinceCode.text.trim(),
@@ -496,7 +493,7 @@ class _AccountRegistrationScreenState
           .registerBuyer(
         fields: _fields(),
         profileImage:
-            _profileImage!,
+            _profileImage,
       );
 
       if (!mounted) {
@@ -808,93 +805,10 @@ class _AccountRegistrationScreenState
     );
   }
 
-  Widget _stepIndicator() {
-    return Row(
-      children:
-          List<Widget>.generate(
-        3,
-        (int index) {
-          final bool completed =
-              index < _step;
-
-          final bool current =
-              index == _step;
-
-          return Expanded(
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 29,
-                  height: 29,
-                  alignment:
-                      Alignment.center,
-                  decoration:
-                      BoxDecoration(
-                    color: completed
-                        ? const Color(
-                            0xFF276C4B,
-                          )
-                        : current
-                            ? _gold
-                            : _field,
-                    shape:
-                        BoxShape.circle,
-                    border:
-                        Border.all(
-                      color: current ||
-                              completed
-                          ? Colors
-                              .transparent
-                          : _border,
-                    ),
-                  ),
-                  child: completed
-                      ? const Icon(
-                          Icons
-                              .check_rounded,
-                          color:
-                              Colors.white,
-                          size: 16,
-                        )
-                      : Text(
-                          '${index + 1}',
-                          style:
-                              TextStyle(
-                            color: current
-                                ? Colors
-                                    .black
-                                : _muted,
-                            fontSize: 10,
-                            fontWeight:
-                                FontWeight
-                                    .w800,
-                          ),
-                        ),
-                ),
-
-                if (index < 2)
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      margin:
-                          const EdgeInsets
-                              .symmetric(
-                        horizontal: 7,
-                      ),
-                      color: completed
-                          ? const Color(
-                              0xFF276C4B,
-                            )
-                          : _border,
-                    ),
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
+  Widget _stepIndicator() => SariRegistrationProgress(
+    step: _step,
+    labels: const ['Personal & Address', 'Security', 'Email OTP'],
+  );
 
   Widget _personalStep() {
     return Column(
@@ -917,7 +831,7 @@ class _AccountRegistrationScreenState
               TextCapitalization.words,
           style:
               const TextStyle(
-            color: Colors.white,
+            color: _ink,
           ),
           decoration:
               _decoration(
@@ -938,7 +852,7 @@ class _AccountRegistrationScreenState
               TextCapitalization.words,
           style:
               const TextStyle(
-            color: Colors.white,
+            color: _ink,
           ),
           decoration:
               _decoration(
@@ -970,7 +884,7 @@ class _AccountRegistrationScreenState
                   .characters,
           style:
               const TextStyle(
-            color: Colors.white,
+            color: _ink,
           ),
           decoration:
               _decoration(
@@ -990,11 +904,11 @@ class _AccountRegistrationScreenState
               _surface,
           style:
               const TextStyle(
-            color: Colors.white,
+            color: _ink,
           ),
           decoration:
               _decoration(
-            label: 'Sex',
+            label: 'Sex (Optional)',
             icon:
                 Icons.wc_outlined,
           ),
@@ -1032,7 +946,7 @@ class _AccountRegistrationScreenState
               _pickBirthday,
           style:
               const TextStyle(
-            color: Colors.white,
+            color: _ink,
           ),
           decoration:
               _decoration(
@@ -1044,6 +958,25 @@ class _AccountRegistrationScreenState
               _required,
         ),
 
+        const SizedBox(height: 7),
+        Builder(builder: (context) {
+          final age = _calculateAge();
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+            decoration: BoxDecoration(
+              color: const Color(0xEFFFF9EF),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _border),
+            ),
+            child: Row(children: [
+              const Icon(Icons.cake_outlined, size: 17, color: _gold),
+              const SizedBox(width: 8),
+              Text(age == null ? 'Age: calculated from birthday' : 'Age: $age years',
+                style: const TextStyle(color: _muted, fontSize: 11)),
+            ]),
+          );
+        }),
+
         _gap(),
 
         TextFormField(
@@ -1054,7 +987,7 @@ class _AccountRegistrationScreenState
                   .emailAddress,
           style:
               const TextStyle(
-            color: Colors.white,
+            color: _ink,
           ),
           decoration:
               _decoration(
@@ -1081,7 +1014,7 @@ class _AccountRegistrationScreenState
           ],
           style:
               const TextStyle(
-            color: Colors.white,
+            color: _ink,
           ),
           decoration:
               _decoration(
@@ -1105,7 +1038,7 @@ class _AccountRegistrationScreenState
           'Delivery Address',
           style: TextStyle(
             color:
-                Colors.white,
+                _ink,
             fontSize: 14,
             fontWeight:
                 FontWeight.w800,
@@ -1117,6 +1050,8 @@ class _AccountRegistrationScreenState
         ),
 
         SariAddressPicker(
+          region: _region,
+          regionCode: _regionCode,
           province:
               _province,
           provinceCode:
@@ -1141,7 +1076,7 @@ class _AccountRegistrationScreenState
           maxLines: 3,
           style:
               const TextStyle(
-            color: Colors.white,
+            color: _ink,
           ),
           decoration:
               _decoration(
@@ -1151,6 +1086,25 @@ class _AccountRegistrationScreenState
           ),
           validator:
               _required,
+        ),
+        _gap(),
+        TextFormField(
+          controller: _postalCode,
+          keyboardType: TextInputType.number,
+          maxLength: 4,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          style: const TextStyle(color: _ink),
+          decoration: _decoration(
+            label: 'Postal Code *',
+            icon: Icons.markunread_mailbox_outlined,
+          ).copyWith(counterText: ''),
+          validator: (value) {
+            final postal = (value ?? '').trim();
+            if (!RegExp(r'^\d{4}$').hasMatch(postal)) {
+              return 'Enter a 4-digit postal code.';
+            }
+            return null;
+          },
         ),
       ],
     );
@@ -1163,7 +1117,7 @@ class _AccountRegistrationScreenState
       children: <Widget>[
         _title(
           'Secure your Buyer account',
-          'Add your profile photo and create a secure password.',
+          'Profile photo is optional. Create a strong password to secure your account.',
         ),
 
         const SizedBox(
@@ -1278,7 +1232,7 @@ class _AccountRegistrationScreenState
               _hidePassword,
           style:
               const TextStyle(
-            color: Colors.white,
+            color: _ink,
           ),
           decoration:
               _decoration(
@@ -1314,7 +1268,7 @@ class _AccountRegistrationScreenState
               _hideConfirmation,
           style:
               const TextStyle(
-            color: Colors.white,
+            color: _ink,
           ),
           decoration:
               _decoration(
@@ -1359,7 +1313,7 @@ class _AccountRegistrationScreenState
               _acceptTerms,
           activeColor: _gold,
           checkColor:
-              Colors.black,
+              _ink,
           onChanged:
               (
             bool? value,
@@ -1375,7 +1329,7 @@ class _AccountRegistrationScreenState
             style:
                 TextStyle(
               color:
-                  Colors.white,
+                  _ink,
               fontSize: 10,
             ),
           ),
@@ -1413,7 +1367,7 @@ class _AccountRegistrationScreenState
           ],
           style:
               const TextStyle(
-            color: Colors.white,
+            color: _ink,
             fontSize: 27,
             letterSpacing: 11,
             fontWeight:
@@ -1627,41 +1581,8 @@ class _AccountRegistrationScreenState
     );
   }
 
-  Widget _title(
-    String title,
-    String subtitle,
-  ) {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          title,
-          style:
-              const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight:
-                FontWeight.w900,
-          ),
-        ),
-
-        const SizedBox(
-          height: 6,
-        ),
-
-        Text(
-          subtitle,
-          style:
-              const TextStyle(
-            color: _muted,
-            fontSize: 10,
-            height: 1.5,
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _title(String title, String subtitle) =>
+      SariSectionHeading(title: title, subtitle: subtitle);
 
   Widget _gap() {
     return const SizedBox(
@@ -1697,14 +1618,14 @@ class _AccountRegistrationScreenState
     BuildContext context,
   ) {
     if (!_isBuyer) {
-      return Scaffold(
+      return SariRegistrationBackdrop(child: Scaffold(
         backgroundColor:
-            _background,
+            Colors.transparent,
         appBar: AppBar(
           backgroundColor:
-              _background,
+              const Color(0xDFFFFCF6),
           foregroundColor:
-              Colors.white,
+              _ink,
           title:
               const Text(
             'Registration',
@@ -1723,219 +1644,95 @@ class _AccountRegistrationScreenState
                   TextAlign.center,
               style:
                   TextStyle(
-                color: Colors.white70,
+                color: _muted,
                 fontSize: 14,
               ),
             ),
           ),
         ),
-      );
+      ));
     }
 
-    return Scaffold(
-      backgroundColor:
-          _background,
-      appBar: AppBar(
-        backgroundColor:
-            _background,
-        foregroundColor:
-            Colors.white,
-        surfaceTintColor:
-            Colors.transparent,
-        leading: IconButton(
-          onPressed:
-              _back,
-          icon:
-              const Icon(
-            Icons
-                .arrow_back_rounded,
-          ),
-        ),
-        title:
-            const Text(
-          'Create Buyer Account',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight:
-                FontWeight.w800,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        top: false,
-        child:
-            SingleChildScrollView(
-          padding:
-              const EdgeInsets.fromLTRB(
-            16,
-            10,
-            16,
-            30,
-          ),
-          child: Center(
-            child:
-                ConstrainedBox(
-              constraints:
-                  const BoxConstraints(
-                maxWidth: 600,
-              ),
-              child: Form(
-                key:
-                    _formKey,
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment
-                          .stretch,
-                  children: <Widget>[
-                    _stepIndicator(),
-
-                    const SizedBox(
-                      height: 22,
-                    ),
-
-                    Container(
-                      padding:
-                          const EdgeInsets.all(
-                        18,
-                      ),
-                      decoration:
-                          BoxDecoration(
-                        color:
-                            _surface,
-                        borderRadius:
-                            BorderRadius.circular(
-                          22,
-                        ),
-                        border:
-                            Border.all(
-                          color:
-                              _border,
-                        ),
-                      ),
-                      child: AnimatedSwitcher(
-                        duration:
-                            const Duration(
-                          milliseconds:
-                              220,
-                        ),
-                        child: KeyedSubtree(
-                          key:
-                              ValueKey<int>(
-                            _step,
-                          ),
-                          child: switch (_step) {
-                            0 =>
-                              _personalStep(),
-                            1 =>
-                              _securityStep(),
-                            _ =>
-                              _otpStep(),
-                          },
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 16,
-                    ),
-
-                    SizedBox(
-                      height: 53,
-                      child:
-                          FilledButton(
-                        onPressed:
-                            _busy
-                                ? null
-                                : _continue,
-                        style:
-                            FilledButton
-                                .styleFrom(
-                          backgroundColor:
-                              _gold,
-                          foregroundColor:
-                              Colors.black,
-                          shape:
-                              RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(
-                              15,
+    return SariRegistrationBackdrop(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                SariRegistrationTopBar(
+                  title: 'Buyer Registration', onBack: _back),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 9, 16, 28),
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 620),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SariRegistrationIntro(
+                              eyebrow: 'SARI BUYER',
+                              title: 'Create your Buyer account',
+                              description: 'Shop local favorites, save items and follow every delivery.',
+                              icon: Icons.shopping_bag_outlined,
                             ),
-                          ),
-                        ),
-                        child: _busy
-                            ? const SizedBox(
-                                width:
-                                    21,
-                                height:
-                                    21,
-                                child:
-                                    CircularProgressIndicator(
-                                  strokeWidth:
-                                      2,
-                                  color:
-                                      Colors.white,
+                            const SizedBox(height: 16),
+                            _stepIndicator(),
+                            const SizedBox(height: 15),
+                            SariGlassPanel(
+                              padding: const EdgeInsets.all(17),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 240),
+                                child: KeyedSubtree(
+                                  key: ValueKey<int>(_step),
+                                  child: switch (_step) {
+                                    0 => _personalStep(),
+                                    1 => _securityStep(),
+                                    _ => _otpStep(),
+                                  },
                                 ),
-                              )
-                            : Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
-                                children: <Widget>[
-                                  Text(
-                                    _step ==
-                                            0
-                                        ? 'Continue'
-                                        : _step ==
-                                                1
-                                            ? 'Submit & Send OTP'
-                                            : 'Verify Account',
-                                    style:
-                                        const TextStyle(
-                                      fontWeight:
-                                          FontWeight.w900,
-                                    ),
-                                  ),
-                                  const SizedBox(
-                                    width: 7,
-                                  ),
-                                  Icon(
-                                    _step ==
-                                            2
-                                        ? Icons
-                                            .verified_rounded
-                                        : Icons
-                                            .arrow_forward_rounded,
-                                  ),
-                                ],
                               ),
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 13,
-                    ),
-
-                    Center(
-                      child: Text(
-                        'SARI • Secure mobile registration',
-                        style:
-                            TextStyle(
-                          color:
-                              _muted.withOpacity(
-                            .65,
-                          ),
-                          fontSize: 8,
-                          letterSpacing:
-                              .6,
+                            ),
+                            const SizedBox(height: 15),
+                            SizedBox(
+                              height: 50,
+                              child: FilledButton(
+                                onPressed: _busy ? null : _continue,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: _gold,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                                ),
+                                child: _busy
+                                  ? const SizedBox(width: 21, height: 21,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2, color: Colors.white))
+                                  : Text(_step == 0 ? 'Continue' :
+                                      _step == 1 ? 'Submit & Send OTP' : 'Verify Account',
+                                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            const Text('SARI  •  SECURE REGISTRATION',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: _muted, fontSize: 9,
+                                letterSpacing: 1.2, fontWeight: FontWeight.w700)),
+                          ],
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
       ),
     );
+
   }
 }

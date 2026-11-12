@@ -18,10 +18,7 @@ class DashboardScreen extends StatelessWidget {
       body: const Center(
         child: Text(
           'Dashboard will be connected next.',
-          style: TextStyle(
-            color: Color(0xFF756D63),
-            fontSize: 13,
-          ),
+          style: TextStyle(color: Color(0xFF756D63), fontSize: 13),
         ),
       ),
     );

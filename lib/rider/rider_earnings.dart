@@ -493,8 +493,7 @@ class _RiderEarningsState
                                 color:
                                     RiderColors
                                         .muted,
-                                fontSize:
-                                    9,
+                                fontSize: 11,
                               ),
                             ),
                             const SizedBox(
@@ -687,8 +686,7 @@ class _RiderEarningsState
                           color:
                               RiderColors
                                   .muted,
-                          fontSize:
-                              9,
+                          fontSize: 11,
                           height:
                               1.45,
                         ),
@@ -912,7 +910,7 @@ class _RiderEarningsState
       appBar: AppBar(
         automaticallyImplyLeading:
             false,
-        leading: const RiderMenuButton(),
+
         backgroundColor:
             RiderColors.surface,
         foregroundColor:
@@ -927,30 +925,7 @@ class _RiderEarningsState
           subtitle:
               'Earnings and Payout Management',
         ),
-        actions: [
-          IconButton(
-            tooltip:
-                'Refresh',
-            onPressed:
-                _loading
-                    ? null
-                    : _load,
-            icon:
-                const Icon(
-              Icons.refresh_rounded,
-            ),
-          ),
-          IconButton(
-            tooltip:
-                'Delivery History',
-            onPressed:
-                widget.onOpenHistory,
-            icon:
-                const Icon(
-              Icons.history_rounded,
-            ),
-          ),
-        ],
+        actions: [const RiderHeaderActions()],
       ),
       body: RefreshIndicator(
         color:
@@ -1589,8 +1564,7 @@ class _RiderEarningsState
                                   TextStyle(
                                 color:
                                     RiderColors.muted,
-                                fontSize:
-                                    7.5,
+                                fontSize: 10,
                               ),
                             ),
 
@@ -1637,8 +1611,7 @@ class _RiderEarningsState
                                   TextStyle(
                                 color:
                                     RiderColors.text,
-                                fontSize:
-                                    8.5,
+                                fontSize: 10,
                                 fontWeight:
                                     FontWeight.w700,
                               ),
@@ -1969,7 +1942,7 @@ class _RiderEarningsState
                           .blue
                       : RiderColors
                           .muted,
-                  fontSize: 9,
+                  fontSize: 11,
                   fontWeight:
                       FontWeight.w700,
                 ),
@@ -2060,7 +2033,7 @@ class _RiderEarningsState
                       TextStyle(
                     color:
                         RiderColors.muted,
-                    fontSize: 8.5,
+                    fontSize: 10,
                   ),
                 ),
 
@@ -2076,7 +2049,7 @@ class _RiderEarningsState
                         TextStyle(
                       color:
                           RiderColors.muted,
-                      fontSize: 7.5,
+                      fontSize: 10,
                     ),
                   ),
                 ],
@@ -2106,7 +2079,7 @@ class _RiderEarningsState
                         TextStyle(
                       color:
                           statusColor,
-                      fontSize: 7,
+                      fontSize: 10,
                       fontWeight:
                           FontWeight.w700,
                     ),
@@ -2254,7 +2227,7 @@ class _RiderEarningsState
                       TextStyle(
                     color:
                         statusColor,
-                    fontSize: 7.5,
+                    fontSize: 10,
                     fontWeight:
                         FontWeight.w700,
                   ),
@@ -2274,7 +2247,7 @@ class _RiderEarningsState
                       TextStyle(
                     color:
                         RiderColors.muted,
-                    fontSize: 8,
+                    fontSize: 10,
                     fontWeight:
                         FontWeight.w600,
                   ),
@@ -2308,7 +2281,7 @@ class _RiderEarningsState
                         TextStyle(
                       color:
                           RiderColors.muted,
-                      fontSize: 8.5,
+                      fontSize: 10,
                     ),
                   ),
                 ),
@@ -2328,7 +2301,7 @@ class _RiderEarningsState
                   TextStyle(
                 color:
                     RiderColors.muted,
-                fontSize: 7.5,
+                fontSize: 10,
               ),
             ),
           ],
@@ -2390,7 +2363,7 @@ class _RiderEarningsState
                 TextStyle(
               color:
                   RiderColors.muted,
-              fontSize: 9.5,
+              fontSize: 11,
               height: 1.45,
             ),
           ),
@@ -2438,7 +2411,7 @@ class _RiderEarningsState
                   TextStyle(
                 color:
                     RiderColors.text,
-                fontSize: 9.5,
+                fontSize: 11,
                 height: 1.4,
               ),
             ),
@@ -2497,7 +2470,7 @@ class _RiderEarningsState
                   TextStyle(
                 color:
                     RiderColors.text,
-                fontSize: 9.5,
+                fontSize: 11,
                 height: 1.45,
               ),
             ),

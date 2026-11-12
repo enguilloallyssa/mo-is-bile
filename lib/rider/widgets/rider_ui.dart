@@ -100,6 +100,77 @@ class RiderMenuButton extends StatelessWidget {
   }
 }
 
+/// Rider-only UI navigation callbacks set by RiderShell.
+class RiderHeaderController {
+  static VoidCallback? messages;
+  static VoidCallback? notifications;
+}
+
+class RiderHeaderActions extends StatelessWidget {
+  const RiderHeaderActions({super.key});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      IconButton(
+        tooltip: 'Messages',
+        onPressed: RiderHeaderController.messages,
+        icon: const Icon(Icons.chat_bubble_outline_rounded),
+      ),
+      IconButton(
+        tooltip: 'Notifications',
+        onPressed: RiderHeaderController.notifications,
+        icon: const Icon(Icons.notifications_none_rounded),
+      ),
+    ],
+  );
+}
+
+class RiderSearchField extends StatelessWidget {
+  const RiderSearchField({
+    super.key,
+    required this.controller,
+    required this.hintText,
+    required this.onChanged,
+    this.onSubmitted,
+  });
+  final TextEditingController controller;
+  final String hintText;
+  final ValueChanged<String> onChanged;
+  final ValueChanged<String>? onSubmitted;
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: controller,
+    onChanged: onChanged,
+    onSubmitted: onSubmitted,
+    textInputAction: onSubmitted == null ? TextInputAction.done : TextInputAction.search,
+    style: TextStyle(color: RiderColors.text, fontSize: 14),
+    decoration: InputDecoration(
+      hintText: hintText,
+      hintStyle: TextStyle(color: RiderColors.muted, fontSize: 13),
+      prefixIcon: Icon(Icons.search_rounded, color: RiderColors.muted, size: 21),
+      suffixIcon: controller.text.isEmpty ? null : IconButton(
+        tooltip: 'Clear search',
+        icon: const Icon(Icons.close_rounded, size: 19),
+        onPressed: () { controller.clear(); onChanged(''); },
+      ),
+      filled: true,
+      fillColor: RiderColors.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: RiderColors.border),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: RiderColors.gold, width: 1.6),
+        borderRadius: BorderRadius.circular(16),
+      ),
+    ),
+  );
+}
+
 class RiderThemeController {
   static bool isDark = false;
 
@@ -117,16 +188,16 @@ class RiderColors {
   static Color get bg =>
       isDark
           ? const Color(
-              0xFF17232B,
+              0xFF171715,
             )
           : const Color(
-              0xFFF4F5F7,
+              0xFFF7F5F1,
             );
 
   static Color get surface =>
       isDark
           ? const Color(
-              0xFF22313A,
+              0xFF24231F,
             )
           : const Color(
               0xFFFFFFFF,
@@ -135,7 +206,7 @@ class RiderColors {
   static Color get surfaceElevated =>
       isDark
           ? const Color(
-              0xFF2A3A44,
+              0xFF2C2A25,
             )
           : const Color(
               0xFFFFFFFF,
@@ -144,10 +215,10 @@ class RiderColors {
   static Color get surfaceSoft =>
       isDark
           ? const Color(
-              0xFF30414B,
+              0xFF35312A,
             )
           : const Color(
-              0xFFF5F6F9,
+              0xFFF4F0E9,
             );
 
   static Color get text =>
@@ -156,7 +227,7 @@ class RiderColors {
               0xFFF4F7F8,
             )
           : const Color(
-              0xFF20242D,
+              0xFF24231F,
             );
 
   static Color get muted =>
@@ -165,22 +236,22 @@ class RiderColors {
               0xFFAEBBC3,
             )
           : const Color(
-              0xFF6E7B84,
+              0xFF77716A,
             );
 
   static Color get border =>
       isDark
           ? const Color(
-              0xFF40525D,
+              0xFF464039,
             )
           : const Color(
-              0xFFE7EAF0,
+              0xFFEAE5DC,
             );
 
   static Color get nav =>
       isDark
           ? const Color(
-              0xFF1D2A32,
+              0xFF211F1C,
             )
           : const Color(
               0xFFFFFFFF,
@@ -189,10 +260,10 @@ class RiderColors {
   static Color get field =>
       isDark
           ? const Color(
-              0xFF1E2C34,
+              0xFF292620,
             )
           : const Color(
-              0xFFF4F6F7,
+              0xFFF8F5F0,
             );
 
   static Color get overlay =>
@@ -210,7 +281,7 @@ class RiderColors {
               0xFFF0B84A,
             )
           : const Color(
-              0xFFC6932C,
+              0xFFB88A2C,
             );
 
   static Color get goldDark =>
@@ -225,10 +296,10 @@ class RiderColors {
   static Color get goldSoft =>
       isDark
           ? const Color(
-              0xFF4A3D28,
+              0xFF4A3E2B,
             )
           : const Color(
-              0xFFFFEFD0,
+              0xFFF7EBD5,
             );
 
   static Color get blue =>
@@ -308,24 +379,24 @@ class RiderColors {
           isDark
               ? const <Color>[
                   Color(
-                    0xFF1C2A33,
+                    0xFF201E1B,
                   ),
                   Color(
-                    0xFF263843,
+                    0xFF302A21,
                   ),
                   Color(
-                    0xFF314752,
+                    0xFF4B3D28,
                   ),
                 ]
               : const <Color>[
                   Color(
-                    0xFF242B38,
+                    0xFF262521,
                   ),
                   Color(
-                    0xFF5E4B2A,
+                    0xFF4E4535,
                   ),
                   Color(
-                    0xFFC6932C,
+                    0xFFB88A2C,
                   ),
                 ];
 
@@ -334,10 +405,10 @@ class RiderColors {
           isDark
               ? const <Color>[
                   Color(
-                    0xFF24343D,
+                    0xFF28251F,
                   ),
                   Color(
-                    0xFF2D3F49,
+                    0xFF393024,
                   ),
                 ]
               : const <Color>[
@@ -345,7 +416,7 @@ class RiderColors {
                     0xFFFFFFFF,
                   ),
                   Color(
-                    0xFFF2F5F7,
+                    0xFFF8F4ED,
                   ),
                 ];
 }
@@ -380,9 +451,9 @@ class RiderHeaderTitle
               TextStyle(
             color:
                 RiderColors.text,
-            fontSize: 20,
+            fontSize: 19,
             fontWeight:
-                FontWeight.w900,
+                FontWeight.w800,
             letterSpacing: -.35,
           ),
         ),
@@ -400,9 +471,9 @@ class RiderHeaderTitle
               TextStyle(
             color:
                 RiderColors.muted,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight:
-                FontWeight.w500,
+                FontWeight.w400,
           ),
         ),
       ],

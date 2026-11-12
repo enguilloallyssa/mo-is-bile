@@ -1,3 +1,4 @@
+
 name: flutter_application_2
 description: "SARI Mobile Application"
 
@@ -36,17 +37,40 @@ flutter:
   uses-material-design: true
 
   assets:
+    # SARI branding
     - assets/images/sari-logo.png
     - assets/images/sari_s.png
+
+    # Splash screen logos and animation
+    - assets/images/sari_onboarding/sari-logo.png
+    - assets/images/sari_onboarding/letter_s.png
+    - assets/images/sari_onboarding/letter_a.png
+    - assets/images/sari_onboarding/letter_r.png
+    - assets/images/sari_onboarding/letter_i.png
+    - assets/images/sari_onboarding/original_tagline.png
+
+    # SARI shopping categories
+    - assets/images/sari_onboarding/fashion.jpg
+    - assets/images/sari_onboarding/beauty.jpg
+    - assets/images/sari_onboarding/tech.jpg
+    - assets/images/sari_onboarding/home.jpg
+    - assets/images/sari_onboarding/lifestyle.jpg
+    - assets/images/sari_onboarding/accessories.jpg
+    - assets/images/sari_onboarding/food.jpg
+    - assets/images/sari_onboarding/sports.jpg
+
+    - assets/images/sari_login_background.png
+    - assets/images/sari_register_background.png
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/sari-logo.png"
+
+  image_path: "assets/images/sari_s.png"
 
   adaptive_icon_background: "#080808"
   adaptive_icon_foreground: "assets/images/sari_s.png"
-  adaptive_icon_foreground_inset: 12
+  adaptive_icon_foreground_inset: 20
 
   remove_alpha_ios: true
   min_sdk_android: 21

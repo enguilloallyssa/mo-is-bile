@@ -1255,41 +1255,10 @@ class _RiderPickupsState extends State<RiderPickups> {
   }
 
   Widget _searchBar() {
-    return TextField(
-      controller:
-          _searchController,
-      onChanged: (_) {
-        setState(() {});
-      },
-      decoration:
-          InputDecoration(
-        hintText:
-            'Search order, seller, parcel...',
-        prefixIcon:
-            const Icon(
-          Icons.search_rounded,
-        ),
-        suffixIcon:
-            _searchController
-                    .text
-                    .isEmpty
-                ? null
-                : IconButton(
-                    onPressed: () {
-                      _searchController
-                          .clear();
-
-                      setState(
-                        () {},
-                      );
-                    },
-                    icon:
-                        const Icon(
-                      Icons
-                          .close_rounded,
-                    ),
-                  ),
-      ),
+    return RiderSearchField(
+      controller: _searchController,
+      hintText: 'Search order, seller, parcel...',
+      onChanged: (_) => setState(() {}),
     );
   }
 

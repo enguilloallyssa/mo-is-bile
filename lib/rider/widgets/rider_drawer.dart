@@ -21,6 +21,9 @@ class RiderDrawer extends StatelessWidget {
     required this.onNotifications,
     required this.onProfile,
     required this.onLogout,
+    required this.onProfileSection,
+    required this.isDarkMode,
+    required this.onDarkModeChanged,
   });
 
   final RiderProfile profile;
@@ -43,6 +46,9 @@ class RiderDrawer extends StatelessWidget {
   final VoidCallback onMessages;
   final VoidCallback onNotifications;
   final VoidCallback onLogout;
+  final ValueChanged<String> onProfileSection;
+  final bool isDarkMode;
+  final ValueChanged<bool> onDarkModeChanged;
 
   String get _name {
     final String value = profile.fullName.trim();
@@ -65,7 +71,7 @@ class RiderDrawer extends StatelessWidget {
           color: RiderColors.muted,
           letterSpacing: 1.2,
           fontWeight: FontWeight.w800,
-          fontSize: 8.5,
+          fontSize: 11,
         ),
       ),
     );
@@ -129,7 +135,7 @@ class RiderDrawer extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: RiderColors.muted,
-                            fontSize: 7.5,
+                            fontSize: 11,
                           ),
                         ),
                       ],
@@ -224,7 +230,7 @@ class RiderDrawer extends StatelessWidget {
                                     _online ? 'ONLINE' : 'OFFLINE',
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 6.5,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
@@ -261,7 +267,7 @@ class RiderDrawer extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white60,
-                            fontSize: 8.5,
+                            fontSize: 11,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -274,43 +280,47 @@ class RiderDrawer extends StatelessWidget {
                           ].join(' • '),
                           style: const TextStyle(
                             color: Colors.white54,
-                            fontSize: 7,
+                            fontSize: 10,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  _heading('Rider Tools'),
-                  _item(
-                    icon: Icons.qr_code_scanner_rounded,
-                    title: 'Parcel Scanner',
-                    subtitle: 'Scan and verify parcel QR codes',
-                    onTap: onScanner,
-                  ),
-                  _item(
-                    icon: Icons.payments_outlined,
-                    title: 'COD Remittance',
-                    subtitle: 'Manage collected COD cash',
-                    onTap: onCod,
-                  ),
+                  _heading('Operations'),
                   _item(
                     icon: Icons.history_rounded,
                     title: 'Delivery History',
-                    subtitle: 'Review completed Rider trips',
+                    subtitle: 'Completed rider trips',
                     onTap: onHistory,
                   ),
-                  _heading('Communication'),
+                  _heading('Account Information'),
                   _item(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    title: 'Messages',
-                    subtitle: 'Logistics communication',
-                    onTap: onMessages,
+                    icon: Icons.person_outline_rounded,
+                    title: 'Personal Information',
+                    onTap: () => onProfileSection('personal'),
                   ),
                   _item(
-                    icon: Icons.notifications_none_rounded,
-                    title: 'Notifications',
-                    subtitle: 'Assignment and delivery updates',
-                    onTap: onNotifications,
+                    icon: Icons.two_wheeler_rounded,
+                    title: 'Vehicle Information',
+                    onTap: () => onProfileSection('vehicle'),
+                  ),
+                  _heading('Preferences & Security'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                    child: SwitchListTile.adaptive(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                      secondary: Icon(Icons.brightness_6_outlined, color: RiderColors.text),
+                      title: Text('Appearance', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: RiderColors.text)),
+                      subtitle: Text(isDarkMode ? 'Dark Mode' : 'Light Mode', style: TextStyle(fontSize: 12, color: RiderColors.muted)),
+                      value: isDarkMode,
+                      activeTrackColor: RiderColors.gold,
+                      onChanged: onDarkModeChanged,
+                    ),
+                  ),
+                  _item(
+                    icon: Icons.shield_outlined,
+                    title: 'Security',
+                    onTap: () => onProfileSection('security'),
                   ),
                   const SizedBox(height: 14),
                 ],

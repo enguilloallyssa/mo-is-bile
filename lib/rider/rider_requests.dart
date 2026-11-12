@@ -148,24 +148,7 @@ class _RiderRequestsState
               'Dispatched by SARI Logistics',
         ),
 
-        actions: [
-          IconButton(
-            tooltip:
-                'Last-Mile Deliveries',
-            onPressed:
-                widget.onOpenDelivery,
-            icon: const Icon(
-              Icons
-                  .local_shipping_outlined,
-            ),
-          ),
-
-          const RiderMenuButton(),
-
-          const SizedBox(
-            width: 3,
-          ),
-        ],
+        actions: [const RiderHeaderActions()],
       ),
 
       body: ListView(
@@ -369,50 +352,6 @@ class _RiderRequestsState
             height: 18,
           ),
 
-          OutlinedButton.icon(
-            onPressed:
-                widget.onOpenDelivery,
-
-            icon:
-                const Icon(
-              Icons
-                  .route_outlined,
-              size: 18,
-            ),
-
-            label:
-                const Text(
-              'Last-Mile Deliveries',
-            ),
-
-            style:
-                OutlinedButton
-                    .styleFrom(
-              foregroundColor:
-                  Colors.white,
-
-              side:
-                  const BorderSide(
-                color:
-                    Colors.white38,
-              ),
-
-              padding:
-                  const EdgeInsets
-                      .symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-
-              shape:
-                  RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(
-                  12,
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -816,101 +755,10 @@ class _RiderRequestsState
   }
 
   Widget _searchBar() {
-    return TextField(
-      controller:
-          _searchController,
-
-      onChanged: (_) {
-        setState(() {});
-      },
-
-      style:
-          TextStyle(
-        color:
-            RiderColors.text,
-        fontSize: 13,
-      ),
-
-      decoration:
-          InputDecoration(
-        hintText:
-            'Search order, seller, parcel code...',
-
-        hintStyle:
-            TextStyle(
-          color:
-              RiderColors.muted,
-          fontSize: 12,
-        ),
-
-        prefixIcon:
-            Icon(
-          Icons.search_rounded,
-          color:
-              RiderColors.muted,
-        ),
-
-        suffixIcon:
-            _searchController
-                    .text
-                    .isNotEmpty
-                ? IconButton(
-                    onPressed: () {
-                      _searchController
-                          .clear();
-
-                      setState(
-                        () {},
-                      );
-                    },
-
-                    icon:
-                        const Icon(
-                      Icons.close,
-                    ),
-                  )
-                : null,
-
-        filled: true,
-
-        fillColor:
-            RiderColors.field,
-
-        contentPadding:
-            const EdgeInsets
-                .symmetric(
-          horizontal: 15,
-          vertical: 14,
-        ),
-
-        enabledBorder:
-            OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(
-            14,
-          ),
-
-          borderSide:
-              BorderSide(
-            color:
-                RiderColors.border,
-          ),
-        ),
-
-        focusedBorder:
-            OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(
-            14,
-          ),
-
-          borderSide:
-              BorderSide(
-            color:
-                RiderColors.blue,
-          ),
-        ),
-      ),
+    return RiderSearchField(
+      controller: _searchController,
+      hintText: 'Search order, seller, parcel code...',
+      onChanged: (_) => setState(() {}),
     );
   }
 

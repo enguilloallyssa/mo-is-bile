@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import '../services/sari_live_data.dart';
 import 'package:flutter/material.dart';
+import '../widgets/sari_registration_theme.dart';
 import 'package:flutter/services.dart';
 
 import '../widgets/sari_address_picker.dart';
@@ -15,13 +16,14 @@ class LogisticsRegisterScreen extends StatefulWidget {
 }
 
 class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
-  static const Color _background = Color(0xFF0B0B0D);
-  static const Color _surface = Color(0xFF18181C);
-  static const Color _field = Color(0xFF222226);
-  static const Color _border = Color(0xFF37373D);
-  static const Color _gold = Color(0xFFD4A62A);
-  static const Color _goldDark = Color(0xFFA96F06);
-  static const Color _muted = Color(0xFFA7A7AF);
+  static const Color _background = Color(0xFFF9F3E9);
+  static const Color _ink = Color(0xFF322A21);
+  static const Color _surface = Color(0xDFFFFCF6);
+  static const Color _field = Color(0xF4FFFCF7);
+  static const Color _border = Color(0xFFE2C9A4);
+  static const Color _gold = Color(0xFFBB8531);
+  static const Color _goldDark = Color(0xFF97641B);
+  static const Color _muted = Color(0xFF82776B);
   static const Color _success = Color(0xFF70C68C);
 
   static const List<String> _serviceAreaOptions = <String>[
@@ -576,7 +578,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
       prefixIcon: icon == null ? null : Icon(icon, size: 19),
       suffixIcon: suffix,
       labelStyle: const TextStyle(color: _muted, fontSize: 12),
-      hintStyle: const TextStyle(color: Color(0xFF71717A), fontSize: 11),
+      hintStyle: const TextStyle(color: Color(0xFF84786A), fontSize: 11),
       filled: true,
       fillColor: _field,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -599,44 +601,9 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
     );
   }
 
-  Widget _section({
-    required String title,
-    required String subtitle,
-    required List<Widget> children,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: _muted,
-              fontSize: 10,
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...children,
-        ],
-      ),
-    );
-  }
+  Widget _section({required String title, required String subtitle,
+    required List<Widget> children}) => SariRegistrationSection(
+      title: title, subtitle: subtitle, children: children);
 
   Widget _gap([double height = 12]) => SizedBox(height: height);
 
@@ -660,7 +627,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               height: 48,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: const Color(0xFF2B2619),
+                color: const Color(0xFFFFEFDA),
                 borderRadius: BorderRadius.circular(13),
               ),
               child: Icon(
@@ -678,7 +645,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
                   const Text(
                     'Profile Photo *',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: _ink,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -726,8 +693,8 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: selected
-                    ? const Color(0xFF1D3024)
-                    : const Color(0xFF2B2619),
+                    ? const Color(0xFFE3F2E5)
+                    : const Color(0xFFFFEFDA),
                 borderRadius: BorderRadius.circular(11),
               ),
               child: Icon(
@@ -745,7 +712,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: _ink,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w800,
                     ),
@@ -767,30 +734,8 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
     );
   }
 
-  Widget _stepIndicator() {
-    return Row(
-      children: List<Widget>.generate(
-        _stepTitles.length,
-        (int index) {
-          final bool active = index == _step;
-          final bool complete = index < _step;
-
-          return Expanded(
-            child: Container(
-              height: 4,
-              margin: EdgeInsets.only(
-                right: index == _stepTitles.length - 1 ? 0 : 6,
-              ),
-              decoration: BoxDecoration(
-                color: active || complete ? _gold : _border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
+  Widget _stepIndicator() => SariRegistrationProgress(
+    step: _step, labels: _stepTitles);
 
   Widget _personalStep() {
     return Column(
@@ -806,7 +751,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               controller: _firstName,
               validator: _nameValidator,
               textCapitalization: TextCapitalization.words,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: _ink),
               decoration: _decoration(
                 'First Name *',
                 icon: Icons.person_outline_rounded,
@@ -817,7 +762,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               controller: _lastName,
               validator: _nameValidator,
               textCapitalization: TextCapitalization.words,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: _ink),
               decoration: _decoration(
                 'Last Name *',
                 icon: Icons.person_outline_rounded,
@@ -829,7 +774,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               validator: _middleInitialValidator,
               maxLength: 1,
               textCapitalization: TextCapitalization.characters,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: _ink),
               decoration: _decoration(
                 'Middle Initial',
                 icon: Icons.badge_outlined,
@@ -839,7 +784,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
             DropdownButtonFormField<String>(
               initialValue: _sex,
               dropdownColor: _surface,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: _ink),
               decoration: _decoration(
                 'Sex',
                 icon: Icons.wc_outlined,
@@ -859,7 +804,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               controller: _birthday,
               validator: _birthdayValidator,
               readOnly: true,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: _ink),
               onTap: _pickBirthday,
               decoration: _decoration(
                 'Birthday',
@@ -877,7 +822,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               validator: _emailValidator,
               keyboardType: TextInputType.emailAddress,
               autocorrect: false,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: _ink),
               decoration: _decoration(
                 'Email Address *',
                 icon: Icons.mail_outline_rounded,
@@ -888,7 +833,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               controller: _contact,
               validator: _phoneValidator,
               keyboardType: TextInputType.phone,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: _ink),
               decoration: _decoration(
                 'Contact Number *',
                 hint: '09XXXXXXXXX',
@@ -921,7 +866,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               maxLength: 500,
               maxLines: 2,
               textCapitalization: TextCapitalization.words,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: _ink),
               decoration: _decoration(
                 'Street / House / Building *',
                 icon: Icons.home_work_outlined,
@@ -937,7 +882,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
                 FilteringTextInputFormatter.digitsOnly,
                 LengthLimitingTextInputFormatter(4),
               ],
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: _ink),
               decoration: _decoration(
                 'Postal Code *',
                 hint: '0000',
@@ -960,7 +905,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
           controller: _businessName,
           validator: _businessNameValidator,
           textCapitalization: TextCapitalization.words,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: _ink),
           decoration: _decoration(
             'Business Name *',
             icon: Icons.warehouse_outlined,
@@ -976,7 +921,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
             FilteringTextInputFormatter.allow(RegExp(r'[0-9-]')),
             LengthLimitingTextInputFormatter(15),
           ],
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: _ink),
           decoration: _decoration(
             'TIN *',
             hint: '000-000-000-000',
@@ -993,7 +938,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
             FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
             LengthLimitingTextInputFormatter(11),
           ],
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: _ink),
           decoration: _decoration(
             'SEC Registration No. *',
             hint: 'CS202012345',
@@ -1006,7 +951,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
           validator: _positionValidator,
           maxLength: 120,
           textCapitalization: TextCapitalization.words,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: _ink),
           decoration: _decoration(
             'Contact Person Position *',
             hint: 'Operations Manager',
@@ -1017,7 +962,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
         const Text(
           'Service Areas *',
           style: TextStyle(
-            color: Colors.white,
+            color: _ink,
             fontSize: 12,
             fontWeight: FontWeight.w800,
           ),
@@ -1047,12 +992,12 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
                 });
               },
               showCheckmark: true,
-              selectedColor: const Color(0xFF3B321D),
+              selectedColor: const Color(0xFFFFEAC9),
               backgroundColor: _field,
               side: BorderSide(color: selected ? _gold : _border),
               checkmarkColor: _gold,
               labelStyle: TextStyle(
-                color: selected ? const Color(0xFFFFD36B) : _muted,
+                color: selected ? _goldDark : _muted,
                 fontSize: 9,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
               ),
@@ -1118,7 +1063,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               autocorrect: false,
               enableSuggestions: false,
               onChanged: (_) => setState(() {}),
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: _ink),
               decoration: _decoration(
                 'Password *',
                 icon: Icons.lock_outline_rounded,
@@ -1153,7 +1098,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               obscureText: _hideConfirmation,
               autocorrect: false,
               enableSuggestions: false,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: _ink),
               decoration: _decoration(
                 'Confirm Password *',
                 icon: Icons.lock_reset_rounded,
@@ -1189,12 +1134,12 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
               });
             },
             activeColor: _gold,
-            checkColor: Colors.black,
+            checkColor: _ink,
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
             title: const Text(
               'I agree to the SARI Terms and Privacy Policy.',
-              style: TextStyle(color: Colors.white, fontSize: 11),
+              style: TextStyle(color: _ink, fontSize: 11),
             ),
             subtitle: const Text(
               'Your application remains subject to SARI administrator review and approval.',
@@ -1246,55 +1191,19 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _background,
+    return SariRegistrationBackdrop(child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0, -.85),
-                radius: 1.2,
-                colors: <Color>[
-                  Color(0xFF353128),
-                  Color(0xFF171719),
-                  Color(0xFF09090B),
-                ],
-              ),
-            ),
-          ),
+          const SizedBox.shrink(),
           SafeArea(
             child: Form(
               key: _formKey,
               child: Column(
                 children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 5, 8, 0),
-                    child: Row(
-                      children: <Widget>[
-                        IconButton(
-                          onPressed: _back,
-                          icon: const Icon(
-                            Icons.arrow_back_rounded,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'Logistics Registration',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 48),
-                      ],
-                    ),
-                  ),
+                  SariRegistrationTopBar(
+                    title: 'Logistics Registration', onBack: _back),
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(16, 13, 16, 28),
@@ -1304,80 +1213,14 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
-                              Container(
-                                padding: const EdgeInsets.all(17),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1B1A17),
-                                  borderRadius: BorderRadius.circular(21),
-                                  border: Border.all(
-                                    color: _gold.withValues(alpha: .28),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: <Widget>[
-                                    Container(
-                                      width: 48,
-                                      height: 48,
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF302919),
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: const Icon(
-                                        Icons.hub_outlined,
-                                        color: _gold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: <Widget>[
-                                          Text(
-                                            'SARI LOGISTICS',
-                                            style: TextStyle(
-                                              color: _gold,
-                                              fontSize: 8,
-                                              fontWeight: FontWeight.w900,
-                                              letterSpacing: 1.2,
-                                            ),
-                                          ),
-                                          SizedBox(height: 4),
-                                          Text(
-                                            'Provider Application',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 17,
-                                              fontWeight: FontWeight.w900,
-                                            ),
-                                          ),
-                                          SizedBox(height: 3),
-                                          Text(
-                                            'Same required registration fields as the current SARI web application.',
-                                            style: TextStyle(
-                                              color: _muted,
-                                              fontSize: 9,
-                                              height: 1.35,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                              const SariRegistrationIntro(
+                                eyebrow: 'SARI LOGISTICS',
+                                title: 'Provider Application',
+                                description: 'Complete the required company details and documents for SARI review.',
+                                icon: Icons.hub_outlined,
                               ),
                               const SizedBox(height: 16),
                               _stepIndicator(),
-                              const SizedBox(height: 9),
-                              Text(
-                                'Step ${_step + 1} of ${_stepTitles.length}  •  ${_stepTitles[_step]}',
-                                style: const TextStyle(
-                                  color: _muted,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
                               const SizedBox(height: 14),
                               AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 180),
@@ -1396,7 +1239,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
                                         icon: const Icon(Icons.arrow_back_rounded),
                                         label: const Text('Back'),
                                         style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.white,
+                                          foregroundColor: _ink,
                                           side: const BorderSide(color: _border),
                                           padding: const EdgeInsets.symmetric(
                                             vertical: 14,
@@ -1415,7 +1258,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
                                       onPressed: _busy ? null : _next,
                                       style: FilledButton.styleFrom(
                                         backgroundColor: _gold,
-                                        foregroundColor: Colors.black,
+                                        foregroundColor: _ink,
                                         padding: const EdgeInsets.symmetric(
                                           vertical: 14,
                                         ),
@@ -1429,7 +1272,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
                                               height: 16,
                                               child: CircularProgressIndicator(
                                                 strokeWidth: 2,
-                                                color: Colors.black,
+                                                color: _ink,
                                               ),
                                             )
                                           : Icon(
@@ -1455,7 +1298,7 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
                                 'Your application will be submitted to SARI for email verification and Admin approval.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: Color(0xFF777780),
+                                  color: Color(0xFF84786A),
                                   fontSize: 7.5,
                                   height: 1.4,
                                 ),
@@ -1472,6 +1315,6 @@ class _LogisticsRegisterScreenState extends State<LogisticsRegisterScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 }

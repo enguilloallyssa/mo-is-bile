@@ -323,7 +323,7 @@ class RiderHome extends StatelessWidget {
                         TextStyle(
                       color:
                           RiderColors.muted,
-                      fontSize: 7.5,
+                      fontSize: 10,
                     ),
                   ),
                 ],
@@ -333,85 +333,7 @@ class RiderHome extends StatelessWidget {
         ),
 
         actions: <Widget>[
-          // Messages moved one slot LEFT.
-          Stack(
-            clipBehavior:
-                Clip.none,
-            children: <Widget>[
-              IconButton(
-                tooltip:
-                    'Messages',
-                onPressed:
-                    onOpenMessages,
-                icon: Icon(
-                  Icons
-                      .chat_bubble_outline_rounded,
-                  color:
-                      RiderColors.text,
-                  size: 21,
-                ),
-              ),
-
-              if (unreadMessages > 0)
-                Positioned(
-                  right: 5,
-                  top: 5,
-                  child: Container(
-                    constraints:
-                        const BoxConstraints(
-                      minWidth: 16,
-                    ),
-                    height: 16,
-                    padding:
-                        const EdgeInsets.symmetric(
-                      horizontal: 4,
-                    ),
-                    alignment:
-                        Alignment.center,
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          RiderColors.gold,
-                      borderRadius:
-                          BorderRadius.circular(
-                        20,
-                      ),
-                    ),
-                    child: Text(
-                      unreadMessages > 99
-                          ? '99+'
-                          : '$unreadMessages',
-                      style:
-                          const TextStyle(
-                        color:
-                            Colors.white,
-                        fontSize: 6.5,
-                        fontWeight:
-                            FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-
-          // Hamburger moved to far RIGHT.
-          IconButton(
-            tooltip:
-                'Rider Menu',
-            onPressed:
-                RiderMenuController.open,
-            icon: Icon(
-              Icons.menu_rounded,
-              color:
-                  RiderColors.text,
-              size: 23,
-            ),
-          ),
-
-          const SizedBox(
-            width: 3,
-          ),
+          const RiderHeaderActions(),
         ],
       ),
 
@@ -492,29 +414,6 @@ class RiderHome extends StatelessWidget {
               height: 21,
             ),
 
-            _sectionHeader(
-              title:
-                  'Quick Actions',
-              subtitle:
-                  'Jump directly to Rider tools.',
-            ),
-
-            const SizedBox(
-              height: 10,
-            ),
-
-            _quickActions(),
-
-            const SizedBox(
-              height: 21,
-            ),
-
-            _statusCard(),
-
-            const SizedBox(
-              height: 18,
-            ),
-
             Center(
               child: Text(
                 'SARI RIDER • ELEVATED EVERYDAY',
@@ -522,7 +421,7 @@ class RiderHome extends StatelessWidget {
                     TextStyle(
                   color:
                       RiderColors.muted,
-                  fontSize: 6.8,
+                  fontSize: 10,
                   letterSpacing:
                       .9,
                   fontWeight:
@@ -565,15 +464,14 @@ class RiderHome extends StatelessWidget {
           ),
           decoration:
               BoxDecoration(
-            gradient:
-                LinearGradient(
-              begin:
-                  Alignment.topLeft,
-              end:
-                  Alignment.bottomRight,
-              colors:
-                  RiderColors
-                      .heroGradient,
+            image: const DecorationImage(
+              image: AssetImage('assets/images/sari_rider_dashboard_bg.png'),
+              fit: BoxFit.cover,
+              alignment: Alignment.centerRight,
+              colorFilter: ColorFilter.mode(Color(0x990D1014), BlendMode.darken),
+            ),
+            gradient: LinearGradient(
+              colors: [Color(0xFF292A2C), Color(0xFF9A792F)],
             ),
             borderRadius:
                 BorderRadius.circular(
@@ -638,7 +536,7 @@ class RiderHome extends StatelessWidget {
                                   const TextStyle(
                                 color:
                                     Colors.white60,
-                                fontSize: 8,
+                                fontSize: 10,
                                 fontWeight:
                                     FontWeight.w600,
                               ),
@@ -718,7 +616,7 @@ class RiderHome extends StatelessWidget {
                                   const TextStyle(
                                 color:
                                     Colors.white,
-                                fontSize: 6.5,
+                                fontSize: 10,
                                 fontWeight:
                                     FontWeight.w900,
                               ),
@@ -775,7 +673,7 @@ class RiderHome extends StatelessWidget {
                             const TextStyle(
                           color:
                               Colors.white60,
-                          fontSize: 8,
+                          fontSize: 10,
                         ),
                       ),
                     ],
@@ -879,7 +777,7 @@ class RiderHome extends StatelessWidget {
                 const TextStyle(
               color:
                   Colors.white54,
-              fontSize: 6.5,
+              fontSize: 10,
             ),
           ),
         ],
@@ -1067,7 +965,7 @@ class RiderHome extends StatelessWidget {
                           TextStyle(
                         color:
                             RiderColors.text,
-                        fontSize: 8,
+                        fontSize: 10,
                         fontWeight:
                             FontWeight.w800,
                       ),
@@ -1083,7 +981,7 @@ class RiderHome extends StatelessWidget {
                           TextStyle(
                         color:
                             RiderColors.muted,
-                        fontSize: 6.5,
+                        fontSize: 10,
                       ),
                     ),
                   ],
@@ -1138,7 +1036,7 @@ class RiderHome extends StatelessWidget {
                     TextStyle(
                   color:
                       RiderColors.muted,
-                  fontSize: 7.5,
+                  fontSize: 10,
                 ),
               ),
             ],
@@ -1154,7 +1052,7 @@ class RiderHome extends StatelessWidget {
               action,
               style:
                   const TextStyle(
-                fontSize: 8,
+                fontSize: 10,
               ),
             ),
           ),
@@ -1275,7 +1173,7 @@ class RiderHome extends StatelessWidget {
                           TextStyle(
                         color:
                             RiderColors.muted,
-                        fontSize: 7.5,
+                        fontSize: 10,
                       ),
                     ),
                   ],
@@ -1305,7 +1203,7 @@ class RiderHome extends StatelessWidget {
                       TextStyle(
                     color:
                         status,
-                    fontSize: 6.5,
+                    fontSize: 10,
                     fontWeight:
                         FontWeight.w800,
                   ),
@@ -1371,7 +1269,7 @@ class RiderHome extends StatelessWidget {
                             TextStyle(
                           color:
                               RiderColors.text,
-                          fontSize: 8,
+                          fontSize: 10,
                           height: 1.3,
                           fontWeight:
                               FontWeight.w600,
@@ -1410,7 +1308,7 @@ class RiderHome extends StatelessWidget {
                             TextStyle(
                           color:
                               RiderColors.muted,
-                          fontSize: 7.5,
+                          fontSize: 10,
                           height: 1.35,
                         ),
                       ),
@@ -1451,7 +1349,7 @@ class RiderHome extends StatelessWidget {
                         .ellipsis,
                 style:
                     const TextStyle(
-                  fontSize: 8.5,
+                  fontSize: 10,
                   fontWeight:
                       FontWeight.w800,
                 ),
@@ -1534,7 +1432,7 @@ class RiderHome extends StatelessWidget {
                 TextStyle(
               color:
                   RiderColors.muted,
-              fontSize: 7.5,
+              fontSize: 10,
             ),
           ),
         ],
@@ -1690,7 +1588,7 @@ class RiderHome extends StatelessWidget {
                             TextStyle(
                           color:
                               RiderColors.text,
-                          fontSize: 7.2,
+                          fontSize: 10,
                           fontWeight:
                               FontWeight.w700,
                         ),
@@ -1798,7 +1696,7 @@ class RiderHome extends StatelessWidget {
                       TextStyle(
                     color:
                         RiderColors.muted,
-                    fontSize: 7.5,
+                    fontSize: 10,
                   ),
                 ),
               ],

@@ -6,11 +6,9 @@ import 'rider/rider_shell.dart';
 import 'screen/login_screen.dart';
 import 'screen/register_screen.dart';
 import 'screen/splash_screen.dart';
-import 'screen/welcome_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
   runApp(const SariApp());
 }
 
@@ -29,58 +27,32 @@ class SariApp extends StatelessWidget {
           seedColor: const Color(0xFFD4A62A),
           brightness: Brightness.light,
         ),
-        scaffoldBackgroundColor: const Color(0xFFF7F5F1),
-
-        // Important:
-        // Keeps symbols such as the Philippine Peso sign ₱
-        // visible even if a custom font does not contain it.
-        fontFamilyFallback: const <String>[
-          'Roboto',
-          'Arial',
-          'sans-serif',
-        ],
-
+        scaffoldBackgroundColor: const Color(0xFFF8F5F0),
+        fontFamilyFallback: const <String>['Roboto', 'Arial', 'sans-serif'],
         appBarTheme: const AppBarTheme(
           centerTitle: false,
           elevation: 0,
           scrolledUnderElevation: 0,
         ),
-
         snackBarTheme: const SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
         ),
       ),
-
       initialRoute: '/splash',
-
       routes: <String, WidgetBuilder>{
-        '/splash': (BuildContext context) =>
-            const SplashScreen(),
+        '/splash': (_) => const SplashScreen(),
 
-        '/welcome': (BuildContext context) =>
-            const WelcomeScreen(),
+        // Redirect the old Welcome route to Login.
+        '/welcome': (_) => const LoginScreen(),
 
-        '/login': (BuildContext context) =>
-            const LoginScreen(),
-
-        '/register': (BuildContext context) =>
-            const RegisterScreen(),
-
-        '/buyer': (BuildContext context) =>
-            const BuyerShell(),
-
-        '/rider': (BuildContext context) =>
-            const RiderShell(),
-
-        '/logistics': (BuildContext context) =>
-            const LogisticsShell(),
+        '/login': (_) => const LoginScreen(),
+        '/register': (_) => const RegisterScreen(),
+        '/buyer': (_) => const BuyerShell(),
+        '/rider': (_) => const RiderShell(),
+        '/logistics': (_) => const LogisticsShell(),
       },
-
-      onUnknownRoute: (RouteSettings settings) {
-        return MaterialPageRoute<void>(
-          builder: (BuildContext context) =>
-              const WelcomeScreen(),
-        );
+      onUnknownRoute: (_) {
+        return MaterialPageRoute<void>(builder: (_) => const LoginScreen());
       },
     );
   }

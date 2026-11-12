@@ -549,7 +549,7 @@ class _RiderDeliveriesState
                     TextStyle(
                   color:
                       RiderColors.muted,
-                  fontSize: 8,
+                  fontSize: 10,
                   fontWeight:
                       FontWeight.w800,
                   letterSpacing: .7,
@@ -868,7 +868,7 @@ class _RiderDeliveriesState
                             color:
                                 RiderColors
                                     .blue,
-                            fontSize: 8,
+                            fontSize: 10,
                             fontWeight:
                                 FontWeight
                                     .w600,
@@ -931,19 +931,7 @@ class _RiderDeliveriesState
           subtitle:
               'Last-Mile Buyer Delivery',
         ),
-        actions: [
-          IconButton(
-            tooltip:
-                'Delivery History',
-            onPressed:
-                widget.onOpenHistory,
-            icon:
-                const Icon(
-              Icons.history_rounded,
-            ),
-          ),
-          const RiderMenuButton(),
-        ],
+        actions: [const RiderHeaderActions()],
       ),
       body: ListView(
         physics:
@@ -1027,7 +1015,7 @@ class _RiderDeliveriesState
                 TextStyle(
               color:
                   RiderColors.muted,
-              fontSize: 9,
+              fontSize: 11,
             ),
           ),
 
@@ -1164,31 +1152,6 @@ class _RiderDeliveriesState
                 ),
               ),
 
-              OutlinedButton.icon(
-                onPressed:
-                    widget
-                        .onOpenHistory,
-                icon:
-                    const Icon(
-                  Icons.history_rounded,
-                  size: 18,
-                ),
-                label:
-                    const Text(
-                  'History',
-                ),
-                style:
-                    OutlinedButton
-                        .styleFrom(
-                  foregroundColor:
-                      Colors.white,
-                  side:
-                      const BorderSide(
-                    color:
-                        Colors.white54,
-                  ),
-                ),
-              ),
             ],
           ),
         ],
@@ -1338,7 +1301,7 @@ class _RiderDeliveriesState
                 TextStyle(
               color:
                   RiderColors.muted,
-              fontSize: 9,
+              fontSize: 11,
               fontWeight:
                   FontWeight.w600,
             ),
@@ -1422,39 +1385,10 @@ class _RiderDeliveriesState
   }
 
   Widget _searchBar() {
-    return TextField(
-      controller:
-          _searchController,
-      onChanged: (_) {
-        setState(() {});
-      },
-      decoration:
-          InputDecoration(
-        hintText:
-            'Search order, buyer, address...',
-        prefixIcon:
-            const Icon(
-          Icons.search_rounded,
-        ),
-        suffixIcon:
-            _searchController
-                    .text
-                    .isEmpty
-                ? null
-                : IconButton(
-                    onPressed: () {
-                      _searchController
-                          .clear();
-
-                      setState(() {});
-                    },
-                    icon:
-                        const Icon(
-                      Icons
-                          .close_rounded,
-                    ),
-                  ),
-      ),
+    return RiderSearchField(
+      controller: _searchController,
+      hintText: 'Search order, buyer, address...',
+      onChanged: (_) => setState(() {}),
     );
   }
 
@@ -1863,8 +1797,7 @@ class _RiderDeliveriesState
                                 color:
                                     RiderColors
                                         .muted,
-                                fontSize:
-                                    9,
+                                fontSize: 11,
                               ),
                             ),
                     ),
@@ -1902,7 +1835,7 @@ class _RiderDeliveriesState
                             .blue
                         : RiderColors
                             .muted,
-                    fontSize: 7.5,
+                    fontSize: 10,
                     fontWeight:
                         index ==
                                 current
@@ -1953,7 +1886,7 @@ class _RiderDeliveriesState
                     TextStyle(
                   color:
                       accent,
-                  fontSize: 8,
+                  fontSize: 10,
                   fontWeight:
                       FontWeight.w900,
                   letterSpacing: .7,
@@ -1986,7 +1919,7 @@ class _RiderDeliveriesState
                     TextStyle(
                   color:
                       RiderColors.muted,
-                  fontSize: 9,
+                  fontSize: 11,
                   height: 1.4,
                 ),
               ),
@@ -2023,7 +1956,7 @@ class _RiderDeliveriesState
             TextStyle(
           color:
               foreground,
-          fontSize: 8,
+          fontSize: 10,
           fontWeight:
               FontWeight.w800,
         ),
