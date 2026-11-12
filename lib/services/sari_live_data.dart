@@ -182,6 +182,11 @@ class SariLiveData {
   // BUYER CART / CHECKOUT
   // ============================================================
 
+  /// Read-only Buyer wallet and COD history from Laravel.
+  /// Wallet payment/withdrawal is intentionally not supported by the API.
+  Future<SariJson> buyerWallet() =>
+      _api.request('GET', 'buyer/wallet');
+
   Future<SariJson> buyerCart() =>
       _api.request(
         'GET',

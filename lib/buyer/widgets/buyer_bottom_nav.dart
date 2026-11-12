@@ -43,133 +43,67 @@ class BuyerBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double width =
-        MediaQuery.sizeOf(context).width;
-
-    final bool compact =
-        width < 360;
-
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: BuyerTheme.border,
-          ),
+    final compact = MediaQuery.sizeOf(context).width < 360;
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 9),
+        padding: const EdgeInsets.fromLTRB(5, 6, 5, 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: BuyerTheme.border),
+          boxShadow: const [BoxShadow(color: Color(0x170B233F), blurRadius: 20, offset: Offset(0, 7))],
         ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Color(0x140B233F),
-            blurRadius: 18,
-            offset: Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            5,
-            5,
-            5,
-            4,
-          ),
-          child: Row(
-            children:
-                List<Widget>.generate(
-              _items.length,
-              (int index) {
-                final item =
-                    _items[index];
-
-                final bool active =
-                    index ==
-                        currentIndex;
-
-                return Expanded(
-                  child: InkWell(
-                    onTap: () {
-                      onTap(index);
-                    },
-                    borderRadius:
-                        BorderRadius.circular(
-                      14,
-                    ),
-                    child: AnimatedContainer(
-                      duration:
-                          const Duration(
-                        milliseconds: 180,
+        child: Row(children: List.generate(_items.length, (index) {
+          final item = _items[index];
+          final selected = currentIndex == index;
+          return Expanded(child: Semantics(
+            selected: selected,
+            button: true,
+            label: '${item.$3} tab',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => onTap(index),
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      height: 36,
+                      width: compact ? 38 : 42,
+                      decoration: BoxDecoration(
+                        color: selected ? BuyerTheme.goldPale : Colors.transparent,
+                        borderRadius: BorderRadius.circular(13),
                       ),
-                      padding:
-                          const EdgeInsets.symmetric(
-                        vertical: 6,
-                      ),
-                      decoration:
-                          BoxDecoration(
-                        color: active
-                            ? BuyerTheme
-                                .goldPale
-                            : Colors
-                                .transparent,
-                        borderRadius:
-                            BorderRadius.circular(
-                          14,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize:
-                            MainAxisSize.min,
-                        children: <Widget>[
-                          Icon(
-                            active
-                                ? item.$2
-                                : item.$1,
-                            size: compact
-                                ? 19
-                                : 21,
-                            color: active
-                                ? BuyerTheme
-                                    .goldDark
-                                : BuyerTheme
-                                    .muted,
-                          ),
-                          const SizedBox(
-                            height: 3,
-                          ),
-                          Text(
-                            item.$3,
-                            maxLines: 1,
-                            overflow:
-                                TextOverflow
-                                    .ellipsis,
-                            style:
-                                TextStyle(
-                              color: active
-                                  ? BuyerTheme
-                                      .goldDark
-                                  : BuyerTheme
-                                      .muted,
-                              fontSize:
-                                  compact
-                                      ? 8
-                                      : 8.5,
-                              fontWeight:
-                                  active
-                                      ? FontWeight
-                                          .w800
-                                      : FontWeight
-                                          .w600,
-                            ),
-                          ),
-                        ],
+                      alignment: Alignment.center,
+                      child: AnimatedScale(
+                        duration: const Duration(milliseconds: 220),
+                        scale: selected ? 1.05 : 1,
+                        child: Icon(selected ? item.$2 : item.$1,
+                          color: selected ? BuyerTheme.goldDark : BuyerTheme.muted,
+                          size: compact ? 19 : 21),
                       ),
                     ),
-                  ),
-                );
-              },
+                    const SizedBox(height: 3),
+                    Text(item.$3,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected ? BuyerTheme.goldDark : BuyerTheme.muted,
+                        fontSize: compact ? 9 : 10,
+                        fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
             ),
-          ),
-        ),
+          ));
+        })),
       ),
     );
   }

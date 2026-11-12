@@ -991,7 +991,7 @@ class _RiderProfilePageState
     final actions = <({IconData icon, String title, String subtitle, VoidCallback? onTap})>[
       (icon: Icons.inventory_2_outlined, title: 'Pickups', subtitle: 'Seller orders', onTap: widget.onPickups),
       (icon: Icons.assignment_outlined, title: 'Jobs', subtitle: 'Assignments', onTap: () => widget.onTabChanged?.call(1)),
-      (icon: Icons.local_shipping_outlined, title: 'Deliveries', subtitle: 'Last-mile route', onTap: () => widget.onTabChanged?.call(2)),
+      (icon: Icons.local_shipping_outlined, title: 'Deliveries', subtitle: 'Active orders', onTap: () => widget.onTabChanged?.call(2)),
     ];
     return LayoutBuilder(builder: (context, constraints) {
       final compact = constraints.maxWidth < 325;
@@ -1460,7 +1460,7 @@ class _RiderProfilePageState
   Widget _hero() {
     final online = _availability == 'online' || _availability == 'available' || _availability == 'active';
     const ink = Color(0xFF27231D);
-    const warm = Color(0xFFF7F1E7);
+    const warm = Color(0xFFF2F4F7);
     const gold = Color(0xFFB98B2A);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 15, 16, 0),
@@ -1498,6 +1498,8 @@ class _RiderProfilePageState
                   _accountIcon(Icons.history_rounded, 'Delivery History', widget.onHistory),
                   const SizedBox(width: 8),
                   _accountIcon(Icons.settings_outlined, 'Settings', () => _openAccountSection('settings')),
+                  const SizedBox(width: 8),
+                  _accountIcon(Icons.menu_rounded, 'Rider menu', RiderMenuController.open),
                 ],
               ),
             ),

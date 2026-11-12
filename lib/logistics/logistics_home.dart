@@ -509,7 +509,9 @@ class LogisticsHome extends StatelessWidget {
                       : snapshot.connectionState ==
                               ConnectionState.waiting
                           ? '…'
-                          : '${counts[key] ?? 0}';
+                          : counts.containsKey(key)
+                              ? '${counts[key]}'
+                              : '—';
 
               return Column(
                 crossAxisAlignment:

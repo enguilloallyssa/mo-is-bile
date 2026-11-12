@@ -61,6 +61,7 @@ flutter:
 
     - assets/images/sari_login_background.png
     - assets/images/sari_register_background.png
+    - assets/images/rider_hero_gear.png
 
 flutter_launcher_icons:
   android: true

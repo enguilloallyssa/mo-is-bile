@@ -12,6 +12,7 @@ import 'buyer_notifications.dart';
 import 'buyer_orders.dart';
 import 'buyer_products.dart';
 import 'buyer_rewards.dart';
+import 'buyer_wallet.dart';
 import 'buyer_shipping.dart';
 import 'buyer_theme.dart';
 import 'widgets/buyer_bottom_nav.dart';
@@ -67,7 +68,8 @@ class _BuyerShellState extends State<BuyerShell> {
   bool _requiresLogin(
     int page,
   ) {
-    return page == 2 ||
+    return page == 9 ||
+        page == 2 ||
         page == 3 ||
         page == 4 ||
         page == 5 ||
@@ -80,7 +82,7 @@ class _BuyerShellState extends State<BuyerShell> {
     int page,
   ) async {
     if (page < 0 ||
-        page > 8) {
+        page > 9) {
       return;
     }
 
@@ -582,6 +584,9 @@ class _BuyerShellState extends State<BuyerShell> {
       case 8:
         return const BuyerRewards();
 
+      case 9:
+        return const BuyerWallet();
+
       default:
         return BuyerHome(
           onTabChanged:
@@ -886,6 +891,10 @@ class _BuyerShellState extends State<BuyerShell> {
                   BuyerTheme.border,
             ),
 
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: <Widget>[
             const Padding(
               padding:
                   EdgeInsets.fromLTRB(
@@ -947,7 +956,15 @@ class _BuyerShellState extends State<BuyerShell> {
               },
             ),
 
-            const Spacer(),
+            _settingsLink(
+              Icons.account_balance_wallet_outlined,
+              'My Wallet / COD',
+              'Read-only balance and COD history',
+              () => _openSettingsPage(9),
+            ),
+                ],
+              ),
+            ),
 
             const Divider(
               height: 1,

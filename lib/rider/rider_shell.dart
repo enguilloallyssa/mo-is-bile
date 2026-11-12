@@ -46,6 +46,7 @@ class _RiderShellState extends State<RiderShell> {
   void dispose() {
     RiderHeaderController.messages = null;
     RiderHeaderController.notifications = null;
+    RiderMenuController.open = null;
     super.dispose();
   }
 
@@ -78,6 +79,7 @@ class _RiderShellState extends State<RiderShell> {
       _transactions = [];
 
   Map<String, dynamic> _dashboardSummary = {};
+  Map<String, dynamic> _dashboardCurrent = {};
 
   RiderProfile _profile = RiderProfile(
     firstName: 'SARI',
@@ -104,6 +106,7 @@ class _RiderShellState extends State<RiderShell> {
 
     RiderHeaderController.messages = _openMessages;
     RiderHeaderController.notifications = _openNotifications;
+    RiderMenuController.open = _openDrawer;
 
     _loadAll();
   }
@@ -704,6 +707,7 @@ class _RiderShellState extends State<RiderShell> {
             _map(
           dashboard['summary'],
         );
+        _dashboardCurrent = _map(dashboard['current_assignment']);
 
         _currentDelivery =
             _resolveCurrentDelivery(
@@ -803,17 +807,20 @@ class _RiderShellState extends State<RiderShell> {
       _currentDelivery =
           _resolveCurrentDelivery(
         _assignments,
-        {},
+        {'current_assignment': _dashboardCurrent},
       );
     });
 
-    if (_visitedTabs.contains(1) ||
-        _visitedTabs.contains(2)) {
-      unawaited(
-        _hydrateAssignments(
-          assignments,
-        ),
-      );
+    // Load the current order's real route stops for the dashboard map,
+    // even before the Rider opens Assignments or Deliveries.
+    // Never simulate a rider GPS point or draw a false road route.
+    if (assignments.isNotEmpty) {
+      final selected = _currentDelivery;
+      unawaited(_hydrateAssignments(
+        _visitedTabs.contains(1) || _visitedTabs.contains(2)
+            ? assignments
+            : selected == null ? assignments.take(1).toList() : [selected],
+      ));
     }
   }
 
@@ -2647,169 +2654,6 @@ class _RiderShellState extends State<RiderShell> {
     await _scanAndVerify();
   }
 
-  void _openMoreFeatures() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor:
-          RiderColors.surface,
-      builder: (
-        sheetContext,
-      ) {
-        return SafeArea(
-          child: Padding(
-            padding:
-                const EdgeInsets
-                    .fromLTRB(
-              16,
-              8,
-              16,
-              20,
-            ),
-            child: Column(
-              mainAxisSize:
-                  MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading:
-                      const Icon(
-                    Icons
-                        .inventory_2_outlined,
-                  ),
-                  title:
-                      const Text(
-                    'Seller Pickups',
-                  ),
-                  subtitle:
-                      const Text(
-                    'Seller collection workflow',
-                  ),
-                  onTap: () {
-                    Navigator.of(
-                      sheetContext,
-                    ).pop();
-
-                    _openPickups();
-                  },
-                ),
-                ListTile(
-                  leading:
-                      const Icon(
-                    Icons
-                        .route_outlined,
-                  ),
-                  title:
-                      const Text(
-                    'Last-Mile Deliveries',
-                  ),
-                  subtitle:
-                      const Text(
-                    'Destination hub to Buyer',
-                  ),
-                  onTap: () {
-                    Navigator.of(
-                      sheetContext,
-                    ).pop();
-
-                    _openLastMile();
-                  },
-                ),
-                ListTile(
-                  leading:
-                      const Icon(
-                    Icons
-                        .qr_code_scanner_rounded,
-                  ),
-                  title:
-                      const Text(
-                    'Parcel Scanner',
-                  ),
-                  subtitle:
-                      const Text(
-                    'Verify an assigned parcel',
-                  ),
-                  onTap: () {
-                    Navigator.of(
-                      sheetContext,
-                    ).pop();
-
-                    _openStandaloneScanner();
-                  },
-                ),
-                ListTile(
-                  leading:
-                      const Icon(
-                    Icons
-                        .account_balance_outlined,
-                  ),
-                  title:
-                      const Text(
-                    'COD Remittance',
-                  ),
-                  subtitle:
-                      const Text(
-                    'Prepare collected COD cash',
-                  ),
-                  onTap: () {
-                    Navigator.of(
-                      sheetContext,
-                    ).pop();
-
-                    _openRemittances();
-                  },
-                ),
-                ListTile(
-                  leading:
-                      const Icon(
-                    Icons
-                        .history_rounded,
-                  ),
-                  title:
-                      const Text(
-                    'Delivery History',
-                  ),
-                  subtitle:
-                      const Text(
-                    'Completed Rider trips',
-                  ),
-                  onTap: () {
-                    Navigator.of(
-                      sheetContext,
-                    ).pop();
-
-                    _openHistory();
-                  },
-                ),
-                ListTile(
-                  leading:
-                      const Icon(
-                    Icons
-                        .chat_bubble_outline,
-                  ),
-                  title:
-                      const Text(
-                    'Messages',
-                  ),
-                  subtitle:
-                      const Text(
-                    'SARI Logistics communication',
-                  ),
-                  onTap: () {
-                    Navigator.of(
-                      sheetContext,
-                    ).pop();
-
-                    _openMessages();
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Widget _errorScreen() {
     return Scaffold(
       backgroundColor:
@@ -3013,7 +2857,7 @@ class _RiderShellState extends State<RiderShell> {
               onAdvanceDelivery:
                   _advanceDelivery,
               onOpenWorkflow:
-                  _openMoreFeatures,
+                  _openLastMile,
               onOpenHistory:
                   _openHistory,
               onMarkSuccessful:
@@ -3094,6 +2938,29 @@ class _RiderShellState extends State<RiderShell> {
                   ),
               ],
             ),
+            endDrawer: RiderDrawer(
+              profile: _profile,
+              activeIndex: _currentIndex,
+              onDashboard: () => _drawerNavigate(0),
+              onAssignments: () => _drawerNavigate(1),
+              onPickups: () => _drawerOpen(_openPickups),
+              onDeliveries: () => _drawerNavigate(2),
+              onLastMile: () => _drawerOpen(_openLastMile),
+              onScanner: () => _drawerOpen(_openStandaloneScanner),
+              onEarnings: () => _drawerNavigate(3),
+              onCod: () => _drawerOpen(_openRemittances),
+              onHistory: () => _drawerOpen(_openHistory),
+              onMessages: () => _drawerOpen(_openMessages),
+              onNotifications: () => _drawerOpen(_openNotifications),
+              onProfile: () => _drawerNavigate(4),
+              onProfileSection: (section) => _drawerOpen(
+                () => _openProfileSection(section),
+              ),
+              onLogout: () => _drawerOpen(_logoutFromDrawer),
+              isDarkMode: _darkMode,
+              onDarkModeChanged: _setDarkMode,
+            ),
+            endDrawerEnableOpenDragGesture: false,
             bottomNavigationBar:
                 RiderBottomNav(
               currentIndex:

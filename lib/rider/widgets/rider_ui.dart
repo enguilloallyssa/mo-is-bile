@@ -83,9 +83,11 @@ class RiderMenuButton extends StatelessWidget {
     BuildContext context,
   ) {
     return IconButton(
-      tooltip:
-          'Open Rider menu',
-
+      tooltip: 'Open Rider menu',
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+      iconSize: 22,
+      color: RiderColors.text,
       onPressed: () {
         _openMenu(
           context,
@@ -107,24 +109,93 @@ class RiderHeaderController {
 }
 
 class RiderHeaderActions extends StatelessWidget {
-  const RiderHeaderActions({super.key});
+  const RiderHeaderActions({super.key, this.unreadMessages = 0});
+
+  /// Uses the existing server summary; no separate polling is introduced.
+  final int unreadMessages;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      IconButton(
-        tooltip: 'Messages',
-        onPressed: RiderHeaderController.messages,
-        icon: const Icon(Icons.chat_bubble_outline_rounded),
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _headerIcon(
+          tooltip: 'Messages',
+          icon: Icons.chat_bubble_outline_rounded,
+          onPressed: RiderHeaderController.messages,
+          count: unreadMessages,
+        ),
+        _headerIcon(
+          tooltip: 'Notifications',
+          icon: Icons.notifications_none_rounded,
+          onPressed: RiderHeaderController.notifications,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: Builder(
+            builder: (context) => Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: RiderColors.surfaceSoft,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const RiderMenuButton(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _headerIcon({
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback? onPressed,
+    int count = 0,
+  }) {
+    return SizedBox(
+      width: 39,
+      height: 42,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          IconButton(
+            tooltip: tooltip,
+            onPressed: onPressed,
+            padding: EdgeInsets.zero,
+            icon: Icon(icon, size: 22, color: RiderColors.text),
+          ),
+          if (count > 0)
+            Positioned(
+              right: 2,
+              top: 1,
+              child: IgnorePointer(
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: RiderColors.gold,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: RiderColors.surface, width: 1.5),
+                  ),
+                  child: Text(
+                    count > 9 ? '9+' : '$count',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
-      IconButton(
-        tooltip: 'Notifications',
-        onPressed: RiderHeaderController.notifications,
-        icon: const Icon(Icons.notifications_none_rounded),
-      ),
-    ],
-  );
+    );
+  }
 }
 
 class RiderSearchField extends StatelessWidget {
@@ -191,13 +262,13 @@ class RiderColors {
               0xFF171715,
             )
           : const Color(
-              0xFFF7F5F1,
+              0xFFF5F6F8,
             );
 
   static Color get surface =>
       isDark
           ? const Color(
-              0xFF24231F,
+              0xFF222A33,
             )
           : const Color(
               0xFFFFFFFF,
@@ -218,7 +289,7 @@ class RiderColors {
               0xFF35312A,
             )
           : const Color(
-              0xFFF4F0E9,
+              0xFFF1F3F6,
             );
 
   static Color get text =>
@@ -227,7 +298,7 @@ class RiderColors {
               0xFFF4F7F8,
             )
           : const Color(
-              0xFF24231F,
+              0xFF222A33,
             );
 
   static Color get muted =>
@@ -236,7 +307,7 @@ class RiderColors {
               0xFFAEBBC3,
             )
           : const Color(
-              0xFF77716A,
+              0xFF717B87,
             );
 
   static Color get border =>
@@ -245,7 +316,7 @@ class RiderColors {
               0xFF464039,
             )
           : const Color(
-              0xFFEAE5DC,
+              0xFFE6E9EF,
             );
 
   static Color get nav =>
@@ -263,7 +334,7 @@ class RiderColors {
               0xFF292620,
             )
           : const Color(
-              0xFFF8F5F0,
+              0xFFF7F8FA,
             );
 
   static Color get overlay =>
@@ -299,7 +370,7 @@ class RiderColors {
               0xFF4A3E2B,
             )
           : const Color(
-              0xFFF7EBD5,
+              0xFFF9F0DD,
             );
 
   static Color get blue =>
@@ -416,7 +487,7 @@ class RiderColors {
                     0xFFFFFFFF,
                   ),
                   Color(
-                    0xFFF8F4ED,
+                    0xFFF5F6F8,
                   ),
                 ];
 }

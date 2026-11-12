@@ -1,192 +1,132 @@
 import 'package:flutter/material.dart';
 
-import 'rider_ui.dart';
-
+/// RiderShell owns this bottom navigation. Do not add another one to RiderHome.
+/// The compact, fixed-height content avoids RenderFlex bottom overflow on
+/// narrow Android devices and with larger system text settings.
 class RiderBottomNav extends StatelessWidget {
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-
   const RiderBottomNav({
     super.key,
     required this.currentIndex,
     required this.onTap,
   });
 
-  static const List<_RiderNavItem> _items =
-      <_RiderNavItem>[
-    _RiderNavItem(
-      icon: Icons.dashboard_outlined,
-      selectedIcon:
-          Icons.dashboard_rounded,
-      label: 'Home',
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  static const Color _ink = Color(0xFF262523);
+  static const Color _muted = Color(0xFF888789);
+  static const Color _gold = Color(0xFFD39112);
+  static const Color _border = Color(0xFFF0E7DD);
+
+  static const List<_NavItem> _tabs = [
+    _NavItem('Home', Icons.home_rounded, Icons.home_outlined),
+    _NavItem('Jobs', Icons.assignment_rounded, Icons.assignment_outlined),
+    _NavItem(
+      'Deliveries',
+      Icons.local_shipping_rounded,
+      Icons.local_shipping_outlined,
     ),
-    _RiderNavItem(
-      icon:
-          Icons.assignment_outlined,
-      selectedIcon:
-          Icons.assignment_rounded,
-      label: 'Jobs',
+    _NavItem(
+      'Earnings',
+      Icons.account_balance_wallet_rounded,
+      Icons.account_balance_wallet_outlined,
     ),
-    _RiderNavItem(
-      icon:
-          Icons.local_shipping_outlined,
-      selectedIcon:
-          Icons.local_shipping_rounded,
-      label: 'Deliveries',
-    ),
-    _RiderNavItem(
-      icon: Icons
-          .account_balance_wallet_outlined,
-      selectedIcon: Icons
-          .account_balance_wallet_rounded,
-      label: 'Earnings',
-    ),
-    _RiderNavItem(
-      icon:
-          Icons.person_outline_rounded,
-      selectedIcon:
-          Icons.person_rounded,
-      label: 'Account',
-    ),
+    _NavItem('Account', Icons.person_rounded, Icons.person_outline_rounded),
   ];
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Container(
-        margin:
-            const EdgeInsets.fromLTRB(
-          10,
-          0,
-          10,
-          8,
-        ),
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 5,
-          vertical: 6,
-        ),
-        decoration: BoxDecoration(
-          color: RiderColors.nav,
-          borderRadius:
-              BorderRadius.circular(20),
-          border: Border.all(
-            color: RiderColors.border,
-          ),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: Colors.black.withValues(
-                alpha: RiderColors.isDark
-                    ? .25
-                    : .08,
+      minimum: const EdgeInsets.only(bottom: 6),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+        child: Container(
+          height: 65,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _border),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF594025).withValues(alpha: .10),
+                blurRadius: 22,
+                offset: const Offset(0, 7),
               ),
-              blurRadius: 20,
-              offset: const Offset(0, 7),
-            ),
-          ],
-        ),
-        child: Row(
-          children: List<Widget>.generate(
-            _items.length,
-            (int index) {
-              final _RiderNavItem item =
-                  _items[index];
-
-              final bool selected =
-                  currentIndex == index;
-
-              return Expanded(
-                child: Material(
-                  color:
-                      Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      onTap(index);
-                    },
-                    borderRadius:
-                        BorderRadius.circular(
-                      15,
-                    ),
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.symmetric(
-                        vertical: 4,
-                      ),
-                      child: Column(
-                        mainAxisSize:
-                            MainAxisSize.min,
-                        children: <Widget>[
-                          AnimatedContainer(
-                            duration:
-                                const Duration(
-                              milliseconds: 180,
-                            ),
-                            width: 38,
-                            height: 35,
-                            alignment:
-                                Alignment.center,
-                            decoration:
-                                BoxDecoration(
-                              color: selected
-                                  ? RiderColors
-                                      .goldSoft
-                                  : Colors
-                                      .transparent,
-                              borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                12,
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: List.generate(_tabs.length, (index) {
+                final selected = currentIndex == index;
+                final item = _tabs[index];
+                return Expanded(
+                  child: Semantics(
+                    button: true,
+                    selected: selected,
+                    label: item.title,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => onTap(index),
+                        borderRadius: BorderRadius.circular(18),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 190),
+                              curve: Curves.easeOutCubic,
+                              width: 33,
+                              height: 32,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? const Color(0xFFFFF0CF)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                selected ? item.activeIcon : item.normalIcon,
+                                size: 21,
+                                color: selected ? _gold : _muted,
                               ),
                             ),
-                            child: Icon(
-                              selected
-                                  ? item.selectedIcon
-                                  : item.icon,
-                              size: 21,
-                              color: selected
-                                  ? RiderColors
-                                      .goldDark
-                                  : RiderColors
-                                      .muted,
+                            const SizedBox(height: 2),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 1),
+                              child: SizedBox(
+                                height: 13,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    item.title,
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      height: 1.0,
+                                      fontWeight: selected
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
+                                      color: selected ? _ink : _muted,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-
-                          const SizedBox(
-                            height: 3,
-                          ),
-
-                          AnimatedDefaultTextStyle(
-                            duration:
-                                const Duration(
-                              milliseconds: 180,
-                            ),
-                            style: TextStyle(
-                              color: selected
-                                  ? RiderColors
-                                      .goldDark
-                                  : RiderColors
-                                      .muted,
-                              fontSize: 9,
-                              fontWeight: selected
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
-                            ),
-                            child: Text(
-                              item.label,
-                              maxLines: 1,
-                              overflow:
-                                  TextOverflow
-                                      .ellipsis,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              }),
+            ),
           ),
         ),
       ),
@@ -194,14 +134,10 @@ class RiderBottomNav extends StatelessWidget {
   }
 }
 
-class _RiderNavItem {
-  final IconData icon;
-  final IconData selectedIcon;
-  final String label;
+class _NavItem {
+  const _NavItem(this.title, this.activeIcon, this.normalIcon);
 
-  const _RiderNavItem({
-    required this.icon,
-    required this.selectedIcon,
-    required this.label,
-  });
+  final String title;
+  final IconData activeIcon;
+  final IconData normalIcon;
 }

@@ -515,157 +515,77 @@ class _LogisticsShellState extends State<LogisticsShell> {
         ),
       );
 
+  /// Logistics keeps its existing five destinations; the scan tab is
+  /// deliberately prominent because it is a frequent on-hub action.
   Widget _bottomBar() {
-    final entries =
-        <({String title, IconData icon})>[
-      (
-        title: 'Home',
-        icon: Icons.grid_view_rounded,
-      ),
-      (
-        title: 'Operations',
-        icon:
-            Icons.inventory_2_outlined,
-      ),
-      (
-        title: 'SCAN',
-        icon:
-            Icons.qr_code_scanner_rounded,
-      ),
-      (
-        title: 'Transfers',
-        icon: Icons.swap_horiz_rounded,
-      ),
-      (
-        title: 'Account',
-        icon:
-            Icons.person_outline_rounded,
-      ),
+    const destinations = <(String, IconData, IconData)>[
+      ('Home', Icons.grid_view_outlined, Icons.grid_view_rounded),
+      ('Operations', Icons.inventory_2_outlined, Icons.inventory_2_rounded),
+      ('Scan', Icons.qr_code_scanner_rounded, Icons.qr_code_scanner_rounded),
+      ('Transfers', Icons.swap_horiz_outlined, Icons.swap_horiz_rounded),
+      ('Account', Icons.person_outline_rounded, Icons.person_rounded),
     ];
 
+    final compact = MediaQuery.sizeOf(context).width < 365;
     return SafeArea(
       top: false,
       child: Container(
-        height: 73,
-        decoration:
-            const BoxDecoration(
-          color:
-              LogisticsPalette.surface,
-          border: Border(
-            top: BorderSide(
-              color:
-                  LogisticsPalette
-                      .border,
-            ),
-          ),
+        margin: const EdgeInsets.fromLTRB(11, 0, 11, 9),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        decoration: BoxDecoration(
+          color: LogisticsPalette.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: LogisticsPalette.border),
+          boxShadow: const [BoxShadow(color: Color(0x180E1B2E), blurRadius: 19, offset: Offset(0, 7))],
         ),
         child: Row(
-          children:
-              List.generate(
-            entries.length,
-            (index) {
-              final entry =
-                  entries[index];
-
-              final selected =
-                  _tab == index;
-
-              final center =
-                  index == 2;
-
-              return Expanded(
+          children: List.generate(destinations.length, (index) {
+            final item = destinations[index];
+            final active = _tab == index;
+            final scan = index == 2;
+            return Expanded(child: Semantics(
+              button: true,
+              selected: active,
+              label: '${item.$1} tab',
+              child: Material(
+                color: Colors.transparent,
                 child: InkWell(
-                  onTap: () =>
-                      _go(index),
+                  onTap: () => _go(index),
+                  borderRadius: BorderRadius.circular(16),
                   child: Column(
-                    mainAxisAlignment:
-                        MainAxisAlignment
-                            .center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (center)
-                        Container(
-                          height: 43,
-                          width: 50,
-                          decoration:
-                              BoxDecoration(
-                            color:
-                                LogisticsPalette
-                                    .gold,
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                              15,
-                            ),
-                            boxShadow:
-                                const [
-                              BoxShadow(
-                                color:
-                                    Color(
-                                  0x44D59A0B,
-                                ),
-                                blurRadius:
-                                    11,
-                                offset:
-                                    Offset(
-                                  0,
-                                  4,
-                                ),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons
-                                .qr_code_scanner_rounded,
-                            color:
-                                Colors.white,
-                            size: 25,
-                          ),
-                        )
-                      else
-                        Icon(
-                          entry.icon,
-                          size: 23,
-                          color: selected
-                              ? LogisticsPalette
-                                  .goldDark
-                              : LogisticsPalette
-                                  .muted,
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 210),
+                        curve: Curves.easeOutCubic,
+                        height: 38,
+                        width: compact ? 40 : 45,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: scan ? LogisticsPalette.navy : active ? LogisticsPalette.goldPale : Colors.transparent,
+                          borderRadius: BorderRadius.circular(13),
+                          boxShadow: scan ? const [BoxShadow(color: Color(0x221A2638), blurRadius: 10, offset: Offset(0, 3))] : null,
                         ),
-                      const SizedBox(
-                        height: 4,
+                        child: Icon(active ? item.$3 : item.$2,
+                          size: scan ? 23 : 21,
+                          color: scan ? Colors.white : active ? LogisticsPalette.goldDark : LogisticsPalette.muted),
                       ),
-                      Text(
-                        entry.title,
+                      const SizedBox(height: 4),
+                      Text(item.$1,
                         maxLines: 1,
-                        overflow:
-                            TextOverflow
-                                .ellipsis,
-                        style:
-                            TextStyle(
-                          fontSize:
-                              center
-                                  ? 9.5
-                                  : 9,
-                          fontWeight:
-                              selected ||
-                                      center
-                                  ? FontWeight
-                                      .w900
-                                  : FontWeight
-                                      .w600,
-                          color: selected
-                              ? LogisticsPalette
-                                  .goldDark
-                              : LogisticsPalette
-                                  .muted,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: compact ? 9 : 10,
+                          fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                          color: active ? LogisticsPalette.goldDark : LogisticsPalette.muted,
                         ),
                       ),
                     ],
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            ));
+          }),
         ),
       ),
     );

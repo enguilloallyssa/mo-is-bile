@@ -323,35 +323,6 @@ class _RiderDeliveriesState
                   ),
 
                 const SizedBox(
-                  height: 9,
-                ),
-
-                SizedBox(
-                  width:
-                      double.infinity,
-                  child:
-                      OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.of(
-                        sheetContext,
-                      ).pop();
-
-                      widget
-                          .onOpenWorkflow();
-                    },
-                    icon:
-                        const Icon(
-                      Icons
-                          .assignment_outlined,
-                    ),
-                    label:
-                        const Text(
-                      'Open Delivery Workflow',
-                    ),
-                  ),
-                ),
-
-                const SizedBox(
                   height: 10,
                 ),
 
@@ -1068,7 +1039,7 @@ class _RiderDeliveriesState
                 width: 8,
               ),
               Text(
-                'LAST-MILE OPERATIONS',
+                'RIDER DELIVERY OPERATIONS',
                 style:
                     TextStyle(
                   color:
@@ -1106,7 +1077,7 @@ class _RiderDeliveriesState
           ),
 
           const Text(
-            'Complete assigned Buyer deliveries and follow the required delivery verification flow.',
+            'Review assigned deliveries, confirm arrival, and complete each order using Laravel-approved actions.',
             style:
                 TextStyle(
               color:
@@ -1118,42 +1089,6 @@ class _RiderDeliveriesState
             ),
           ),
 
-          const SizedBox(
-            height: 19,
-          ),
-
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton.icon(
-                onPressed:
-                    widget
-                        .onOpenWorkflow,
-                icon:
-                    const Icon(
-                  Icons
-                      .assignment_outlined,
-                  size: 18,
-                ),
-                label:
-                    const Text(
-                  'Delivery Workflow',
-                ),
-                style:
-                    FilledButton
-                        .styleFrom(
-                  backgroundColor:
-                      Colors.white,
-                  foregroundColor:
-                      const Color(
-                    0xFF263E4B,
-                  ),
-                ),
-              ),
-
-            ],
-          ),
         ],
       ),
     );

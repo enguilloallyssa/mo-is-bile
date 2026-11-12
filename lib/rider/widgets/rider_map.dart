@@ -25,6 +25,20 @@ class _RiderMapState extends State<RiderMap> {
   LatLng get _buyerPoint => LatLng(widget.delivery.buyerLatitude, widget.delivery.buyerLongitude);
   LatLng get _destinationPoint => LatLng(widget.delivery.destinationLatitude, widget.delivery.destinationLongitude);
 
+  bool _valid(LatLng point) =>
+      point.latitude.abs() > .000001 &&
+      point.longitude.abs() > .000001 &&
+      point.latitude.abs() <= 90 &&
+      point.longitude.abs() <= 180;
+
+  LatLng get _safeDestination => _valid(_destinationPoint)
+      ? _destinationPoint
+      : _valid(_buyerPoint)
+          ? _buyerPoint
+          : _valid(_sellerPoint)
+              ? _sellerPoint
+              : const LatLng(12.8797, 121.7740);
+
   Color get _destinationColor {
     if (widget.delivery.isHeadingToBuyer) return RiderColors.green;
     if (widget.delivery.isHeadingToSortingCenter) return RiderColors.blue;
@@ -43,7 +57,7 @@ class _RiderMapState extends State<RiderMap> {
       padding: EdgeInsets.zero,
       shadow: true,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Padding(
             padding: EdgeInsets.fromLTRB(14, 13, 14, 11),
@@ -51,10 +65,10 @@ class _RiderMapState extends State<RiderMap> {
               Container(width: 40, height: 40, decoration: BoxDecoration(color: _destinationColor.withValues(alpha: .12), borderRadius: BorderRadius.circular(13)), child: Icon(_destinationIcon, color: _destinationColor, size: 21)),
               SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('NEXT STOP • ${widget.delivery.destinationRoleLabel.toUpperCase()}', style: TextStyle(color: _destinationColor, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: .55)),
+                Text('NEXT STOP • ${widget.delivery.destinationRoleLabel.toUpperCase()}', style: TextStyle(color: _destinationColor, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: .75)),
                 SizedBox(height: 3),
-                Text(widget.delivery.destinationName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: RiderColors.text, fontSize: 13, fontWeight: FontWeight.w900)),
-                Text(widget.delivery.destinationAddress, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: RiderColors.muted, fontSize: 10)),
+                Text(widget.delivery.destinationName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: RiderColors.text, fontSize: 14, fontWeight: FontWeight.w900)),
+                Text(widget.delivery.destinationAddress, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: RiderColors.muted, fontSize: 11)),
               ])),
               RiderStatusPill(label: 'OSM', color: RiderColors.green, background: RiderColors.greenSoft),
             ]),
@@ -65,7 +79,7 @@ class _RiderMapState extends State<RiderMap> {
               Positioned.fill(
                 child: FlutterMap(
                   key: ValueKey('osm-${widget.delivery.id}-${widget.delivery.status}'),
-                  options: MapOptions(initialCenter: _destinationPoint, initialZoom: 14.4, minZoom: 3, maxZoom: 19, backgroundColor: RiderColors.surfaceSoft),
+                  options: MapOptions(initialCenter: _safeDestination, initialZoom: 14.4, minZoom: 3, maxZoom: 19, backgroundColor: RiderColors.surfaceSoft),
                   children: [
                     TileLayer(
                       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -83,12 +97,13 @@ class _RiderMapState extends State<RiderMap> {
                         });
                       },
                     ),
-                    PolylineLayer(polylines: [Polyline(points: [_riderPoint, _destinationPoint], strokeWidth: 5, color: RiderColors.blue)]),
+                    if (_valid(_riderPoint) && _valid(_destinationPoint))
+                      PolylineLayer(polylines: [Polyline(points: [_riderPoint, _destinationPoint], strokeWidth: 4, color: RiderColors.blue)]),
                     MarkerLayer(markers: [
-                      Marker(point: _riderPoint, width: 58, height: 58, alignment: Alignment.topCenter, child: _marker(icon: Icons.two_wheeler, background: RiderColors.blue, label: 'You')),
-                      Marker(point: _sellerPoint, width: 58, height: 58, alignment: Alignment.topCenter, child: _marker(icon: Icons.storefront_outlined, background: RiderColors.gold, label: 'Seller')),
-                      Marker(point: _sortingPoint, width: 64, height: 58, alignment: Alignment.topCenter, child: _marker(icon: Icons.warehouse_outlined, background: RiderColors.blue, label: 'Sorting')),
-                      Marker(point: _buyerPoint, width: 60, height: 58, alignment: Alignment.topCenter, child: _marker(icon: Icons.home_outlined, background: RiderColors.green, label: 'Buyer')),
+                      if (_valid(_riderPoint)) Marker(point: _riderPoint, width: 58, height: 58, alignment: Alignment.topCenter, child: _marker(icon: Icons.two_wheeler, background: RiderColors.blue, label: 'You')),
+                      if (_valid(_sellerPoint)) Marker(point: _sellerPoint, width: 58, height: 58, alignment: Alignment.topCenter, child: _marker(icon: Icons.storefront_outlined, background: RiderColors.gold, label: 'Seller')),
+                      if (_valid(_sortingPoint)) Marker(point: _sortingPoint, width: 64, height: 58, alignment: Alignment.topCenter, child: _marker(icon: Icons.warehouse_outlined, background: RiderColors.blue, label: 'Sorting')),
+                      if (_valid(_buyerPoint)) Marker(point: _buyerPoint, width: 60, height: 58, alignment: Alignment.topCenter, child: _marker(icon: Icons.home_outlined, background: RiderColors.green, label: 'Buyer')),
                     ]),
                     SimpleAttributionWidget(source: Text('© OpenStreetMap contributors', style: TextStyle(fontSize: 9))),
                   ],
@@ -123,7 +138,7 @@ class _RiderMapState extends State<RiderMap> {
             padding: EdgeInsets.all(12),
             child: ElevatedButton.icon(
               onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => RiderNavigationScreen(delivery: widget.delivery))),
-              style: ElevatedButton.styleFrom(backgroundColor: RiderColors.blue, foregroundColor: Colors.white, elevation: 0, minimumSize: Size.fromHeight(46), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+              style: ElevatedButton.styleFrom(backgroundColor: RiderColors.goldDark, foregroundColor: Colors.white, elevation: 0, minimumSize: Size.fromHeight(46), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
               icon: Icon(Icons.navigation_rounded, size: 18),
               label: Text('Navigate to ${widget.delivery.destinationRoleLabel}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
             ),
@@ -137,7 +152,7 @@ class _RiderMapState extends State<RiderMap> {
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Container(width: 32, height: 32, decoration: BoxDecoration(color: background, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2), boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 6, offset: Offset(0, 2))]), child: Icon(icon, color: Colors.white, size: 17)),
       SizedBox(height: 2),
-      Container(padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2), decoration: BoxDecoration(color: RiderColors.surfaceElevated.withValues(alpha: .95), borderRadius: BorderRadius.circular(6), border: Border.all(color: RiderColors.border)), child: Text(label, style: TextStyle(color: RiderColors.text, fontSize: 7, fontWeight: FontWeight.w800))),
+      Container(padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2), decoration: BoxDecoration(color: RiderColors.surfaceElevated.withValues(alpha: .95), borderRadius: BorderRadius.circular(6), border: Border.all(color: RiderColors.border)), child: Text(label, style: TextStyle(color: RiderColors.text, fontSize: 9, fontWeight: FontWeight.w800))),
     ]);
   }
 }

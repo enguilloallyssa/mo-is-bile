@@ -122,7 +122,7 @@ class RiderDrawer extends StatelessWidget {
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: foreground,
                         ),
@@ -143,7 +143,7 @@ class RiderDrawer extends StatelessWidget {
                   ),
                 ),
                 Icon(
-                  Icons.chevron_left_rounded,
+                  Icons.chevron_right_rounded,
                   size: 16,
                   color: danger ? RiderColors.red : RiderColors.muted,
                 ),
@@ -286,12 +286,47 @@ class RiderDrawer extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _heading('Operations'),
+                  _heading('Rider operations'),
+                  _item(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'Seller Pickups',
+                    subtitle: 'Assigned seller collections',
+                    onTap: onPickups,
+                  ),
+                  _item(
+                    icon: Icons.route_outlined,
+                    title: 'Last-Mile Deliveries',
+                    subtitle: 'Destination hub to buyer',
+                    onTap: onLastMile,
+                  ),
+                  _item(
+                    icon: Icons.qr_code_scanner_rounded,
+                    title: 'Scan QR Code',
+                    subtitle: 'Verify an assigned parcel',
+                    onTap: onScanner,
+                  ),
+                  _heading('Management'),
+                  _item(
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: 'COD Remittance',
+                    subtitle: 'Prepare collected COD cash',
+                    onTap: onCod,
+                  ),
                   _item(
                     icon: Icons.history_rounded,
                     title: 'Delivery History',
                     subtitle: 'Completed rider trips',
                     onTap: onHistory,
+                  ),
+                  _item(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: 'Chat & Messaging',
+                    onTap: onMessages,
+                  ),
+                  _item(
+                    icon: Icons.notifications_none_rounded,
+                    title: 'Notifications',
+                    onTap: onNotifications,
                   ),
                   _heading('Account Information'),
                   _item(
