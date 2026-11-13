@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // Keep these names: other Rider widgets may already import them.
-const kGold = Color(0xFFC9A24B);
+const kGold = Color(0xFFD4951A);
 const kGoldLight = Color(0xFFF3DFA2);
-const kPageBg = Color(0xFFEEF0EE);
+const kPageBg = Color(0xFFF7F5F0);
 
 /// Rider dashboard hero (UI only). No server calls, navigation bars, or maps.
-/// The rider photo appears in the header, and the actual rider name appears
-/// below the greeting using SARI-inspired bold black and gold typography.
 class RiderHero extends StatelessWidget {
   const RiderHero({
     super.key,
@@ -25,9 +23,7 @@ class RiderHero extends StatelessWidget {
     this.onMenu,
   });
 
-  // Retained for compatibility with existing RiderHero callers.
   final String name;
-  // The existing RiderHome passes this from RiderProfile firstName/lastName.
   final String riderName;
   final String? profileImageUrl;
   final VoidCallback? onProfile;
@@ -39,9 +35,9 @@ class RiderHero extends StatelessWidget {
   final VoidCallback? onNotifications;
   final VoidCallback? onMenu;
 
-  static const _ink = Color(0xFF16191A);
-  static const _muted = Color(0xFF687078);
-  static const _accent = Color(0xFFD3940C);
+  static const _ink = Color(0xFF161513);
+  static const _muted = Color(0xFF6E6A63);
+  static const _accent = Color(0xFFD4951A);
 
   String get _greeting {
     final hour = DateTime.now().hour;
@@ -62,22 +58,23 @@ class RiderHero extends StatelessWidget {
 
   String get _initials {
     final parts = riderName.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) return 'R';
+    if (parts.isEmpty || parts.first.isEmpty) return 'SR';
     if (parts.length == 1) return parts.first[0].toUpperCase();
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
   Widget _avatar(double size) {
     final url = profileImageUrl?.trim() ?? '';
-    final hasRemotePhoto = url.startsWith('https://') || url.startsWith('http://');
+    final hasRemotePhoto =
+        url.startsWith('https://') || url.startsWith('http://');
     final fallback = Center(
       child: Text(
         _initials,
         style: TextStyle(
-          fontSize: size * .36,
+          fontSize: size * .34,
           fontWeight: FontWeight.w900,
-          color: const Color(0xFF80520B),
-          letterSpacing: -.5,
+          color: const Color(0xFF5E3D06),
+          letterSpacing: -.3,
         ),
       ),
     );
@@ -89,12 +86,12 @@ class RiderHero extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFF0C9), Color(0xFFE8C98A)],
+          colors: [Color(0xFFFDF0CE), Color(0xFFE5BE6B)],
         ),
-        border: Border.all(color: Colors.white, width: 2),
+        border: Border.all(color: Colors.white, width: 2.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF9A7844).withValues(alpha: .20),
+            color: const Color(0xFF8C641E).withValues(alpha: .18),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -112,28 +109,41 @@ class RiderHero extends StatelessWidget {
   }
 
   Widget _action(IconData icon, String tooltip, VoidCallback? onTap) {
-    return SizedBox(
-      width: 38,
-      height: 38,
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFE6E1D6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: IconButton(
         tooltip: tooltip,
         onPressed: onTap,
         padding: EdgeInsets.zero,
-        icon: Icon(icon, size: 19),
-        style: IconButton.styleFrom(
-          foregroundColor: _ink,
-          backgroundColor: const Color(0xFFEBE7E3).withValues(alpha: .96),
-        ),
+        icon: Icon(icon, size: 19, color: _ink),
       ),
     );
   }
 
   Widget _status() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: isOnline ? const Color(0xFFD6F9DF) : const Color(0xFFE9E7E3),
-        borderRadius: BorderRadius.circular(25),
+        color: isOnline ? const Color(0xFFD9FBE5) : const Color(0xFFECE9E2),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(
+          color: isOnline
+              ? const Color(0xFF10B981).withValues(alpha: .35)
+              : const Color(0xFFD5CFC4),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -143,17 +153,17 @@ class RiderHero extends StatelessWidget {
             height: 7,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isOnline ? const Color(0xFF08C95F) : _muted,
+              color: isOnline ? const Color(0xFF059669) : _muted,
             ),
           ),
           const SizedBox(width: 6),
           Text(
             isOnline ? 'ONLINE' : 'OFFLINE',
-            style: const TextStyle(
-              color: _ink,
+            style: TextStyle(
+              color: isOnline ? const Color(0xFF065F46) : _ink,
               fontSize: 10,
               fontWeight: FontWeight.w900,
-              letterSpacing: .3,
+              letterSpacing: .5,
             ),
           ),
         ],
@@ -169,12 +179,20 @@ class RiderHero extends StatelessWidget {
   }) {
     return Expanded(
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 5),
+        padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: _accent, size: compact ? 17 : 19),
-            SizedBox(width: compact ? 3 : 6),
+            Container(
+              width: compact ? 30 : 34,
+              height: compact ? 30 : 34,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3D6),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: _accent, size: compact ? 16 : 18),
+            ),
+            SizedBox(width: compact ? 6 : 8),
             Flexible(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -186,19 +204,20 @@ class RiderHero extends StatelessWidget {
                     maxLines: 1,
                     style: TextStyle(
                       color: _ink,
-                      fontSize: compact ? 13 : 15,
+                      fontSize: compact ? 13.5 : 15,
                       fontWeight: FontWeight.w900,
-                      height: 1.08,
+                      height: 1.1,
+                      letterSpacing: -.3,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: _muted,
-                      fontSize: compact ? 9 : 10,
+                      fontSize: compact ? 9.5 : 10.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -218,18 +237,16 @@ class RiderHero extends StatelessWidget {
       final side = compact ? 16.0 : 20.0;
       final mediaTextScale = MediaQuery.textScalerOf(context);
       final largeText = mediaTextScale.scale(14) > 18;
-      // Keep the layout compact for short names, but give long full names
-      // room so they do not collide with the heading, date, or stats row.
       final displayName = riderName.trim().isEmpty ||
               riderName.trim().toLowerCase() == 'sari rider'
-          ? 'Rider'
+          ? 'SARI'
           : riderName.trim();
       final likelyTwoLines = displayName.length > (compact ? 13 : 16);
       final storyHeight = largeText
-          ? (likelyTwoLines ? 303.0 : 275.0)
-          : (likelyTwoLines ? 252.0 : 223.0);
-      final leftStoryWidth = compact ? 200.0 : 226.0;
-      final headlineSize = compact ? 23.0 : 26.0;
+          ? (likelyTwoLines ? 290.0 : 265.0)
+          : (likelyTwoLines ? 236.0 : 215.0);
+      final leftStoryWidth = compact ? 195.0 : 220.0;
+      final headlineSize = compact ? 22.0 : 25.0;
 
       return Container(
         width: double.infinity,
@@ -238,63 +255,68 @@ class RiderHero extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: [0, .45, .78, 1],
+            stops: [0, .5, .85, 1],
             colors: [
-              Color(0xFFFCF8F5),
-              Color(0xFFF9F5F0),
-              Color(0xFFF6F0E9),
+              Color(0xFFFFFFFF),
+              Color(0xFFFAF6EE),
+              Color(0xFFF5EFE2),
               kPageBg,
             ],
           ),
         ),
         child: Padding(
-          padding: EdgeInsets.fromLTRB(side, 12, side, 24),
+          padding: EdgeInsets.fromLTRB(side, 12, side, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // One rider photo at upper-left, NOT another dashboard title.
+              // Top Navigation Bar
               Row(
                 children: [
                   InkWell(
                     onTap: onProfile,
                     customBorder: const CircleBorder(),
-                    child: _avatar(49),
+                    child: _avatar(46),
                   ),
                   const Spacer(),
-                  _action(Icons.chat_bubble_outline_rounded, 'Messages', onMessages),
-                  const SizedBox(width: 7),
-                  _action(Icons.notifications_none_rounded, 'Notifications', onNotifications),
-                  const SizedBox(width: 7),
+                  _action(
+                    Icons.chat_bubble_outline_rounded,
+                    'Messages',
+                    onMessages,
+                  ),
+                  const SizedBox(width: 8),
+                  _action(
+                    Icons.notifications_none_rounded,
+                    'Notifications',
+                    onNotifications,
+                  ),
+                  const SizedBox(width: 8),
                   _action(Icons.menu_rounded, 'Menu', onMenu),
                 ],
               ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 height: storyHeight,
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    // SARI helmet / delivery bag: faded in and softly blended.
+                    // Crisp SARI Helmet & Delivery Bag Hero Asset
                     Positioned(
-                      right: compact ? -22 : -24,
-                      top: 36,
-                      child: Opacity(
-                        opacity: .52,
-                        child: Image.asset(
-                          'assets/images/rider_hero_gear.png',
-                          width: compact ? 235 : 275,
-                          height: 187,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                        ),
+                      right: compact ? -18 : -14,
+                      bottom: 0,
+                      top: 28,
+                      child: Image.asset(
+                        'assets/images/rider_hero_gear.png',
+                        width: compact ? 215 : 245,
+                        height: 185,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       ),
                     ),
-                    Positioned(right: 0, top: 3, child: _status()),
-                    // The actual rider name replaces the old SARI logo.
+                    Positioned(right: 0, top: 2, child: _status()),
                     Positioned(
                       left: 0,
-                      top: 7,
+                      top: 4,
                       width: leftStoryWidth,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,26 +326,40 @@ class RiderHero extends StatelessWidget {
                             _greeting,
                             style: GoogleFonts.poppins(
                               color: _muted,
-                              fontSize: 11.5,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 3),
-                          Text(
-                            displayName,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
                               color: _ink,
-                              fontSize: compact
-                                  ? (likelyTwoLines ? 22 : 26)
-                                  : (likelyTwoLines ? 25 : 29),
-                              fontWeight: FontWeight.w800,
-                              height: 1.08,
-                              letterSpacing: -1.1,
+                              borderRadius: BorderRadius.circular(11),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: .12),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              displayName.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: compact ? 13 : 14,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
+                              ),
                             ),
                           ),
-                          SizedBox(height: likelyTwoLines ? 14 : 17),
+                          SizedBox(height: likelyTwoLines ? 12 : 14),
                           Text.rich(
                             TextSpan(
                               children: [
@@ -333,18 +369,18 @@ class RiderHero extends StatelessWidget {
                                     color: _ink,
                                     fontSize: headlineSize,
                                     fontWeight: FontWeight.w800,
-                                    height: 1.06,
-                                    letterSpacing: -.9,
+                                    height: 1.08,
+                                    letterSpacing: -.8,
                                   ),
                                 ),
                                 TextSpan(
                                   text: "today's route?",
                                   style: GoogleFonts.poppins(
-                                    color: _accent,
+                                    color: _ink,
                                     fontSize: headlineSize,
                                     fontWeight: FontWeight.w800,
-                                    height: 1.06,
-                                    letterSpacing: -.9,
+                                    height: 1.08,
+                                    letterSpacing: -.8,
                                   ),
                                 ),
                               ],
@@ -353,27 +389,41 @@ class RiderHero extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_today_outlined,
-                                size: 15,
-                                color: _muted,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: .75),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(0xFFE6E1D6),
                               ),
-                              const SizedBox(width: 7),
-                              Flexible(
-                                child: Text(
-                                  _date,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.poppins(
-                                    color: _muted,
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w500,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 13,
+                                  color: _muted,
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    _date,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.poppins(
+                                      color: _ink,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -381,18 +431,19 @@ class RiderHero extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 12),
+              // Summary Strip (Active | Completed | Today)
               Container(
-                height: 72,
+                height: 70,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .88),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFF4EAE0)),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: const Color(0xFFE8E2D5)),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF9F886E).withValues(alpha: .14),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
+                      color: const Color(0xFF594025).withValues(alpha: .07),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
@@ -404,14 +455,22 @@ class RiderHero extends StatelessWidget {
                       label: 'Active',
                       compact: compact,
                     ),
-                    Container(width: 1, height: 34, color: const Color(0xFFE8D7C1)),
+                    Container(
+                      width: 1,
+                      height: 32,
+                      color: const Color(0xFFE8E2D5),
+                    ),
                     _stat(
                       icon: Icons.check_circle_outline_rounded,
                       value: '$completedCount',
                       label: 'Completed',
                       compact: compact,
                     ),
-                    Container(width: 1, height: 34, color: const Color(0xFFE8D7C1)),
+                    Container(
+                      width: 1,
+                      height: 32,
+                      color: const Color(0xFFE8E2D5),
+                    ),
                     _stat(
                       icon: Icons.account_balance_wallet_outlined,
                       value: '₱${earningsToday.toStringAsFixed(2)}',

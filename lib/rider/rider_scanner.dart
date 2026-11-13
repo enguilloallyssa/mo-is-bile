@@ -237,25 +237,25 @@ class _RiderScannerState extends State<RiderScanner> {
             height: 52,
             alignment:
                 Alignment.center,
-            decoration:
-                BoxDecoration(
-              color:
-                  Colors.white
-                      .withValues(
-                alpha: .10,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFFE8AF), Color(0xFFD69A31)],
               ),
-              borderRadius:
-                  BorderRadius.circular(
-                15,
-              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFD69A31).withValues(alpha: .20),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
-            child:
-                const Icon(
-              Icons
-                  .qr_code_scanner_rounded,
-              color:
-                  Colors.white,
-              size: 28,
+            child: const Icon(
+              Icons.qr_code_scanner_rounded,
+              color: Color(0xFF1B1914),
+              size: 27,
             ),
           ),
 

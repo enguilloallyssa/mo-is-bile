@@ -841,151 +841,37 @@ class _RiderPickupsState extends State<RiderPickups> {
   }
 
   Widget _hero() {
-    return Container(
-      padding:
-          const EdgeInsets.all(
-        21,
-      ),
-      decoration:
-          BoxDecoration(
-        gradient:
-            LinearGradient(
-          begin:
-              Alignment.topLeft,
-          end:
-              Alignment.bottomRight,
-          colors:
-              RiderColors
-                  .heroGradient,
-        ),
-        borderRadius:
-            BorderRadius.circular(
-          22,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+    return RiderEditorialHero(
+      eyebrow: 'PICKUP OPERATIONS',
+      title: 'Seller Pickups',
+      description: 'Follow each Seller collection from assignment to confirmed parcel pickup.',
+      icon: Icons.inventory_2_outlined,
+      footer: Wrap(
+        spacing: 9,
+        runSpacing: 8,
         children: [
-          const Row(
-            children: [
-              Icon(
-                Icons
-                    .inventory_2_outlined,
-                color:
-                    Colors.white70,
-                size: 17,
-              ),
-              SizedBox(
-                width: 8,
-              ),
-              Text(
-                'PICKUP OPERATIONS',
-                style:
-                    TextStyle(
-                  color:
-                      Colors.white70,
-                  fontSize: 10,
-                  fontWeight:
-                      FontWeight.w800,
-                  letterSpacing:
-                      1.3,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(
-            height: 15,
-          ),
-
-          const Text(
-            'Seller Pickups',
-            style: TextStyle(
-              color:
-                  Colors.white,
-              fontSize: 27,
-              fontWeight:
-                  FontWeight.w900,
-              letterSpacing: -.5,
+          OutlinedButton.icon(
+            onPressed: _openScanner,
+            icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+            label: const Text('Scan Parcel'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: RiderColors.text,
+              side: BorderSide(color: RiderColors.gold.withValues(alpha: .65)),
+              backgroundColor: RiderColors.surface,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
             ),
           ),
-
-          const SizedBox(
-            height: 8,
-          ),
-
-          const Text(
-            'Follow each Seller collection from assignment to confirmed parcel pickup.',
-            style: TextStyle(
-              color:
-                  Color(
-                0xFFE2E9ED,
-              ),
-              fontSize: 12,
-              height: 1.5,
+          FilledButton.icon(
+            onPressed: widget.onOpenWorkflow,
+            icon: const Icon(Icons.assignment_outlined, size: 18),
+            label: const Text('Assignments'),
+            style: FilledButton.styleFrom(
+              backgroundColor: RiderColors.gold,
+              foregroundColor: const Color(0xFF20180C),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
             ),
-          ),
-
-          const SizedBox(
-            height: 19,
-          ),
-
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                onPressed:
-                    _openScanner,
-                icon:
-                    const Icon(
-                  Icons
-                      .qr_code_scanner_rounded,
-                  size: 18,
-                ),
-                label:
-                    const Text(
-                  'Scan Parcel',
-                ),
-                style:
-                    OutlinedButton
-                        .styleFrom(
-                  foregroundColor:
-                      Colors.white,
-                  side:
-                      const BorderSide(
-                    color:
-                        Colors.white54,
-                  ),
-                ),
-              ),
-              FilledButton.icon(
-                onPressed:
-                    widget
-                        .onOpenWorkflow,
-                icon:
-                    const Icon(
-                  Icons
-                      .assignment_outlined,
-                  size: 18,
-                ),
-                label:
-                    const Text(
-                  'Assignments',
-                ),
-                style:
-                    FilledButton
-                        .styleFrom(
-                  backgroundColor:
-                      Colors.white,
-                  foregroundColor:
-                      Color(
-                    0xFF263E4B,
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -1120,24 +1006,13 @@ class _RiderPickupsState extends State<RiderPickups> {
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
-          Container(
-            padding:
-                const EdgeInsets.all(
-              9,
-            ),
-            decoration:
-                BoxDecoration(
-              color: soft,
-              borderRadius:
-                  BorderRadius.circular(
-                11,
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: accent,
-              size: 20,
-            ),
+          RiderIconBadge(
+            icon: icon,
+            color: accent,
+            background: soft,
+            size: 40,
+            iconSize: 21,
+            radius: 12,
           ),
           const SizedBox(
             height: 12,

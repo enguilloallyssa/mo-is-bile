@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'rider_ui.dart';
 
 /// RiderShell owns this bottom navigation. Do not add another one to RiderHome.
-/// The compact, fixed-height content avoids RenderFlex bottom overflow on
-/// narrow Android devices and with larger system text settings.
 class RiderBottomNav extends StatelessWidget {
   const RiderBottomNav({
     super.key,
@@ -12,11 +11,6 @@ class RiderBottomNav extends StatelessWidget {
 
   final int currentIndex;
   final ValueChanged<int> onTap;
-
-  static const Color _ink = Color(0xFF262523);
-  static const Color _muted = Color(0xFF888789);
-  static const Color _gold = Color(0xFFD39112);
-  static const Color _border = Color(0xFFF0E7DD);
 
   static const List<_NavItem> _tabs = [
     _NavItem('Home', Icons.home_rounded, Icons.home_outlined),
@@ -36,28 +30,39 @@ class RiderBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = RiderColors.isDark;
+    final Color navSurface = isDark ? RiderColors.nav : Colors.white;
+    final Color borderColor =
+        isDark ? RiderColors.border : const Color(0xFFEAE3D7);
+    final Color activeText = isDark ? RiderColors.text : const Color(0xFF181715);
+    final Color mutedText = isDark ? RiderColors.muted : const Color(0xFF7D7870);
+    final Color goldAccent =
+        isDark ? RiderColors.gold : const Color(0xFFD4952A);
+    final Color activePillBg =
+        isDark ? RiderColors.goldSoft : const Color(0xFFFFF1CE);
+
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.only(bottom: 6),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
         child: Container(
-          height: 65,
+          height: 66,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: navSurface,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: _border),
+            border: Border.all(color: borderColor),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF594025).withValues(alpha: .10),
-                blurRadius: 22,
-                offset: const Offset(0, 7),
+                color: Colors.black.withValues(alpha: isDark ? .28 : .07),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: List.generate(_tabs.length, (index) {
@@ -78,26 +83,27 @@ class RiderBottomNav extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             AnimatedContainer(
-                              duration: const Duration(milliseconds: 190),
+                              duration: const Duration(milliseconds: 200),
                               curve: Curves.easeOutCubic,
-                              width: 33,
+                              width: 40,
                               height: 32,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: selected
-                                    ? const Color(0xFFFFF0CF)
+                                    ? activePillBg
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
                                 selected ? item.activeIcon : item.normalIcon,
                                 size: 21,
-                                color: selected ? _gold : _muted,
+                                color: selected ? goldAccent : mutedText,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 3),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 1),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 2),
                               child: SizedBox(
                                 height: 13,
                                 child: FittedBox(
@@ -108,12 +114,12 @@ class RiderBottomNav extends StatelessWidget {
                                     maxLines: 1,
                                     softWrap: false,
                                     style: TextStyle(
-                                      fontSize: 10,
+                                      fontSize: 10.5,
                                       height: 1.0,
                                       fontWeight: selected
                                           ? FontWeight.w800
                                           : FontWeight.w600,
-                                      color: selected ? _ink : _muted,
+                                      color: selected ? activeText : mutedText,
                                     ),
                                   ),
                                 ),

@@ -28,9 +28,6 @@ class RiderDrawer extends StatelessWidget {
 
   final RiderProfile profile;
 
-  // These are kept so RiderShell does not need backend or navigation changes.
-  // Main pages are intentionally hidden from the drawer because they already
-  // exist in the bottom navigation.
   final int activeIndex;
   final VoidCallback onDashboard;
   final VoidCallback onAssignments;
@@ -57,21 +54,19 @@ class RiderDrawer extends StatelessWidget {
 
   bool get _online {
     final String value = profile.availabilityStatus.trim().toLowerCase();
-    return value == 'online' ||
-        value == 'available' ||
-        value == 'active';
+    return value == 'online' || value == 'available' || value == 'active';
   }
 
   Widget _heading(String label) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 18, 7),
+      padding: const EdgeInsets.fromLTRB(20, 18, 18, 6),
       child: Text(
         label.toUpperCase(),
         style: TextStyle(
           color: RiderColors.muted,
-          letterSpacing: 1.2,
+          letterSpacing: 1.3,
           fontWeight: FontWeight.w800,
-          fontSize: 11,
+          fontSize: 10.5,
         ),
       ),
     );
@@ -85,36 +80,29 @@ class RiderDrawer extends StatelessWidget {
     bool danger = false,
   }) {
     final Color foreground = danger ? RiderColors.red : RiderColors.text;
+    final Color accent = danger ? RiderColors.red : riderIconAccent(icon);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(13),
+          borderRadius: BorderRadius.circular(14),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: <Widget>[
-                Container(
-                  width: 35,
-                  height: 35,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: danger
-                        ? RiderColors.redSoft
-                        : RiderColors.surfaceSoft,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 18,
-                    color: foreground,
-                  ),
+                RiderIconBadge(
+                  icon: icon,
+                  color: accent,
+                  background: danger ? RiderColors.redSoft : accent.withValues(alpha: .11),
+                  size: 39,
+                  iconSize: 20,
+                  radius: 12,
                 ),
-                const SizedBox(width: 11),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,8 +110,8 @@ class RiderDrawer extends StatelessWidget {
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
                           color: foreground,
                         ),
                       ),
@@ -136,6 +124,7 @@ class RiderDrawer extends StatelessWidget {
                           style: TextStyle(
                             color: RiderColors.muted,
                             fontSize: 11,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -144,7 +133,7 @@ class RiderDrawer extends StatelessWidget {
                 ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  size: 16,
+                  size: 18,
                   color: danger ? RiderColors.red : RiderColors.muted,
                 ),
               ],
@@ -158,13 +147,17 @@ class RiderDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double width = MediaQuery.sizeOf(context).width;
+    final String vehicleMeta = <String>[
+      if (profile.vehicleType.trim().isNotEmpty) profile.vehicleType.trim(),
+      if (profile.plateNumber.trim().isNotEmpty) profile.plateNumber.trim(),
+    ].join(' • ');
 
     return Drawer(
-      width: width > 420 ? 330 : width * .80,
+      width: width > 420 ? 335 : width * .82,
       backgroundColor: RiderColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.horizontal(
-          left: Radius.circular(23),
+          left: Radius.circular(26),
         ),
       ),
       child: SafeArea(
@@ -175,13 +168,25 @@ class RiderDrawer extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 children: <Widget>[
                   Container(
-                    margin: const EdgeInsets.fromLTRB(11, 9, 11, 4),
-                    padding: const EdgeInsets.all(15),
+                    margin: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(19),
+                      borderRadius: BorderRadius.circular(22),
                       gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                         colors: RiderColors.heroGradient,
                       ),
+                      border: Border.all(
+                        color: const Color(0xFF3E3524),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: .14),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,45 +198,52 @@ class RiderDrawer extends StatelessWidget {
                               height: 46,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .13),
+                                color: Colors.white.withValues(alpha: .12),
                                 borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: .14),
+                                ),
                               ),
                               child: const Icon(
                                 Icons.delivery_dining_rounded,
-                                color: Colors.white,
+                                color: Color(0xFFF3C663),
                                 size: 25,
                               ),
                             ),
                             const Spacer(),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                                horizontal: 10,
                                 vertical: 5,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .11),
+                                color: Colors.white.withValues(alpha: .12),
                                 borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: .14),
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: <Widget>[
                                   Container(
-                                    width: 6,
-                                    height: 6,
+                                    width: 7,
+                                    height: 7,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: _online
-                                          ? const Color(0xFF7CDEA0)
+                                          ? const Color(0xFF34D399)
                                           : Colors.white54,
                                     ),
                                   ),
-                                  const SizedBox(width: 5),
+                                  const SizedBox(width: 6),
                                   Text(
                                     _online ? 'ONLINE' : 'OFFLINE',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w900,
+                                      letterSpacing: .4,
                                     ),
                                   ),
                                 ],
@@ -240,49 +252,61 @@ class RiderDrawer extends StatelessWidget {
                             const SizedBox(width: 4),
                             IconButton(
                               tooltip: 'Close',
+                              visualDensity: VisualDensity.compact,
                               onPressed: () => Navigator.of(context).pop(),
                               icon: const Icon(
                                 Icons.close_rounded,
                                 color: Colors.white70,
-                                size: 19,
+                                size: 20,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         Text(
                           _name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 17,
                             fontWeight: FontWeight.w900,
+                            letterSpacing: -.3,
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          profile.email,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 11,
+                        if (profile.email.trim().isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            profile.email,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11.5,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          <String>[
-                            if (profile.vehicleType.trim().isNotEmpty)
-                              profile.vehicleType,
-                            if (profile.plateNumber.trim().isNotEmpty)
-                              profile.plateNumber,
-                          ].join(' • '),
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 10,
+                        ],
+                        if (vehicleMeta.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: .28),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              vehicleMeta,
+                              style: const TextStyle(
+                                color: Color(0xFFF3C663),
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -341,15 +365,50 @@ class RiderDrawer extends StatelessWidget {
                   ),
                   _heading('Preferences & Security'),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                    child: SwitchListTile.adaptive(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                      secondary: Icon(Icons.brightness_6_outlined, color: RiderColors.text),
-                      title: Text('Appearance', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: RiderColors.text)),
-                      subtitle: Text(isDarkMode ? 'Dark Mode' : 'Light Mode', style: TextStyle(fontSize: 12, color: RiderColors.muted)),
-                      value: isDarkMode,
-                      activeTrackColor: RiderColors.gold,
-                      onChanged: onDarkModeChanged,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: RiderColors.surfaceSoft.withValues(alpha: .55),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: SwitchListTile.adaptive(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 12),
+                        secondary: Container(
+                          width: 38,
+                          height: 38,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: RiderColors.surface,
+                            borderRadius: BorderRadius.circular(11),
+                            border: Border.all(color: RiderColors.border),
+                          ),
+                          child: Icon(
+                            Icons.brightness_6_outlined,
+                            size: 18,
+                            color: RiderColors.text,
+                          ),
+                        ),
+                        title: Text(
+                          'Appearance',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: RiderColors.text,
+                          ),
+                        ),
+                        subtitle: Text(
+                          isDarkMode ? 'Dark Mode' : 'Light Mode',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: RiderColors.muted,
+                          ),
+                        ),
+                        value: isDarkMode,
+                        activeTrackColor: RiderColors.gold,
+                        onChanged: onDarkModeChanged,
+                      ),
                     ),
                   ),
                   _item(
@@ -365,13 +424,14 @@ class RiderDrawer extends StatelessWidget {
               color: RiderColors.border,
               height: 1,
             ),
+            const SizedBox(height: 4),
             _item(
               icon: Icons.logout_rounded,
               title: 'Log Out',
               danger: true,
               onTap: onLogout,
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 8),
           ],
         ),
       ),

@@ -633,108 +633,31 @@ class _RiderRemittancesState extends State<RiderRemittances> {
   // --------------------------------------------------
 
   Widget _hero() {
-    return Container(
-      padding: const EdgeInsets.all(21),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: RiderColors.heroGradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return RiderEditorialHero(
+      eyebrow: 'CASH COLLECTION OPERATIONS',
+      title: 'COD Remittance',
+      description: 'Prepare collected COD cash for physical handover to SARI Logistics.',
+      icon: Icons.account_balance_wallet_outlined,
+      footer: Row(
         children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.account_balance_wallet_outlined,
-                color: Colors.white70,
-                size: 18,
+          Icon(Icons.verified_user_outlined, color: RiderColors.green, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Physical cash turnover only',
+              style: TextStyle(
+                color: RiderColors.text,
+                fontWeight: FontWeight.w800,
+                fontSize: 11.5,
               ),
-              SizedBox(width: 8),
-              Text(
-                'CASH COLLECTION OPERATIONS',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.1,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 15),
-
-          const Text(
-            'COD Remittance',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
             ),
           ),
-
-          const SizedBox(height: 9),
-
-          const Text(
-            'Prepare collected COD cash for physical '
-            'handover to SARI Logistics.',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              height: 1.5,
+          if (_eligible.isNotEmpty)
+            RiderStatusPill(
+              label: '${_eligible.length} eligible',
+              color: RiderColors.goldDark,
+              background: RiderColors.goldSoft,
             ),
-          ),
-
-          const SizedBox(height: 19),
-
-          Row(
-            children: [
-              const Icon(
-                Icons.verified_user_outlined,
-                color: Colors.white,
-                size: 18,
-              ),
-
-              const SizedBox(width: 8),
-
-              const Expanded(
-                child: Text(
-                  'Physical cash turnover only',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-
-              if (_eligible.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(
-                      alpha: .12,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${_eligible.length} eligible',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
         ],
       ),
     );
@@ -785,19 +708,13 @@ class _RiderRemittancesState extends State<RiderRemittances> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 37,
-            height: 37,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: soft,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(
-              icon,
-              color: accent,
-              size: 20,
-            ),
+          RiderIconBadge(
+            icon: icon,
+            color: accent,
+            background: soft,
+            size: 39,
+            iconSize: 20,
+            radius: 12,
           ),
 
           const SizedBox(height: 12),

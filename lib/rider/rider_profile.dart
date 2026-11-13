@@ -987,64 +987,241 @@ class _RiderProfilePageState
         );
   }
 
+  // Responsive Rider shortcuts. All callbacks are routed through RiderShell.
   Widget _accountQuickActions() {
-    final actions = <({IconData icon, String title, String subtitle, VoidCallback? onTap})>[
-      (icon: Icons.inventory_2_outlined, title: 'Pickups', subtitle: 'Seller orders', onTap: widget.onPickups),
-      (icon: Icons.assignment_outlined, title: 'Jobs', subtitle: 'Assignments', onTap: () => widget.onTabChanged?.call(1)),
-      (icon: Icons.local_shipping_outlined, title: 'Deliveries', subtitle: 'Active orders', onTap: () => widget.onTabChanged?.call(2)),
-    ];
-    return LayoutBuilder(builder: (context, constraints) {
-      final compact = constraints.maxWidth < 325;
-      return Row(
-        children: [
-          for (var i = 0; i < actions.length; i++) ...[
-            if (i != 0) const SizedBox(width: 10),
-            Expanded(
-              child: Material(
-                color: RiderColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                child: InkWell(
-                  onTap: actions[i].onTap,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Ink(
-                    decoration: BoxDecoration(
-                      color: RiderColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: RiderColors.border),
-                      boxShadow: [BoxShadow(
-                        color: Colors.black.withValues(alpha: .035),
-                        blurRadius: 14, offset: const Offset(0, 5),
-                      )],
+    return Column(
+      children: [
+        Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(23),
+          child: InkWell(
+            onTap: () => widget.onTabChanged?.call(1),
+            borderRadius: BorderRadius.circular(23),
+            child: Ink(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: RiderColors.isDark
+                      ? [const Color(0xFF42321B), const Color(0xFF332A21)]
+                      : [const Color(0xFFFFEBC5), const Color(0xFFFFF7EA)],
+                ),
+                borderRadius: BorderRadius.circular(23),
+                border: Border.all(color: RiderColors.gold.withValues(alpha: .23)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 15, 18),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 54, height: 54,
+                      decoration: BoxDecoration(
+                        color: RiderColors.isDark
+                            ? RiderColors.gold.withValues(alpha: .20)
+                            : const Color(0xFFFFFFFF),
+                        borderRadius: BorderRadius.circular(17),
+                      ),
+                      child: Icon(Icons.assignment_turned_in_outlined,
+                          size: 27, color: RiderColors.goldDark),
                     ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 7, vertical: 16),
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Container(
-                          height: 44, width: 44,
-                          decoration: BoxDecoration(
-                            color: RiderColors.goldSoft,
-                            borderRadius: BorderRadius.circular(15),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('MY WORKSPACE', style: TextStyle(
+                            color: RiderColors.goldDark, fontSize: 9,
+                            fontWeight: FontWeight.w900, letterSpacing: 1.5,
+                          )),
+                          const SizedBox(height: 5),
+                          Text('My assigned jobs', style: TextStyle(
+                            color: RiderColors.text, fontSize: 17,
+                            fontWeight: FontWeight.w900, letterSpacing: -.35,
+                          )),
+                          const SizedBox(height: 3),
+                          Text('Check tasks and your next stop',
+                            maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: RiderColors.muted, fontSize: 11),
                           ),
-                          child: Icon(actions[i].icon, color: RiderColors.goldDark, size: 22),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(actions[i].title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: RiderColors.text, fontSize: compact ? 11 : 12.5, fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 3),
-                        Text(actions[i].subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: RiderColors.muted, fontSize: compact ? 9 : 10)),
-                      ]),
+                        ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 6),
+                    Icon(Icons.arrow_forward_rounded,
+                        size: 20, color: RiderColors.goldDark),
+                  ],
                 ),
               ),
             ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _quickActionTile(
+                icon: Icons.inventory_2_outlined,
+                title: 'Pickups', subtitle: 'Seller collections',
+                accent: RiderColors.goldDark,
+                soft: RiderColors.goldSoft,
+                onTap: widget.onPickups,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _quickActionTile(
+                icon: Icons.local_shipping_outlined,
+                title: 'Deliveries', subtitle: 'On the road',
+                accent: RiderColors.blue,
+                soft: RiderColors.blueSoft,
+                onTap: () => widget.onTabChanged?.call(2),
+              ),
+            ),
           ],
-        ],
-      );
-    });
+        ),
+      ],
+    );
   }
 
+  Widget _quickActionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color accent,
+    required Color soft,
+    required VoidCallback? onTap,
+  }) {
+    return Material(
+      color: RiderColors.surface,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Ink(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: RiderColors.border),
+            boxShadow: [BoxShadow(
+              color: Colors.black.withValues(alpha: .035),
+              blurRadius: 18, offset: const Offset(0, 6),
+            )],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    height: 45, width: 45,
+                    decoration: BoxDecoration(
+                      color: soft, borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Icon(icon, color: accent, size: 24),
+                  ),
+                  Icon(Icons.north_east_rounded, color: RiderColors.muted, size: 17),
+                ],
+              ),
+              const SizedBox(height: 17),
+              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: RiderColors.text,
+                  fontSize: 15, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 4),
+              Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: RiderColors.muted,
+                  fontSize: 10.5)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _accountOverviewCard() {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: RiderColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: RiderColors.border),
+      ),
+      child: Column(children: [
+        _accountInfoRow(
+          icon: Icons.location_on_outlined,
+          title: 'Registered address',
+          value: _locationLabel.isNotEmpty
+              ? _locationLabel
+              : _address.text.trim().isNotEmpty
+                  ? _address.text.trim() : 'Add your location details',
+          accent: RiderColors.purple,
+          soft: RiderColors.purpleSoft,
+          onTap: () => _openAccountSection('personal'),
+        ),
+        Divider(height: 1, indent: 67, color: RiderColors.border),
+        _accountInfoRow(
+          icon: Icons.two_wheeler_rounded,
+          title: 'Registered vehicle',
+          value: [_vehicleType.text.trim(), _vehicleModel.text.trim()]
+              .where((part) => part.isNotEmpty).join(' · ').isNotEmpty
+              ? [_vehicleType.text.trim(), _vehicleModel.text.trim()]
+                  .where((part) => part.isNotEmpty).join(' · ')
+              : 'Add your vehicle details',
+          accent: RiderColors.goldDark,
+          soft: RiderColors.goldSoft,
+          onTap: () => _openAccountSection('vehicle'),
+        ),
+        Divider(height: 1, indent: 67, color: RiderColors.border),
+        _accountInfoRow(
+          icon: Icons.tune_rounded,
+          title: 'Account & preferences',
+          value: 'Security, appearance and session',
+          accent: RiderColors.blue,
+          soft: RiderColors.blueSoft,
+          onTap: () => _openAccountSection('settings'),
+        ),
+      ]),
+    );
+  }
+
+  Widget _accountInfoRow({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color accent,
+    required Color soft,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+          child: Row(children: [
+            Container(
+              height: 41, width: 41,
+              decoration: BoxDecoration(
+                  color: soft, borderRadius: BorderRadius.circular(13)),
+              child: Icon(icon, color: accent, size: 21),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(color: RiderColors.text,
+                  fontWeight: FontWeight.w800, fontSize: 12.5)),
+                const SizedBox(height: 4),
+                Text(value, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: RiderColors.muted,
+                    fontSize: 10.5, height: 1.2)),
+              ],
+            )),
+            Icon(Icons.chevron_right_rounded, color: RiderColors.muted, size: 21),
+          ]),
+        ),
+      ),
+    );
+  }
 
   Future<void> _openAccountSection(String section) async {
     await Navigator.of(context).push<void>(
@@ -1245,15 +1422,22 @@ class _RiderProfilePageState
           children: [
             if (widget.section == 'overview') ...[
               _hero(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 25),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _sectionTitle('Quick Actions', 'Open your Rider tools.'),
-                    const SizedBox(height: 12),
+                    _sectionTitle('Quick Actions',
+                        'Everything you need for your next delivery.'),
+                    const SizedBox(height: 13),
                     _accountQuickActions(),
+                    const SizedBox(height: 26),
+                    _sectionTitle('Account essentials',
+                        'Keep your Rider details up to date.'),
+                    const SizedBox(height: 12),
+                    _accountOverviewCard(),
+                    const SizedBox(height: 18),
                   ],
                 ),
               ),
@@ -1454,105 +1638,412 @@ class _RiderProfilePageState
     );
   }
 
-  // Unified profile card: dark brand header, overlapping avatar, profile
-  // details and performance metrics all share one clipped surface.
-  // Compact, softly styled account card. All API state and callbacks remain intact.
+  // SARI Rider account overview. Uses existing profile fields, actions and APIs.
+  // Badges with server-specific claims are displayed only when provided by API.
   Widget _hero() {
-    final online = _availability == 'online' || _availability == 'available' || _availability == 'active';
-    const ink = Color(0xFF27231D);
-    const warm = Color(0xFFF2F4F7);
-    const gold = Color(0xFFB98B2A);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 15, 16, 0),
-      child: Container(
-        width: double.infinity,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: RiderColors.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: RiderColors.border),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 18, offset: const Offset(0, 7))],
-        ),
+    final online = <String>{'online', 'available', 'active'}
+        .contains(_availability.trim().toLowerCase());
+    final dark = RiderColors.isDark;
+    final ink = RiderColors.text;
+    final muted = RiderColors.muted;
+    const gold = Color(0xFFBF8318);
+    const darkCard = Color(0xFF131713);
+
+    final rawCode = _text(_serverProfile['rider_code'],
+        _text(_serverProfile['rider_number']));
+    final accountId = _int(_serverProfile['id']);
+    final riderCode = rawCode.isNotEmpty
+        ? rawCode
+        : accountId > 0
+            ? 'SR-${accountId.toString().padLeft(4, '0')}'
+            : '';
+    final verification = _text(_serverProfile['verification_status'])
+        .toLowerCase();
+    final isVerified = _serverProfile['is_verified'] == true ||
+        _serverProfile['verified'] == true ||
+        verification == 'verified';
+    final tier = _text(_serverProfile['tier_name'],
+        _text(_serverProfile['rider_tier']));
+    final hub = _text(_serverProfile['hub_name'],
+        _text(_serverProfile['facility_name'],
+            _text(_serverProfile['logistics_hub_name'])));
+    final location = _locationLabel;
+    final vehicle = <String>[
+      _vehicleType.text.trim(),
+      _plate.text.trim(),
+    ].where((value) => value.isNotEmpty).join(' · ');
+
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 9, 16, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(18, 16, 14, 17),
-              decoration: BoxDecoration(
-                color: widget.isDarkMode ? const Color(0xFF322D25) : warm,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: Column(
+            // Keep account actions outside the identity card.
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('SARI', style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900, letterSpacing: 2, color: gold)),
-                      const SizedBox(height: 8),
-                      Text('Rider Profile', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: widget.isDarkMode ? Colors.white : ink)),
-                      const SizedBox(height: 4),
-                      Text('Your SARI Rider account', style: TextStyle(fontSize: 12, color: widget.isDarkMode ? Colors.white70 : const Color(0xFF766D61))),
-                    ],
-                  )),
-                  _accountIcon(Icons.history_rounded, 'Delivery History', widget.onHistory),
-                  const SizedBox(width: 8),
-                  _accountIcon(Icons.settings_outlined, 'Settings', () => _openAccountSection('settings')),
-                  const SizedBox(width: 8),
-                  _accountIcon(Icons.menu_rounded, 'Rider menu', RiderMenuController.open),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 15),
-              child: Column(
-                children: [
-                  Row(children: [
-                    Stack(children: [
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: RiderColors.border)),
-                        child: _avatar(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('SARI',
+                            style: TextStyle(
+                              color: gold,
+                              fontSize: 19,
+                              height: 1,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -.6,
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: dark
+                                  ? const Color(0xFF4B3A22)
+                                  : const Color(0xFFF6EAD4),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: const Text('RIDER DISPATCH',
+                              style: TextStyle(
+                                fontSize: 8,
+                                letterSpacing: 1.1,
+                                fontWeight: FontWeight.w800,
+                                color: gold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      Positioned(right: 2, bottom: 2, child: Container(
-                        height: 15, width: 15,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: online ? RiderColors.green : RiderColors.muted, border: Border.all(color: RiderColors.surface, width: 3)),
-                      )),
-                    ]),
-                    const SizedBox(width: 13),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(_fullName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: RiderColors.text, fontSize: 16, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 4),
-                      Text(_email.text.isEmpty ? 'SARI Rider' : _email.text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: RiderColors.muted, fontSize: 12)),
-                      const SizedBox(height: 8),
-                      Wrap(spacing: 5, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                        const Icon(Icons.star_rounded, size: 16, color: gold),
-                        Text(_rating.toStringAsFixed(1), style: TextStyle(color: RiderColors.text, fontSize: 12, fontWeight: FontWeight.w700)),
-                        Text('  •  $_completedDeliveries completed', style: TextStyle(color: RiderColors.muted, fontSize: 11)),
-                      ]),
-                    ])),
-                  ]),
-                  const SizedBox(height: 18),
-                  Row(children: [
-                    Expanded(child: _profileMetric(Icons.wifi_rounded, online ? 'Online' : 'Offline', 'Status')),
-                    const SizedBox(width: 8),
-                    Expanded(child: _profileMetric(Icons.check_circle_outline_rounded, '$_completedDeliveries', 'Completed')),
-                    const SizedBox(width: 8),
-                    Expanded(child: _profileMetric(Icons.star_outline_rounded, _rating.toStringAsFixed(1), 'Rating')),
-                  ]),
-                  const SizedBox(height: 13),
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(12, 3, 4, 3),
-                    decoration: BoxDecoration(color: RiderColors.surfaceSoft, borderRadius: BorderRadius.circular(14)),
-                    child: Row(children: [
-                      Icon(Icons.circle, size: 8, color: online ? RiderColors.green : RiderColors.muted),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(online ? 'Available for Rider assignments' : 'Currently unavailable', style: TextStyle(color: RiderColors.muted, fontSize: 11))),
-                      if (_updatingAvailability)
-                        const Padding(padding: EdgeInsets.all(13), child: SizedBox(height: 17, width: 17, child: CircularProgressIndicator(strokeWidth: 2)))
-                      else
-                        Transform.scale(scale: .82, child: Switch.adaptive(value: online, activeTrackColor: RiderColors.green, onChanged: _changeAvailability)),
-                    ]),
+                      const SizedBox(height: 6),
+                      Text('Rider Profile',
+                        style: TextStyle(
+                          color: ink,
+                          fontSize: 21,
+                          height: 1.07,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -.6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _accountIcon(Icons.history_rounded,
+                    'Delivery history', widget.onHistory),
+                const SizedBox(width: 6),
+                _accountIcon(Icons.settings_outlined,
+                    'Settings', () => _openAccountSection('settings')),
+                const SizedBox(width: 6),
+                _accountIcon(Icons.menu_rounded,
+                    'Rider menu', RiderMenuController.open),
+              ],
+            ),
+            const SizedBox(height: 15),
+            Container(
+              width: double.infinity,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: dark
+                      ? const [Color(0xFF2C2A25), Color(0xFF23221F)]
+                      : const [Color(0xFFFFFEFA), Color(0xFFF7F0DE)],
+                ),
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(
+                  color: dark
+                      ? const Color(0xFF494236)
+                      : const Color(0xFFE5DAC4),
+                ),
+                boxShadow: [BoxShadow(
+                  color: Colors.black.withValues(alpha: dark ? .16 : .06),
+                  blurRadius: 22,
+                  offset: const Offset(0, 8),
+                )],
+              ),
+              child: Stack(
+                children: [
+                  // Warm gold arcs/dots, decorative only.
+                  Positioned(
+                    right: -58,
+                    top: -76,
+                    child: IgnorePointer(
+                      child: Container(
+                        height: 186,
+                        width: 186,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: gold.withValues(alpha: .13),
+                            width: 1.4,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 14,
+                    top: 50,
+                    child: IgnorePointer(
+                      child: Icon(Icons.blur_on_rounded,
+                        color: gold.withValues(alpha: .08),
+                        size: 91,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(15, 15, 15, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            _dispatchBadge(
+                              icon: Icons.two_wheeler_rounded,
+                              label: riderCode.isNotEmpty
+                                  ? riderCode : 'SARI RIDER',
+                              foreground: ink,
+                              background: RiderColors.surface
+                                  .withValues(alpha: .74),
+                            ),
+                            if (isVerified)
+                              _dispatchBadge(
+                                icon: Icons.verified_outlined,
+                                label: 'VERIFIED',
+                                foreground: const Color(0xFF087C62),
+                                background: const Color(0xFFDDF8EB),
+                              ),
+                            if (tier.isNotEmpty)
+                              _dispatchBadge(
+                                icon: Icons.workspace_premium_outlined,
+                                label: tier.toUpperCase(),
+                                foreground: gold,
+                                background: gold.withValues(alpha: .10),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        Divider(height: 1,
+                          color: RiderColors.border.withValues(alpha: .65)),
+                        const SizedBox(height: 16),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onTap: () => _openAccountSection('personal'),
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  _avatar(),
+                                  Positioned(
+                                    right: 2,
+                                    top: 2,
+                                    child: Container(
+                                      height: 12,
+                                      width: 12,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: online
+                                            ? const Color(0xFF18B978)
+                                            : const Color(0xFFB7B4AC),
+                                        border: Border.all(
+                                          color: RiderColors.surface, width: 2),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 13),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(_fullName,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: ink,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 18.5,
+                                      height: 1.1,
+                                      letterSpacing: -.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _email.text.trim().isNotEmpty
+                                        ? _email.text.trim()
+                                        : 'SARI Rider account',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(color: muted, fontSize: 10.5),
+                                  ),
+                                  if (hub.isNotEmpty || location.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Row(children: [
+                                      const Icon(Icons.location_on_outlined,
+                                          color: gold, size: 14),
+                                      const SizedBox(width: 4),
+                                      Expanded(child: Text(
+                                        hub.isNotEmpty ? hub : location,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: gold,
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      )),
+                                    ]),
+                                  ],
+                                  if (vehicle.isNotEmpty) ...[
+                                    const SizedBox(height: 5),
+                                    Row(children: [
+                                      Icon(Icons.two_wheeler_outlined,
+                                          size: 14, color: muted),
+                                      const SizedBox(width: 4),
+                                      Expanded(child: Text(vehicle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: muted, fontSize: 10),
+                                      )),
+                                    ]),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 13, horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: dark
+                                ? RiderColors.surface.withValues(alpha: .67)
+                                : Colors.white.withValues(alpha: .72),
+                            border: Border.all(
+                              color: RiderColors.border.withValues(alpha: .67),
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(child: _dispatchMetric(
+                                label: 'Status',
+                                value: online ? 'Online' : 'Offline',
+                                detail: online ? 'Available' : 'Not available',
+                                valueColor: online
+                                    ? const Color(0xFF139565) : muted,
+                                icon: online
+                                    ? Icons.signal_cellular_alt_rounded
+                                    : Icons.signal_cellular_off_rounded,
+                              )),
+                              Container(width: 1, height: 43,
+                                color: RiderColors.border),
+                              Expanded(child: _dispatchMetric(
+                                label: 'Completed',
+                                value: '$_completedDeliveries',
+                                detail: 'Total trips',
+                                valueColor: ink,
+                              )),
+                              Container(width: 1, height: 43,
+                                color: RiderColors.border),
+                              Expanded(child: _dispatchMetric(
+                                label: 'Rating',
+                                value: _rating.toStringAsFixed(1),
+                                detail: 'Rider rating',
+                                valueColor: ink,
+                                icon: Icons.star_rounded,
+                              )),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 6, 12),
+                          decoration: BoxDecoration(
+                            color: darkCard,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: online
+                                      ? const Color(0xFF11C78D)
+                                      : const Color(0xFF89908C),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Available for assignments',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 11.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      online
+                                          ? 'You are online · Ready for jobs'
+                                          : 'You are offline · Enable when ready',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: online
+                                            ? const Color(0xFF8DE9BC)
+                                            : const Color(0xFFD8D8D1),
+                                        fontSize: 9.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (_updatingAvailability)
+                                const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    height: 20, width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF12C689),
+                                    ),
+                                  ),
+                                )
+                              else
+                                Transform.scale(
+                                  scale: .89,
+                                  child: Switch.adaptive(
+                                    value: online,
+                                    onChanged: _changeAvailability,
+                                    activeTrackColor: const Color(0xFF09A96F),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1563,82 +2054,141 @@ class _RiderProfilePageState
     );
   }
 
-  Widget _accountIcon(IconData icon, String tooltip, VoidCallback? onTap) {
-    return Material(
-      color: widget.isDarkMode ? Colors.white.withValues(alpha: .12) : Colors.white,
-      borderRadius: BorderRadius.circular(13),
-      child: IconButton(
-        tooltip: tooltip,
-        onPressed: onTap,
-        icon: Icon(icon, size: 21, color: widget.isDarkMode ? Colors.white : const Color(0xFF27231D)),
-        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-        padding: const EdgeInsets.all(9),
-      ),
-    );
-  }
-
-  Widget _profileMetric(IconData icon, String count, String label) {
+  Widget _dispatchBadge({
+    required IconData icon,
+    required String label,
+    required Color foreground,
+    required Color background,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 13),
+      constraints: const BoxConstraints(maxWidth: 145),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: RiderColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(15),
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: foreground.withValues(alpha: .11)),
       ),
-      child: Column(children: [
-        Icon(icon, color: RiderColors.gold, size: 21),
-        const SizedBox(height: 8),
-        Text(count, style: TextStyle(color: RiderColors.text, fontWeight: FontWeight.w800, fontSize: 17)),
-        const SizedBox(height: 3),
-        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: RiderColors.muted, fontSize: 10)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 11.5, color: foreground),
+        const SizedBox(width: 4),
+        Flexible(child: Text(label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: foreground,
+            fontSize: 8.8,
+            fontWeight: FontWeight.w900,
+            letterSpacing: .3,
+          ),
+        )),
       ]),
     );
   }
 
-  Widget _avatar() {
+  Widget _dispatchMetric({
+    required String label,
+    required String value,
+    required String detail,
+    required Color valueColor,
+    IconData? icon,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: RiderColors.muted,
+            fontWeight: FontWeight.w700,
+            fontSize: 9,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 13, color: valueColor),
+              const SizedBox(width: 3),
+            ],
+            Flexible(child: Text(value,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: valueColor,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+                height: 1,
+              ),
+            )),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(detail,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: RiderColors.muted,
+            fontSize: 8.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _accountIcon(IconData icon, String tooltip, VoidCallback? onTap) {
     return Container(
-      height: 72,
-      width: 72,
-      clipBehavior:
-          Clip.antiAlias,
-      decoration:
-          BoxDecoration(
-        color:
-            Colors.white.withValues(
-          alpha: .15,
-        ),
+      height: 38, width: 38,
+      decoration: BoxDecoration(
+        color: RiderColors.surface.withValues(alpha: .82),
         shape: BoxShape.circle,
-        border: Border.all(
-          color:
-              Colors.white38,
-          width: 2,
-        ),
+        border: Border.all(color: RiderColors.border.withValues(alpha: .8)),
       ),
-      child:
-          _profileImageUrl
-                  .isNotEmpty
-              ? Image.network(
-                  _profileImageUrl,
-                  fit:
-                      BoxFit.cover,
-                  errorBuilder:
-                      (
-                    context,
-                    error,
-                    stackTrace,
-                  ) =>
-                          const Icon(
-                    Icons.person_rounded,
-                    color:
-                        Colors.white,
-                    size: 40,
-                  ),
-                )
-              : const Icon(
-                  Icons.person_rounded,
-                  color:
-                      Colors.white,
-                  size: 40,
-                ),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onTap,
+        icon: Icon(icon, color: RiderColors.text, size: 18),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+      ),
+    );
+  }
+
+  Widget _avatar() {
+    String initials() {
+      final first = _firstName.text.trim();
+      final last = _lastName.text.trim();
+      final result = '${first.isEmpty ? '' : first[0]}'
+          '${last.isEmpty ? '' : last[0]}'.toUpperCase();
+      return result.isEmpty ? 'SR' : result;
+    }
+
+    final fallback = Center(child: Text(initials(), style: TextStyle(
+      color: RiderColors.goldDark, fontSize: 26,
+      fontWeight: FontWeight.w900, letterSpacing: .5,
+    )));
+    return Container(
+      height: 82, width: 82,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: RiderColors.surface,
+        boxShadow: [BoxShadow(
+          color: RiderColors.gold.withValues(alpha: .20),
+          blurRadius: 14, offset: const Offset(0, 5),
+        )],
+      ),
+      child: ClipOval(child: Container(
+        color: RiderColors.goldSoft,
+        child: _profileImageUrl.trim().isNotEmpty
+          ? Image.network(_profileImageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => fallback)
+          : fallback,
+      )),
     );
   }
 

@@ -478,17 +478,11 @@ class _RiderMessagesState
               'Logistics Communication',
         ),
         actions: [
-          IconButton(
-            tooltip:
-                'Refresh messages',
-            onPressed:
-                _loading
-                    ? null
-                    : _load,
-            icon:
-                const Icon(
-              Icons.refresh_rounded,
-            ),
+          RiderTopActionButton(
+            tooltip: 'Refresh messages',
+            onPressed: _loading ? null : _load,
+            icon: Icons.refresh_rounded,
+            accent: RiderColors.blue,
           ),
         ],
       ),
@@ -523,39 +517,26 @@ class _RiderMessagesState
       ),
       decoration:
           BoxDecoration(
-        color:
-            RiderColors.surface,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: RiderColors.isDark
+              ? [RiderColors.surfaceSoft, RiderColors.surface]
+              : [const Color(0xFFFFF9ED), RiderColors.surface],
+        ),
         border: Border(
-          bottom:
-              BorderSide(
-            color:
-                RiderColors.border,
-          ),
+          bottom: BorderSide(color: RiderColors.border),
         ),
       ),
       child: Row(
         children: [
-          Container(
-            width: 46,
-            height: 46,
-            alignment:
-                Alignment.center,
-            decoration:
-                BoxDecoration(
-              color:
-                  RiderColors.blueSoft,
-              borderRadius:
-                  BorderRadius.circular(
-                14,
-              ),
-            ),
-            child: Icon(
-              Icons
-                  .local_shipping_outlined,
-              color:
-                  RiderColors.blue,
-              size: 24,
-            ),
+          RiderIconBadge(
+            icon: Icons.support_agent_rounded,
+            color: RiderColors.blue,
+            background: RiderColors.blueSoft,
+            size: 46,
+            iconSize: 25,
+            radius: 15,
           ),
 
           const SizedBox(

@@ -342,34 +342,47 @@ class _RiderNotificationsState
               'Updates from SARI Logistics',
         ),
         actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed:
-                _working
-                    ? null
-                    : _refresh,
-            icon:
-                const Icon(
-              Icons.refresh_rounded,
-            ),
+          RiderTopActionButton(
+            tooltip: 'Refresh notifications',
+            onPressed: _working ? null : _refresh,
+            icon: Icons.refresh_rounded,
+            accent: RiderColors.goldDark,
           ),
         ],
       ),
       body: Column(
         children: [
           Container(
-            color:
-                RiderColors.surface,
-            padding:
-                const EdgeInsets.fromLTRB(
-              16,
-              12,
-              16,
-              14,
+            margin: const EdgeInsets.fromLTRB(14, 12, 14, 5),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            decoration: BoxDecoration(
+              color: RiderColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: RiderColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .025),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-            child: Row(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
               children: [
                 ChoiceChip(
+                  showCheckmark: false,
+                  backgroundColor: RiderColors.surfaceSoft,
+                  selectedColor: RiderColors.goldSoft,
+                  side: BorderSide(color: RiderColors.gold.withValues(alpha: .20)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  labelStyle: TextStyle(
+                    color: RiderColors.text,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
                   label: Text(
                     'All (${_items.length})',
                   ),
@@ -384,11 +397,19 @@ class _RiderNotificationsState
                   },
                 ),
 
-                const SizedBox(
-                  width: 8,
-                ),
+
 
                 ChoiceChip(
+                  showCheckmark: false,
+                  backgroundColor: RiderColors.surfaceSoft,
+                  selectedColor: RiderColors.goldSoft,
+                  side: BorderSide(color: RiderColors.gold.withValues(alpha: .20)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  labelStyle: TextStyle(
+                    color: RiderColors.text,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
                   label: Text(
                     'Unread ($_unreadCount)',
                   ),
@@ -403,7 +424,7 @@ class _RiderNotificationsState
                   },
                 ),
 
-                const Spacer(),
+                const SizedBox(width: 2),
 
                 if (_unreadCount > 0)
                   TextButton(
@@ -629,10 +650,8 @@ class _RiderNotificationsState
     );
 
     return RiderSurface(
-      padding:
-          const EdgeInsets.all(
-        15,
-      ),
+      elevated: unread,
+      padding: const EdgeInsets.all(15),
       child: InkWell(
         borderRadius:
             BorderRadius.circular(
@@ -650,27 +669,12 @@ class _RiderNotificationsState
           crossAxisAlignment:
               CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration:
-                  BoxDecoration(
-                color:
-                    color.withValues(
-                  alpha: .11,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  12,
-                ),
-              ),
-              child: Icon(
-                _iconFor(
-                  category,
-                ),
-                color: color,
-                size: 21,
-              ),
+            RiderIconBadge(
+              icon: _iconFor(category),
+              color: color,
+              size: 42,
+              iconSize: 22,
+              radius: 13,
             ),
 
             const SizedBox(

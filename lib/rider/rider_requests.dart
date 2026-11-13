@@ -262,98 +262,11 @@ class _RiderRequestsState
   }
 
   Widget _hero() {
-    return Container(
-      padding:
-          const EdgeInsets.all(
-        20,
-      ),
-      decoration:
-          BoxDecoration(
-        gradient:
-            LinearGradient(
-          begin:
-              Alignment.topLeft,
-          end:
-              Alignment.bottomRight,
-          colors:
-              RiderColors.heroGradient,
-        ),
-        borderRadius:
-            BorderRadius.circular(
-          22,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons
-                    .local_shipping_outlined,
-                color:
-                    Colors.white70,
-                size: 16,
-              ),
-
-              SizedBox(
-                width: 8,
-              ),
-
-              Text(
-                'SELLER PICKUP DISPATCH',
-                style:
-                    TextStyle(
-                  color:
-                      Colors.white70,
-                  fontSize: 10,
-                  letterSpacing:
-                      1.4,
-                  fontWeight:
-                      FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(
-            height: 12,
-          ),
-
-          const Text(
-            'Pickup Assignments',
-            style:
-                TextStyle(
-              color:
-                  Colors.white,
-              fontSize: 25,
-              fontWeight:
-                  FontWeight.w900,
-            ),
-          ),
-
-          const SizedBox(
-            height: 8,
-          ),
-
-          const Text(
-            'Collect assigned Seller orders and continue to the next handoff.',
-            style:
-                TextStyle(
-              color:
-                  Colors.white70,
-              fontSize: 12,
-              height: 1.5,
-            ),
-          ),
-
-          const SizedBox(
-            height: 18,
-          ),
-
-        ],
-      ),
+    return RiderEditorialHero(
+      eyebrow: 'SELLER PICKUP DISPATCH',
+      title: 'Pickup Assignments',
+      description: 'Collect assigned Seller orders and continue to the next handoff.',
+      icon: Icons.assignment_turned_in_outlined,
     );
   }
 
@@ -440,10 +353,12 @@ class _RiderRequestsState
 
       child: Column(
         children: [
-          Icon(
-            icon,
+          RiderIconBadge(
+            icon: icon,
             color: color,
-            size: 22,
+            size: 37,
+            iconSize: 19,
+            radius: 12,
           ),
 
           const SizedBox(

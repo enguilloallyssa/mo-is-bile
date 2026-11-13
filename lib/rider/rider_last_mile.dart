@@ -652,18 +652,13 @@ class _RiderLastMileState
               'Hub to Buyer workflow',
         ),
         actions: <Widget>[
-          IconButton(
+          RiderTopActionButton(
             tooltip: 'Dashboard',
-            onPressed: widget
-                    .onBackToDashboard ??
-                () {
-                  Navigator.maybePop(
-                    context,
-                  );
-                },
-            icon: const Icon(
-              Icons.home_outlined,
-            ),
+            onPressed: widget.onBackToDashboard ?? () {
+              Navigator.maybePop(context);
+            },
+            icon: Icons.home_outlined,
+            accent: RiderColors.goldDark,
           ),
         ],
       ),
@@ -936,99 +931,11 @@ class _RiderLastMileState
   }
 
   Widget _hero() {
-    return Container(
-      padding:
-          const EdgeInsets.all(20),
-      decoration:
-          BoxDecoration(
-        gradient:
-            LinearGradient(
-          colors:
-              RiderColors.heroGradient,
-          begin:
-              Alignment.topLeft,
-          end:
-              Alignment.bottomRight,
-        ),
-        borderRadius:
-            BorderRadius.circular(
-          23,
-        ),
-      ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text(
-                  'LAST MILE',
-                  style: TextStyle(
-                    color:
-                        Color(0xFFEBC867),
-                    fontSize: 9,
-                    letterSpacing: 1.5,
-                    fontWeight:
-                        FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(
-                  height: 6,
-                ),
-                const Text(
-                  'Deliver with confidence',
-                  style: TextStyle(
-                    color:
-                        Colors.white,
-                    fontSize: 21,
-                    fontWeight:
-                        FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(
-                  height: 7,
-                ),
-                Text(
-                  'Every action is synced through the SARI Laravel backend.',
-                  style: TextStyle(
-                    color: Colors.white
-                        .withOpacity(.72),
-                    fontSize: 10,
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(
-            width: 16,
-          ),
-
-          Container(
-            width: 62,
-            height: 62,
-            alignment:
-                Alignment.center,
-            decoration:
-                BoxDecoration(
-              color: Colors.white
-                  .withOpacity(.12),
-              borderRadius:
-                  BorderRadius.circular(
-                19,
-              ),
-            ),
-            child: const Icon(
-              Icons
-                  .delivery_dining_rounded,
-              color: Colors.white,
-              size: 34,
-            ),
-          ),
-        ],
-      ),
+    return RiderEditorialHero(
+      eyebrow: 'LAST MILE',
+      title: 'Deliver with confidence',
+      description: 'Track your barangay routes, parcel handoffs, and buyer delivery confirmations.',
+      icon: Icons.route_rounded,
     );
   }
 
@@ -1057,11 +964,12 @@ class _RiderLastMileState
       ),
       child: Column(
         children: <Widget>[
-          Icon(
-            icon,
-            color:
-                RiderColors.goldDark,
-            size: 19,
+          RiderIconBadge(
+            icon: icon,
+            color: riderIconAccent(icon),
+            size: 34,
+            iconSize: 18,
+            radius: 11,
           ),
           const SizedBox(
             height: 7,

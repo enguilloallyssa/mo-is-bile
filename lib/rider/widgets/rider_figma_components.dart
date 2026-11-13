@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'rider_hero.dart';
+import 'rider_ui.dart';
 
 /// Shared SARI Rider visual language based on the supplied Figma screen.
 /// Styling only: no API, account, or database changes.
@@ -7,11 +8,11 @@ class RiderFigmaColors {
   static const background = kPageBg;
   static const gold = kGold;
   static const lightGold = kGoldLight;
-  static const ink = Color(0xFF14211C);
-  static const muted = Color(0xFF838B88);
+  static const ink = Color(0xFF161513);
+  static const muted = Color(0xFF6E6A63);
   static const green = Color(0xFF047857);
   static const mint = Color(0xFFD1FAE5);
-  static const border = Color(0x11000000);
+  static const border = Color(0xFFE6E0D5);
   static const surface = Colors.white;
 }
 
@@ -35,7 +36,7 @@ class RiderStatData {
   final List<Color> barColors;
 }
 
-/// Exact Figma-inspired white metric card with a pastel icon and bottom bar.
+/// Polished Bento metric card with a tinted icon badge and clipped bottom accent bar.
 class RiderStatCard extends StatelessWidget {
   const RiderStatCard({super.key, required this.data, this.onTap});
   final RiderStatData data;
@@ -43,30 +44,36 @@ class RiderStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.black.withValues(alpha: .05)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: .05),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    final bool isDark = RiderColors.isDark;
+    final Color cardBg = isDark ? RiderColors.surface : Colors.white;
+    final Color borderColor =
+        isDark ? RiderColors.border : const Color(0xFFE8E2D7);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? .20 : .035),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: Stack(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(14),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(15, 14, 15, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -77,20 +84,29 @@ class RiderStatCard extends StatelessWidget {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: data.iconBackground,
-                              borderRadius: BorderRadius.circular(14),
+                              color: isDark
+                                  ? data.iconColor.withValues(alpha: .16)
+                                  : data.iconBackground,
+                              borderRadius: BorderRadius.circular(13),
                             ),
-                            child: Icon(data.icon, color: data.iconColor, size: 21),
+                            child: Icon(
+                              data.icon,
+                              color: data.iconColor,
+                              size: 20,
+                            ),
                           ),
                           Flexible(
                             child: Text(
                               '${data.count}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w800,
-                                color: RiderFigmaColors.ink,
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -.6,
+                                color: isDark
+                                    ? RiderColors.text
+                                    : RiderFigmaColors.ink,
                               ),
                             ),
                           ),
@@ -101,37 +117,39 @@ class RiderStatCard extends StatelessWidget {
                         data.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: RiderFigmaColors.ink,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -.2,
+                          color:
+                              isDark ? RiderColors.text : RiderFigmaColors.ink,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         data.subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.black54,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: isDark
+                              ? RiderColors.muted
+                              : RiderFigmaColors.muted,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: data.barColors),
-                    ),
-                  ),
+              ),
+              Container(
+                height: 4,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: data.barColors),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -149,11 +167,11 @@ class RiderEyebrow extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
-            color: kGold,
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 3,
+          style: TextStyle(
+            color: RiderColors.gold,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2.2,
           ),
         ),
         const SizedBox(width: 12),
@@ -162,7 +180,10 @@ class RiderEyebrow extends StatelessWidget {
             height: 1,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [kGold.withValues(alpha: .5), Colors.transparent],
+                colors: [
+                  RiderColors.gold.withValues(alpha: .45),
+                  Colors.transparent,
+                ],
               ),
             ),
           ),
@@ -185,8 +206,9 @@ class RiderSectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = RiderColors.isDark;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Column(
@@ -194,21 +216,22 @@ class RiderSectionHeading extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 23,
-                  height: 1.1,
-                  fontWeight: FontWeight.w800,
-                  color: RiderFigmaColors.ink,
-                  letterSpacing: -.6,
+                style: TextStyle(
+                  fontSize: 21,
+                  height: 1.12,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? RiderColors.text : RiderFigmaColors.ink,
+                  letterSpacing: -.5,
                 ),
               ),
               if (subtitle != null) ...[
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   subtitle!,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.black54,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? RiderColors.muted : RiderFigmaColors.muted,
                   ),
                 ),
               ],
@@ -231,26 +254,27 @@ class RiderLiveChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: const Color(0xFF181715),
         borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: const Color(0xFF3E3524)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isLive ? Icons.show_chart : Icons.cloud_off_outlined,
-            size: 12,
-            color: const Color(0xFFE3C77F),
+            isLive ? Icons.trending_up_rounded : Icons.cloud_off_outlined,
+            size: 13,
+            color: const Color(0xFFF3C663),
           ),
           const SizedBox(width: 5),
           Text(
             isLive ? 'Live' : 'No data',
             style: const TextStyle(
-              color: Color(0xFFE3C77F),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
+              color: Color(0xFFF3C663),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -260,7 +284,6 @@ class RiderLiveChip extends StatelessWidget {
 }
 
 /// Bottom navigation shared by Home / Jobs / Deliveries / Earnings / Account.
-/// The center delivery action uses the raised orange button from the mockup.
 class RiderFloatingNav extends StatelessWidget {
   const RiderFloatingNav({
     super.key,
@@ -295,9 +318,9 @@ class RiderFloatingNav extends StatelessWidget {
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: .15),
-                    blurRadius: 30,
-                    offset: const Offset(0, 10),
+                    color: Colors.black.withValues(alpha: .12),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
@@ -372,7 +395,8 @@ class RiderFloatingNav extends StatelessWidget {
                           border: Border.all(color: Colors.white, width: 4),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFF97316).withValues(alpha: .4),
+                              color:
+                                  const Color(0xFFF97316).withValues(alpha: .4),
                               blurRadius: 20,
                               offset: const Offset(0, 8),
                             ),
@@ -428,20 +452,15 @@ class RiderInnerHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(
-        20,
-        16,
-        20,
-        50,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.black,
-            Color(0xFF17130A),
-            Color(0xFF5E4B26),
+            Color(0xFF161513),
+            Color(0xFF282219),
+            Color(0xFF6B4F1D),
             kPageBg,
           ],
           stops: [0, .45, .8, 1],
@@ -450,18 +469,18 @@ class RiderInnerHeader extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: .1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: kGold.withValues(alpha: .5)),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kGold.withValues(alpha: .45)),
             ),
             child: IconButton(
               tooltip: onBack == null ? title : 'Back',
               onPressed: onBack,
               icon: Icon(onBack == null ? icon : Icons.arrow_back_rounded),
-              color: const Color(0xFFE3C77F),
+              color: const Color(0xFFF3C663),
             ),
           ),
           const SizedBox(width: 12),
@@ -482,8 +501,8 @@ class RiderInnerHeader extends StatelessWidget {
                   subtitle,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 11,
+                    color: Colors.white70,
+                    fontSize: 11.5,
                   ),
                 ),
               ],
@@ -497,7 +516,6 @@ class RiderInnerHeader extends StatelessWidget {
 }
 
 /// Keep your existing API-connected page BODY and simply wrap it in this shell.
-/// Do not nest another Scaffold inside [child].
 class RiderFigmaPage extends StatelessWidget {
   const RiderFigmaPage({
     super.key,
@@ -516,15 +534,13 @@ class RiderFigmaPage extends StatelessWidget {
   final int selectedTab;
   final ValueChanged<int> onTabChanged;
   final Widget child;
-
-  /// Off by default because RiderShell already owns the app-wide bottom nav.
   final bool showBottomNavigation;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: false,
-      backgroundColor: kPageBg,
+      backgroundColor: RiderColors.bg,
       body: SafeArea(
         top: true,
         bottom: false,
@@ -551,8 +567,8 @@ class RiderActionCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.iconColor = const Color(0xFFD97706),
-    this.iconBackground = const Color(0xFFFEF3C7),
+    this.iconColor = const Color(0xFFD4952A),
+    this.iconBackground = const Color(0xFFFFF3D6),
   });
   final IconData icon;
   final String title;
@@ -563,17 +579,18 @@ class RiderActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = RiderColors.isDark;
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
+      color: isDark ? RiderColors.surface : Colors.white,
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            border: Border.all(color: RiderFigmaColors.border),
-            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: RiderColors.border),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
             children: [
@@ -581,33 +598,42 @@ class RiderActionCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: iconBackground,
-                  borderRadius: BorderRadius.circular(14),
+                  color: isDark
+                      ? iconColor.withValues(alpha: .16)
+                      : iconBackground,
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(icon, color: iconColor, size: 22),
+                child: Icon(icon, color: iconColor, size: 21),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: const TextStyle(
-                          color: RiderFigmaColors.ink,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        )),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: RiderColors.text,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(subtitle,
-                        style: const TextStyle(
-                          color: Colors.black54,
-                          fontSize: 11,
-                        )),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: RiderColors.muted,
+                        fontSize: 11.5,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios_rounded,
-                  size: 14, color: Colors.black38),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: RiderColors.muted,
+              ),
             ],
           ),
         ),

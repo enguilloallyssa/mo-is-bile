@@ -326,12 +326,11 @@ class _RiderNavigationScreenState
           ],
         ),
         actions: [
-          IconButton(
+          RiderTopActionButton(
             tooltip: 'Fit route',
             onPressed: _fitRoute,
-            icon: Icon(
-              Icons.route_outlined,
-            ),
+            icon: Icons.route_outlined,
+            accent: RiderColors.blue,
           ),
         ],
       ),
@@ -522,8 +521,8 @@ class _RiderNavigationScreenState
                   onPressed: _centerOnRider,
                   backgroundColor:
                       RiderColors.surfaceElevated,
-                  foregroundColor:
-                      RiderColors.blue,
+                  foregroundColor: RiderColors.blue,
+                  elevation: 4,
                   child: Icon(
                     _followRider
                         ? Icons
@@ -545,8 +544,8 @@ class _RiderNavigationScreenState
                               ),
                   backgroundColor:
                       RiderColors.surfaceElevated,
-                  foregroundColor:
-                      RiderColors.blue,
+                  foregroundColor: RiderColors.goldDark,
+                  elevation: 4,
                   child: Icon(
                     Icons.refresh_rounded,
                   ),
@@ -598,20 +597,13 @@ class _RiderNavigationScreenState
       ),
       child: Row(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color:
-                  RiderColors.blueSoft,
-              borderRadius:
-                  BorderRadius.circular(11),
-            ),
-            child: Icon(
-              Icons.navigation_rounded,
-              color: RiderColors.blue,
-              size: 20,
-            ),
+          RiderIconBadge(
+            icon: Icons.navigation_rounded,
+            color: RiderColors.blue,
+            background: RiderColors.blueSoft,
+            size: 40,
+            iconSize: 21,
+            radius: 12,
           ),
           SizedBox(width: 10),
           Expanded(

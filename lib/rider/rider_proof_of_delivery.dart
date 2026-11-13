@@ -284,7 +284,10 @@ class _RiderProofOfDeliveryState extends State<RiderProofOfDelivery> {
       child: Scaffold(
         backgroundColor: RiderColors.bg,
         appBar: AppBar(
-          title: const Text('Proof of Delivery'),
+          title: const RiderHeaderTitle(
+            title: 'Proof of Delivery',
+            subtitle: 'Secure handoff verification',
+          ),
           backgroundColor: RiderColors.surface,
           foregroundColor: RiderColors.text,
           surfaceTintColor: Colors.transparent,
@@ -298,39 +301,11 @@ class _RiderProofOfDeliveryState extends State<RiderProofOfDelivery> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                              colors: RiderColors.heroGradient),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: const EdgeInsets.all(19),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('DELIVERY EVIDENCE',
-                                style: TextStyle(
-                                    color: Colors.white70,
-                                    letterSpacing: 1.2,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800)),
-                            const SizedBox(height: 7),
-                            Text(widget.orderNumber,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                )),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Parcel verification completed. Capture the actual handoff evidence before finishing this delivery.',
-                              style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 11,
-                                  height: 1.5),
-                            ),
-                          ],
-                        ),
+                      RiderEditorialHero(
+                        eyebrow: 'DELIVERY EVIDENCE',
+                        title: widget.orderNumber,
+                        description: 'Parcel verification completed. Capture the actual handoff evidence before finishing this delivery.',
+                        icon: Icons.verified_user_outlined,
                       ),
                       const SizedBox(height: 16),
                       Container(
