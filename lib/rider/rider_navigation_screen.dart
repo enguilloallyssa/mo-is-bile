@@ -5,6 +5,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../services/sari_live_data.dart';
+import '../services/sari_api.dart';
 import 'models/rider_delivery_model.dart';
 import 'services/rider_navigation_service.dart';
 import 'widgets/rider_ui.dart';
@@ -37,6 +39,14 @@ class _RiderNavigationScreenState
   bool _mapReady = false;
   bool _followRider = true;
 
+  // Sharing is OFF by default. Only the rider can enable it while navigating.
+  bool _sharingGps = false;
+  bool _sharingBusy = false;
+  bool _gpsUploadInFlight = false;
+  DateTime? _lastGpsUpload;
+  String? _gpsShareMessage;
+
+
   String? _error;
 
   LatLng get _destination => LatLng(
@@ -56,6 +66,10 @@ class _RiderNavigationScreenState
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    if (_sharingGps && widget.delivery.id > 0) {
+      // Closing navigation automatically stops sharing; no background tracking.
+      unawaited(_stopSharingRemote().catchError((Object _) {}));
+    }
     _mapController.dispose();
     super.dispose();
   }
@@ -164,6 +178,10 @@ class _RiderNavigationScreenState
       _currentPosition = current;
     });
 
+    if (_sharingGps) {
+      unawaited(_sendGpsLocation(position));
+    }
+
     if (_followRider && _mapReady) {
       _mapController.move(
         current,
@@ -176,6 +194,124 @@ class _RiderNavigationScreenState
         current,
         fitRoute: false,
       );
+    }
+  }
+
+  Future<void> _sendGpsLocation(Position position) async {
+    if (!_sharingGps || _gpsUploadInFlight || widget.delivery.id <= 0) return;
+    final now = DateTime.now();
+    if (_lastGpsUpload != null &&
+        now.difference(_lastGpsUpload!) < const Duration(seconds: 12)) return;
+    // Accuracy >150m must not be submitted as a falsely precise reading.
+    if (!position.accuracy.isFinite || position.accuracy > 150 ||
+        position.accuracy < 0) {
+      if (mounted) setState(() => _gpsShareMessage = 'Waiting for accurate GPS (150m or better)…');
+      return;
+    }
+    _lastGpsUpload = now;
+    _gpsUploadInFlight = true;
+    try {
+      await SariLiveData.instance.riderUploadLocation(
+        assignmentType: 'order',
+        assignmentId: widget.delivery.id,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        recordedAt: now,
+        accuracyMeters: position.accuracy.round(),
+      );
+      if (mounted && _sharingGps) {
+        setState(() => _gpsShareMessage = 'Sharing this active route with SARI');
+      }
+    } catch (error) {
+      if (!mounted || !_sharingGps) return;
+      // Stop explicitly if the route is no longer permitted by Laravel.
+      if (error is SariApiException &&
+          (error.statusCode == 401 || error.statusCode == 403 ||
+              error.statusCode == 404 || error.statusCode == 422)) {
+        setState(() {
+          _sharingGps = false;
+          _gpsShareMessage = 'Sharing stopped: route is no longer available.';
+        });
+        unawaited(_stopSharingRemote().catchError((Object _) {}));
+      } else {
+        setState(() => _gpsShareMessage = 'GPS upload failed. Retry when connected.');
+      }
+    } finally {
+      _gpsUploadInFlight = false;
+    }
+  }
+
+  Future<void> _stopSharingRemote() async {
+    // An in-flight upload could otherwise arrive after DELETE and re-enable
+    // sharing. Wait until it finishes, then send DELETE last.
+    while (_gpsUploadInFlight) {
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    }
+    if (widget.delivery.id <= 0) return;
+    await SariLiveData.instance.riderStopLocation(
+      assignmentType: 'order', assignmentId: widget.delivery.id,
+    );
+  }
+
+  Future<void> _toggleGpsSharing() async {
+    if (_sharingBusy || widget.delivery.id <= 0) return;
+    if (_sharingGps) {
+      setState(() {
+        _sharingGps = false;
+        _sharingBusy = true;
+      });
+      try {
+        await _stopSharingRemote();
+        if (mounted) setState(() => _gpsShareMessage = 'Live location sharing is off');
+      } catch (error) {
+        if (mounted) setState(() => _gpsShareMessage = 'Could not stop sharing on server: $error');
+      } finally {
+        if (mounted) setState(() => _sharingBusy = false);
+      }
+      return;
+    }
+    final enable = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Share live location?'),
+        content: const Text('While this navigation screen is open, SARI can share your position for this active delivery with its buyer and assigned logistics provider. Sharing stops when you leave navigation or turn it off.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Not now')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Start sharing')),
+        ],
+      ),
+    );
+    if (enable != true || !mounted) return;
+    setState(() {
+      _sharingGps = true;
+      _sharingBusy = true;
+      _gpsShareMessage = 'Starting location sharing…';
+    });
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw StateError('Turn on phone location services first.');
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw StateError('Location permission is required.');
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      await _sendGpsLocation(position);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _sharingGps = false;
+          _gpsShareMessage = error.toString();
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _sharingBusy = false);
     }
   }
 
@@ -326,6 +462,12 @@ class _RiderNavigationScreenState
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: _sharingGps ? 'Stop sharing live GPS' : 'Share live GPS (off by default)',
+            onPressed: _sharingBusy ? null : _toggleGpsSharing,
+            icon: Icon(_sharingGps ? Icons.location_on_rounded : Icons.location_off_outlined,
+              color: _sharingGps ? RiderColors.green : RiderColors.muted),
+          ),
           RiderTopActionButton(
             tooltip: 'Fit route',
             onPressed: _fitRoute,
@@ -508,7 +650,26 @@ class _RiderNavigationScreenState
             left: 12,
             right: 12,
             top: 12,
-            child: _routeSummaryCard(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _routeSummaryCard(),
+                if (_gpsShareMessage != null || _sharingGps)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: RiderColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _gpsShareMessage ?? 'Live GPS sharing enabled',
+                      style: TextStyle(color: RiderColors.text, fontSize: 11),
+                    ),
+                  ),
+              ],
+            ),
           ),
           Positioned(
             right: 12,

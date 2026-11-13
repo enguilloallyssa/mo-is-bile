@@ -586,6 +586,33 @@ class _BuyerNotificationsState
     }
   }
 
+  Future<void> _manageNotification(BuyerNotificationItem item, String action) async {
+    if (action == 'delete') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Remove notification?'),
+          content: const Text('Delete this notification from your account?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    try {
+      switch (action) {
+        case 'archive': await SariLiveData.instance.buyerArchiveNotification(item.id); break;
+        case 'restore': await SariLiveData.instance.buyerRestoreNotification(item.id); break;
+        case 'delete': await SariLiveData.instance.buyerDeleteNotification(item.id); break;
+      }
+      if (mounted) await _load();
+    } catch (error) {
+      _show(error.toString());
+    }
+  }
+
   // ============================================================
   // OPEN NOTIFICATION
   // ============================================================
@@ -1132,11 +1159,16 @@ class _BuyerNotificationsState
                   width: 4,
                 ),
 
-                const Icon(
-                  Icons
-                      .chevron_right_rounded,
-                  color:
-                      BuyerTheme.muted,
+                PopupMenuButton<String>(
+                  tooltip: 'Notification actions',
+                  onSelected: (action) => _manageNotification(item, action),
+                  itemBuilder: (_) => [
+                    PopupMenuItem<String>(
+                      value: _archived ? 'restore' : 'archive',
+                      child: Text(_archived ? 'Restore' : 'Archive'),
+                    ),
+                    const PopupMenuItem<String>(value: 'delete', child: Text('Delete')),
+                  ],
                 ),
               ],
             ),

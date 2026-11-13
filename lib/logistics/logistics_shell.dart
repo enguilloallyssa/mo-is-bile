@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../services/sari_live_data.dart';
+import '../services/sari_foreground_updates.dart';
 import 'logistics_account.dart';
 import 'logistics_home.dart';
 import 'logistics_messages.dart';
 import 'logistics_monitoring.dart';
+import 'logistics_rider_locations.dart';
 import 'logistics_notifications.dart';
 import 'logistics_remittances.dart';
 import 'logistics_operations.dart';
@@ -39,8 +41,15 @@ class _LogisticsShellState extends State<LogisticsShell> {
   @override
   void initState() {
     super.initState();
+    SariForegroundUpdates.instance.start();
 
     _refreshAccount();
+  }
+
+  @override
+  void dispose() {
+    SariForegroundUpdates.instance.stop();
+    super.dispose();
   }
 
   Future<void> _refreshAccount() async {
@@ -108,6 +117,9 @@ class _LogisticsShellState extends State<LogisticsShell> {
 
   void _openMonitoring() =>
       _open(const LogisticsMonitoring());
+
+  void _openRiderLocations() =>
+      _open(const LogisticsRiderLocations());
 
   void _openNotifications() =>
       _open(const LogisticsNotifications());
@@ -439,6 +451,11 @@ class _LogisticsShellState extends State<LogisticsShell> {
                       _openMonitoring,
                     ),
                     _menuEntry(
+                      'Live Rider Locations',
+                      Icons.location_on_outlined,
+                      _openRiderLocations,
+                    ),
+                    _menuEntry(
                       'COD Cash Intake',
                       Icons.payments_outlined,
                       _openRemittances,
@@ -670,18 +687,32 @@ class _LogisticsShellState extends State<LogisticsShell> {
           ],
         ),
         actions: [
-          IconButton(
-            tooltip:
-                'Notifications',
-            onPressed:
-                _openNotifications,
-            icon: const Icon(
-              Icons
-                  .notifications_none_rounded,
-              color:
-                  LogisticsPalette.body,
-              size: 22,
-            ),
+          AnimatedBuilder(
+            animation: SariForegroundUpdates.instance,
+            builder: (context, _) {
+              final updates = SariForegroundUpdates.instance;
+              final unread = updates.role == 'logistics'
+                  ? updates.unreadNotifications : 0;
+              return Stack(clipBehavior: Clip.none, children: [
+                IconButton(
+                  tooltip: 'Notifications', onPressed: _openNotifications,
+                  icon: const Icon(Icons.notifications_none_rounded,
+                      color: LogisticsPalette.body, size: 22),
+                ),
+                if (unread > 0) Positioned(
+                  right: 0, top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: LogisticsPalette.gold,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(unread > 99 ? '99+' : '$unread',
+                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ]);
+            },
           ),
           Builder(
             builder:

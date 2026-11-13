@@ -10,7 +10,7 @@ class ApiService {
   static Future<String> testConnection() async {
     final response = await http
         .get(
-          Uri.parse('${ApiConfig.apiBaseUrl}/ping'),
+          Uri.parse('${ApiConfig.apiBaseUrl}/health'),
           headers: const {
             'Accept': 'application/json',
           },

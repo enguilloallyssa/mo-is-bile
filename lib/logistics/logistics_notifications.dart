@@ -85,6 +85,18 @@ class _LogisticsNotificationsState
     }
   }
 
+  Future<void> _readAll() async {
+    try {
+      await SariLiveData.instance.logisticsReadAllNotifications();
+      if (mounted) await _load();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to mark all read: $error')),
+      );
+    }
+  }
+
   Future<void> _read(
     Map<String, dynamic> item,
   ) async {
@@ -133,6 +145,11 @@ class _LogisticsNotificationsState
           ),
 
           actions: [
+            IconButton(
+              tooltip: 'Mark all read',
+              onPressed: _busy ? null : _readAll,
+              icon: const Icon(Icons.done_all_rounded),
+            ),
             IconButton(
               onPressed:
                   _load,

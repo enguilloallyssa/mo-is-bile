@@ -51,6 +51,108 @@ class SariLiveData {
       );
 
   // ============================================================
+  // NOV 2026 LARAVEL MOBILE API CONNECTIONS
+  // All routes below are implemented by the uploaded Laravel /api/v1.
+  // ============================================================
+
+  Future<SariJson> mobileUpdates() =>
+      _api.request('GET', 'updates', requestTimeout: const Duration(seconds: 12));
+
+  /// Register only a real FCM token after configuring Firebase Messaging.
+  Future<SariJson> registerPushDevice({
+    required String deviceId,
+    required String platform,
+    required String fcmToken,
+    bool enabled = true,
+  }) => _api.request('POST', 'devices', jsonBody: {
+        'device_id': deviceId,
+        'platform': platform,
+        'fcm_token': fcmToken,
+        'push_enabled': enabled,
+      });
+
+  Future<SariJson> unregisterPushDevice(String deviceId) =>
+      _api.request('DELETE', 'devices', jsonBody: {'device_id': deviceId});
+
+  /// Google ID token must come from a configured native Google Sign-In flow.
+  Future<SariJson> googleLogin(String idToken) =>
+      _api.request('POST', 'auth/google', authenticated: false,
+          jsonBody: {'id_token': idToken, 'device_name': 'SARI Flutter'});
+
+  Future<SariJson> riderUploadLocation({
+    required String assignmentType,
+    required int assignmentId,
+    required double latitude,
+    required double longitude,
+    required DateTime recordedAt,
+    int? accuracyMeters,
+  }) => _api.request('POST', 'rider/location', jsonBody: {
+        'assignment_type': assignmentType,
+        'assignment_id': assignmentId,
+        'latitude': latitude,
+        'longitude': longitude,
+        'recorded_at': recordedAt.toUtc().toIso8601String(),
+        if (accuracyMeters != null) 'accuracy_m': accuracyMeters,
+      }, requestTimeout: const Duration(seconds: 12));
+
+  Future<SariJson> riderStopLocation({
+    required String assignmentType,
+    required int assignmentId,
+  }) => _api.request('DELETE', 'rider/location', jsonBody: {
+        'assignment_type': assignmentType,
+        'assignment_id': assignmentId,
+      });
+
+  Future<SariJson> buyerRiderLocation(int orderId) =>
+      _api.request('GET', 'buyer/orders/$orderId/rider-location',
+          requestTimeout: const Duration(seconds: 12));
+
+  Future<SariJson> logisticsRiderLocation(int riderId) =>
+      _api.request('GET', 'logistics/riders/$riderId/location',
+          requestTimeout: const Duration(seconds: 12));
+
+  Future<SariJson> buyerRecentActivity({int page = 1, int perPage = 10,
+    bool archived = false}) => _api.request('GET', 'buyer/recent-activity',
+      query: {'page': '$page', 'per_page': '$perPage', 'archived': archived ? '1' : '0'});
+
+  Future<SariJson> buyerActivitySummary() =>
+      _api.request('GET', 'buyer/recent-activity/summary');
+  Future<SariJson> buyerActivityRead(int id) =>
+      _api.request('POST', 'buyer/recent-activity/$id/read');
+  Future<SariJson> buyerActivityReadAll() =>
+      _api.request('POST', 'buyer/recent-activity/read-all');
+  Future<SariJson> buyerActivityArchive(int id) =>
+      _api.request('POST', 'buyer/recent-activity/$id/archive');
+  Future<SariJson> buyerActivityRestore(int id) =>
+      _api.request('PATCH', 'buyer/recent-activity/$id/restore');
+  Future<SariJson> buyerActivityDelete(int id) =>
+      _api.request('DELETE', 'buyer/recent-activity/$id');
+
+  Future<SariJson> buyerArchiveNotification(int id) =>
+      _api.request('POST', 'buyer/notifications/$id/archive');
+  Future<SariJson> buyerRestoreNotification(int id) =>
+      _api.request('PATCH', 'buyer/notifications/$id/restore');
+  Future<SariJson> buyerDeleteNotification(int id) =>
+      _api.request('DELETE', 'buyer/notifications/$id');
+  Future<SariJson> buyerMessagesUnread() =>
+      _api.request('GET', 'buyer/messages/unread');
+  Future<SariJson> buyerConfirmMessageAddress(int orderId) =>
+      _api.request('POST', 'buyer/messages/orders/$orderId/confirm-address');
+
+  Future<SariJson> buyerAskAi(String message, {
+    List<Map<String, String>> history = const [], String pagePath = '/buyer',
+  }) => _api.request('POST', 'buyer/ai-assistant/message', jsonBody: {
+        'message': message,
+        'history': history.take(8).toList(),
+        'page_context': {'path': pagePath},
+      }, requestTimeout: const Duration(seconds: 40));
+
+  Future<SariJson> logisticsNotificationSummary() =>
+      _api.request('GET', 'logistics/notifications/summary');
+  Future<SariJson> logisticsReadAllNotifications() =>
+      _api.request('POST', 'logistics/notifications/read-all');
+
+  // ============================================================
   // PRODUCTS
   // ============================================================
 

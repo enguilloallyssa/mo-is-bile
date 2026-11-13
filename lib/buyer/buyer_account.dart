@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../config/api_config.dart';
 import '../services/sari_live_data.dart';
 import 'buyer_theme.dart';
+import 'buyer_recent_activity.dart';
+import 'buyer_ai_assistant.dart';
 import 'widgets/buyer_address_picker.dart';
 import 'widgets/buyer_header.dart';
 
@@ -1916,6 +1918,39 @@ class _BuyerAccountState
                               EdgeInsets.zero,
                           children: <Widget>[
                             _profileHero(),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                              child: Material(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(17),
+                                child: ListTile(
+                                  leading: const Icon(Icons.history_rounded, color: BuyerTheme.goldDark),
+                                  title: const Text('Recent Activity',
+                                    style: TextStyle(fontWeight: FontWeight.w800)),
+                                  subtitle: const Text('Your latest SARI account updates'),
+                                  trailing: const Icon(Icons.chevron_right_rounded),
+                                  onTap: () => Navigator.push<void>(context,
+                                    MaterialPageRoute(builder: (_) => const BuyerRecentActivity())),
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                              child: Material(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(17),
+                                child: ListTile(
+                                  leading: const Icon(Icons.auto_awesome_rounded,
+                                    color: BuyerTheme.goldDark),
+                                  title: const Text('SARI Buyer Assistant',
+                                    style: TextStyle(fontWeight: FontWeight.w800)),
+                                  subtitle: const Text('Ask about orders, products, or your account'),
+                                  trailing: const Icon(Icons.chevron_right_rounded),
+                                  onTap: () => Navigator.push<void>(context,
+                                    MaterialPageRoute(builder: (_) => const BuyerAiAssistant())),
+                                ),
+                              ),
+                            ),
                             _personalInformation(),
                             _addressesCard(),
                             _bottomSave(),

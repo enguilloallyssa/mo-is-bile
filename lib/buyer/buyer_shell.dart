@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/sari_live_data.dart';
+import '../services/sari_foreground_updates.dart';
 
 import 'buyer_account.dart';
 import 'buyer_cart.dart';
@@ -29,6 +30,18 @@ class BuyerShell extends StatefulWidget {
 }
 
 class _BuyerShellState extends State<BuyerShell> {
+  @override
+  void initState() {
+    super.initState();
+    SariForegroundUpdates.instance.start();
+  }
+
+  @override
+  void dispose() {
+    SariForegroundUpdates.instance.stop();
+    super.dispose();
+  }
+
   final GlobalKey<ScaffoldState> _scaffoldKey =
       GlobalKey<ScaffoldState>();
 

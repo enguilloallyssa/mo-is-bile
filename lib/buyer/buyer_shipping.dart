@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/sari_live_data.dart';
 import 'buyer_theme.dart';
+import 'widgets/buyer_rider_live_location.dart';
 
 class BuyerShipping extends StatefulWidget {
   const BuyerShipping({
@@ -436,6 +437,12 @@ class _BuyerShippingState
                       ),
                     ),
                   ],
+
+                  if (const <String>{
+                    'courier_accepted', 'heading_pickup', 'arrived_pickup',
+                    'in_transit', 'arrived_buyer', 'out_for_delivery',
+                  }.contains(_text(data['status'], _text(shipment['status']))))
+                    BuyerRiderLiveLocation(orderId: id),
 
                   const SizedBox(
                     height: 23,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../services/sari_live_data.dart';
+import '../services/sari_foreground_updates.dart';
 import 'models/rider_delivery_model.dart';
 import 'models/rider_earning_model.dart';
 import 'models/rider_history_model.dart';
@@ -44,6 +45,7 @@ class _RiderShellState extends State<RiderShell> {
 
   @override
   void dispose() {
+    SariForegroundUpdates.instance.stop();
     RiderHeaderController.messages = null;
     RiderHeaderController.notifications = null;
     RiderMenuController.open = null;
@@ -99,6 +101,7 @@ class _RiderShellState extends State<RiderShell> {
   @override
   void initState() {
     super.initState();
+    SariForegroundUpdates.instance.start();
 
     RiderThemeController.setDark(
       _darkMode,

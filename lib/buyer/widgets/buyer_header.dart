@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/sari_live_data.dart';
+import '../../services/sari_foreground_updates.dart';
 import '../buyer_theme.dart';
 import 'buyer_navigation_scope.dart';
 
@@ -376,16 +377,18 @@ class _BuyerHeaderState
                 width: 7,
               ),
 
-              _HeaderButton(
-                icon: Icons
-                    .notifications_none_rounded,
-                tooltip:
-                    'Notifications',
-                badge:
-                    _notificationCount,
-                onTap: widget
-                        .onNotificationTap ??
-                    () {},
+              AnimatedBuilder(
+                animation: SariForegroundUpdates.instance,
+                builder: (context, _) {
+                  final updates = SariForegroundUpdates.instance;
+                  return _HeaderButton(
+                    icon: Icons.notifications_none_rounded,
+                    tooltip: 'Notifications',
+                    badge: updates.loaded && updates.role == 'buyer'
+                        ? updates.unreadNotifications : _notificationCount,
+                    onTap: widget.onNotificationTap ?? () {},
+                  );
+                },
               ),
 
               const SizedBox(

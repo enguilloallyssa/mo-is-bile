@@ -1,285 +1,233 @@
 import 'package:flutter/material.dart';
 
-import 'buyer_notifications.dart';
+import '../services/sari_live_data.dart';
 import 'models/buyer_activity_model.dart';
-import 'widgets/buyer_empty_state.dart';
+import 'buyer_theme.dart';
+import 'buyer_notifications.dart';
 
-class BuyerRecentActivity extends StatelessWidget {
-  final List<BuyerActivity> activities;
-  final VoidCallback? onBrowseProducts;
-
+/// Server-backed Buyer activity feed. No demo/synthetic order records.
+class BuyerRecentActivity extends StatefulWidget {
   const BuyerRecentActivity({
     super.key,
-    this.activities = _demoActivities,
+    this.activities = const <BuyerActivity>[],
     this.onBrowseProducts,
   });
 
-  static const List<BuyerActivity> _demoActivities = [
-    BuyerActivity(
-      id: 1,
-      type: 'delivery',
-      title: 'Parcel is on the way',
-      message: 'Your courier has picked up the parcel and is heading to your area.',
-      orderNumber: 'SARI-2026-0015',
-      storeName: 'SARI Tech Corner',
-      status: 'in_transit',
-      createdAt: 'Oct 27, 2026 · 10:35 AM',
-      orderId: 15,
-    ),
-    BuyerActivity(
-      id: 2,
-      type: 'order',
-      title: 'Order is being prepared',
-      message: 'The seller confirmed your order and started preparing the items.',
-      orderNumber: 'SARI-2026-0016',
-      storeName: 'Daily Finds',
-      status: 'preparing',
-      createdAt: 'Oct 27, 2026 · 8:12 AM',
-      orderId: 16,
-    ),
-    BuyerActivity(
-      id: 3,
-      type: 'delivery',
-      title: 'Order delivered',
-      message: 'Your order was delivered successfully. Thank you for shopping with SARI.',
-      orderNumber: 'SARI-2026-0011',
-      storeName: 'Home & Local',
-      status: 'delivered',
-      createdAt: 'Oct 25, 2026 · 4:46 PM',
-      orderId: 11,
-    ),
-  ];
+  // Kept for source compatibility; activity is loaded from Laravel.
+  final List<BuyerActivity> activities;
+  final VoidCallback? onBrowseProducts;
+
+  @override
+  State<BuyerRecentActivity> createState() => _BuyerRecentActivityState();
+}
+
+class _BuyerRecentActivityState extends State<BuyerRecentActivity> {
+  final List<Map<String, dynamic>> _items = [];
+  bool _loading = true;
+  bool _moreLoading = false;
+  bool _archived = false;
+  bool _mutating = false;
+  int _page = 1;
+  int _lastPage = 1;
+  int _unread = 0;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load(reset: true);
+  }
+
+  Map<String, dynamic> _asMap(Object? raw) => raw is Map
+      ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+
+  Future<void> _load({bool reset = false}) async {
+    if (reset) {
+      if (mounted) setState(() { _loading = true; _error = null; });
+    } else {
+      if (_moreLoading || _page >= _lastPage) return;
+      setState(() => _moreLoading = true);
+    }
+    final requestedPage = reset ? 1 : _page + 1;
+    try {
+      final response = await SariLiveData.instance.buyerRecentActivity(
+        page: requestedPage, archived: _archived,
+      );
+      if (!mounted) return;
+      final items = response['data'];
+      final meta = _asMap(response['meta']);
+      setState(() {
+        if (reset) _items.clear();
+        if (items is List) _items.addAll(items.map(_asMap));
+        _page = requestedPage;
+        _lastPage = (meta['last_page'] as num?)?.toInt() ?? requestedPage;
+        _unread = (response['unread_count'] as num?)?.toInt() ?? 0;
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = 'Unable to load activity: $error');
+    } finally {
+      if (mounted) setState(() { _loading = false; _moreLoading = false; });
+    }
+  }
+
+  Future<void> _readAll() async {
+    if (_mutating) return;
+    setState(() => _mutating = true);
+    try {
+      await SariLiveData.instance.buyerActivityReadAll();
+      await _load(reset: true);
+    } catch (error) { _show(error.toString()); }
+    finally { if (mounted) setState(() => _mutating = false); }
+  }
+
+  Future<void> _action(Map<String, dynamic> item, String action) async {
+    if (_mutating) return;
+    final id = (item['id'] as num?)?.toInt();
+    if (id == null || id <= 0) return;
+    if (action == 'delete') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete activity?'),
+          content: const Text('This removes the activity from your view.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    setState(() => _mutating = true);
+    try {
+      switch (action) {
+        case 'read': await SariLiveData.instance.buyerActivityRead(id); break;
+        case 'archive': await SariLiveData.instance.buyerActivityArchive(id); break;
+        case 'restore': await SariLiveData.instance.buyerActivityRestore(id); break;
+        case 'delete': await SariLiveData.instance.buyerActivityDelete(id); break;
+      }
+      await _load(reset: true);
+    } catch (error) { _show(error.toString()); }
+    finally { if (mounted) setState(() => _mutating = false); }
+  }
+
+  void _show(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  String _date(String raw) {
+    final date = DateTime.tryParse(raw)?.toLocal();
+    if (date == null) return raw;
+    return '${date.month}/${date.day}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _activityRow(Map<String, dynamic> item) {
+    final title = item['title']?.toString() ?? 'SARI update';
+    final body = item['message']?.toString() ?? '';
+    final read = item['is_read'] == true || item['is_read'] == 1;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(14, 11, 6, 12),
+      decoration: BuyerTheme.card(radius: 17),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+          width: 42, height: 42,
+          decoration: BoxDecoration(color: BuyerTheme.goldPale,
+              borderRadius: BorderRadius.circular(13)),
+          child: const Icon(Icons.history_rounded, color: BuyerTheme.goldDark),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text(title, style: TextStyle(
+                fontSize: 12.5, fontWeight: read ? FontWeight.w700 : FontWeight.w900))),
+            if (!read) const Icon(Icons.circle, color: BuyerTheme.gold, size: 8),
+          ]),
+          const SizedBox(height: 4),
+          if (body.isNotEmpty) Text(body,
+            style: const TextStyle(color: BuyerTheme.muted, fontSize: 11, height: 1.4)),
+          const SizedBox(height: 7),
+          Text(_date(item['created_at']?.toString() ?? ''),
+            style: const TextStyle(color: BuyerTheme.muted, fontSize: 10)),
+        ])),
+        PopupMenuButton<String>(
+          tooltip: 'Activity actions',
+          enabled: !_mutating,
+          onSelected: (action) => _action(item, action),
+          itemBuilder: (_) => [
+            if (!read) const PopupMenuItem(value: 'read', child: Text('Mark as read')),
+            PopupMenuItem(value: _archived ? 'restore' : 'archive',
+                child: Text(_archived ? 'Restore' : 'Archive')),
+            const PopupMenuItem(value: 'delete', child: Text('Delete')),
+          ],
+        ),
+      ]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F5F1),
+      backgroundColor: BuyerTheme.canvas,
       appBar: AppBar(
         title: const Text('Recent Activity'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute(builder: (_) => const BuyerNotifications()),
-            ),
-            child: const Text('Notifications'),
-          ),
-          const SizedBox(width: 4),
+          IconButton(icon: const Icon(Icons.notifications_none_rounded), tooltip: 'Notifications',
+            onPressed: () => Navigator.push<void>(context,
+              MaterialPageRoute(builder: (_) => const BuyerNotifications()))),
+          IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: () => _load(reset: true)),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 28),
-        children: [
-          _pageHeader(),
-          const SizedBox(height: 14),
-          if (activities.isEmpty)
-            BuyerEmptyState(
-              icon: Icons.history_rounded,
-              title: 'No recent activity yet',
-              message:
-                  'Order updates will appear here as your purchases move through fulfillment and delivery.',
-              actionLabel: 'Browse Products',
-              onAction: onBrowseProducts ?? () => Navigator.pop(context),
-            )
-          else
-            _activityCard(context),
-        ],
-      ),
-    );
-  }
-
-  Widget _pageHeader() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFFF9EC), Color(0xFFFFEDC8)],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE8CE9A)),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'SARI MARKETPLACE',
-            style: TextStyle(
-              color: Color(0xFFA76C0A),
-              fontSize: 8,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-            ),
-          ),
-          SizedBox(height: 5),
-          Text(
-            'Recent Activity',
-            style: TextStyle(
-              color: Color(0xFF211D17),
-              fontSize: 25,
-              height: 1.05,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          SizedBox(height: 6),
-          Text(
-            'Follow every important update from checkout to delivery.',
-            style: TextStyle(
-              color: Color(0xFF81786E),
-              fontSize: 9.5,
-              height: 1.45,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _activityCard(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE8E1D8)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Order Activity',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-                  ),
-                ),
-                Text(
-                  '${activities.length} updates',
-                  style: const TextStyle(color: Color(0xFF8B8176), fontSize: 9),
-                ),
-              ],
-            ),
-          ),
-          const Divider(),
-          ...activities.asMap().entries.map((entry) {
-            return Column(
-              children: [
-                _activityRow(context, entry.value),
-                if (entry.key != activities.length - 1) const Divider(indent: 66),
-              ],
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _activityRow(BuildContext context, BuyerActivity activity) {
-    final Color tone = activity.isDelivered
-        ? const Color(0xFF2E8B57)
-        : activity.isCancelled
-            ? const Color(0xFFC54C4C)
-            : activity.isShipping
-                ? const Color(0xFF3C6E91)
-                : const Color(0xFFB87910);
-
-    final IconData icon = activity.isDelivered
-        ? Icons.check_rounded
-        : activity.isCancelled
-            ? Icons.close_rounded
-            : activity.isShipping
-                ? Icons.local_shipping_outlined
-                : Icons.shopping_bag_outlined;
-
-    return Padding(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: tone.withValues(alpha: .11),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, color: tone, size: 20),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  activity.title,
-                  style: const TextStyle(
-                    color: Color(0xFF312B25),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+      body: RefreshIndicator(
+        onRefresh: () => _load(reset: true),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFFFFF9EC), Color(0xFFFFEDCC)]),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('YOUR SARI UPDATES', style: TextStyle(color: BuyerTheme.goldDark,
+                  letterSpacing: 1.8, fontWeight: FontWeight.w800, fontSize: 10)),
+                const SizedBox(height: 6),
+                const Text('Activity that matters', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 4),
-                Text(
-                  activity.message,
-                  style: const TextStyle(
-                    color: Color(0xFF7C7369),
-                    fontSize: 9,
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 5,
-                  children: [
-                    _meta(activity.orderNumber),
-                    _meta(activity.storeName),
-                    _meta(activity.status.replaceAll('_', ' ')),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        activity.createdAt,
-                        style: const TextStyle(
-                          color: Color(0xFF9A9187),
-                          fontSize: 8,
-                        ),
-                      ),
-                    ),
-                    if (activity.orderId != null)
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('View order ›'),
-                      ),
-                  ],
-                ),
-              ],
+                Text('$_unread unread update${_unread == 1 ? '' : 's'}',
+                    style: const TextStyle(color: BuyerTheme.muted)),
+              ]),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _meta(String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F4EF),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        value,
-        style: const TextStyle(
-          color: Color(0xFF756B60),
-          fontSize: 7.5,
-          fontWeight: FontWeight.w600,
+            const SizedBox(height: 15),
+            Row(children: [
+              ChoiceChip(label: const Text('Latest'), selected: !_archived,
+                onSelected: (_) { setState(() => _archived = false); _load(reset: true); }),
+              const SizedBox(width: 8),
+              ChoiceChip(label: const Text('Archived'), selected: _archived,
+                onSelected: (_) { setState(() => _archived = true); _load(reset: true); }),
+              const Spacer(),
+              if (!_archived) TextButton(onPressed: _mutating ? null : _readAll,
+                child: const Text('Read all')),
+            ]),
+            if (_loading) const Padding(padding: EdgeInsets.all(25),
+                child: Center(child: CircularProgressIndicator()))
+            else if (_error != null)
+              Padding(padding: const EdgeInsets.all(18), child: Text(_error!,
+                  style: const TextStyle(color: Colors.red)))
+            else if (_items.isEmpty)
+              const Padding(padding: EdgeInsets.all(35), child: Center(
+                  child: Text('No activity yet.', style: TextStyle(color: BuyerTheme.muted))))
+            else ..._items.map(_activityRow),
+            if (!_loading && _page < _lastPage)
+              Center(child: OutlinedButton.icon(onPressed: _moreLoading ? null : () => _load(),
+                icon: const Icon(Icons.expand_more_rounded),
+                label: Text(_moreLoading ? 'Loading...' : 'Load more'))),
+          ],
         ),
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/sari_foreground_updates.dart';
 
 /// Shared entry point for the Rider shell's navigation drawer.
 class RiderMenuController {
@@ -81,17 +82,30 @@ class RiderHeaderActions extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _headerIcon(
-          tooltip: 'Messages',
-          icon: Icons.chat_bubble_outline_rounded,
-          onPressed: RiderHeaderController.messages,
-          count: unreadMessages,
+        AnimatedBuilder(
+          animation: SariForegroundUpdates.instance,
+          builder: (context, _) {
+            final updates = SariForegroundUpdates.instance;
+            return _headerIcon(
+              tooltip: 'Messages', icon: Icons.chat_bubble_outline_rounded,
+              onPressed: RiderHeaderController.messages,
+              count: updates.loaded && updates.role == 'rider'
+                  ? updates.unreadMessages : unreadMessages,
+            );
+          },
         ),
         const SizedBox(width: 8),
-        _headerIcon(
-          tooltip: 'Notifications',
-          icon: Icons.notifications_none_rounded,
-          onPressed: RiderHeaderController.notifications,
+        AnimatedBuilder(
+          animation: SariForegroundUpdates.instance,
+          builder: (context, _) {
+            final updates = SariForegroundUpdates.instance;
+            return _headerIcon(
+              tooltip: 'Notifications', icon: Icons.notifications_none_rounded,
+              onPressed: RiderHeaderController.notifications,
+              count: updates.loaded && updates.role == 'rider'
+                  ? updates.unreadNotifications : 0,
+            );
+          },
         ),
         const SizedBox(width: 8),
         Padding(
